@@ -19,7 +19,8 @@ const primeiro = (nome) => String(nome || '').split(' ')[0];
 const segunda = (dia) => { const d = new Date(dia + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7)); return d.toISOString().slice(0, 10); };
 const ontem = (dia) => new Date(new Date(dia + 'T00:00:00Z').getTime() - DIA_MS).toISOString().slice(0, 10);
 const PLAT = ['ios', 'android', 'windows', 'mac', 'linux', 'outro'];
-const dispLimpo = (d) => ({ pl: d && PLAT.includes(d.pl) ? d.pl : 'outro', inst: d && d.inst === true ? 1 : 0 });
+const FORMAS = ['tel', 'tab', 'pc'];
+const dispLimpo = (d) => ({ pl: d && PLAT.includes(d.pl) ? d.pl : 'outro', fm: d && FORMAS.includes(d.fm) ? d.fm : 'pc', inst: d && d.inst === true ? 1 : 0 });
 const horaLx = (ts) => Number(new Intl.DateTimeFormat('en-GB', { hour: '2-digit', hourCycle: 'h23', timeZone: 'Europe/Lisbon' }).format(ts));
 const chaveG = (per) => `rk:g:${per}`;
 const chaveT = (regime, local, per) => `rk:t:${regime}:${local}:${per}`;
@@ -54,7 +55,7 @@ async function registar(b, req) {
   const chave = randomBytes(16).toString('hex'), av = avatarLimpo(b.avatar), dp = dispLimpo(b.disp);
   const p = { nome, alc, regime, local };
   await pipe([
-    ['HSET', 'p:' + b.id, 'nome', nome, 'alc', alc, 'regime', regime, 'local', local, 'sal', sal, 'chave', chave, 'xp', 0, 'certas', 0, 'ctr', 0, 'criado', Date.now(), 'vis', Date.now(), 'pl', dp.pl, 'inst', dp.inst],
+    ['HSET', 'p:' + b.id, 'nome', nome, 'alc', alc, 'regime', regime, 'local', local, 'sal', sal, 'chave', chave, 'xp', 0, 'certas', 0, 'ctr', 0, 'criado', Date.now(), 'vis', Date.now(), 'pl', dp.pl, 'fm', dp.fm, 'inst', dp.inst],
     ['HSET', 'cards', b.id, cartao(p, av)],
   ]);
   return [200, { ok: 1, chave }];
@@ -72,7 +73,7 @@ async function sync(b) {
     if (pf.nome !== undefined) { const v = limpa(pf.nome, 40); if (v.length >= 2 && v !== nome) { nome = v; mudouCartao = true; cmds.push(['HSET', 'p:' + b.id, 'nome', nome]); } }
     if (pf.alc !== undefined) { const v = limpa(pf.alc, 16); if (v !== alc) { alc = v; mudouCartao = true; cmds.push(['HSET', 'p:' + b.id, 'alc', alc]); } }
     if (pf.avatar !== undefined) { av = avatarLimpo(pf.avatar); mudouCartao = true; }
-    if (pf.disp) { const dp = dispLimpo(pf.disp); cmds.push(['HSET', 'p:' + b.id, 'pl', dp.pl, 'inst', dp.inst]); }
+    if (pf.disp) { const dp = dispLimpo(pf.disp); cmds.push(['HSET', 'p:' + b.id, 'pl', dp.pl, 'fm', dp.fm, 'inst', dp.inst]); }
     cmds.push(['HSET', 'p:' + b.id, 'vis', Date.now()]);
     if (ehProf(p)) cmds.push(['SADD', 'profs', b.id]);
     // mudanca de turma: leva os pontos consigo
@@ -187,7 +188,7 @@ async function painel(b) {
   const lista = ids.map((id, i) => {
     const o = obj(rs[i]); if (!o.nome) return null;
     let c = {}; try { c = JSON.parse(cart[i] || '{}'); } catch { c = {}; }
-    return { id, nome: o.nome, alc: o.alc || '', regime: o.regime, local: o.local, xp: Number(o.xp) || 0, certas: Number(o.certas) || 0, criado: Number(o.criado) || 0, vis: Number(o.vis) || Number(o.criado) || 0, pl: o.pl || 'outro', inst: o.inst === '1', oc: o.oc === '1', prof: o.prof === '1', v: c.v || {} };
+    return { id, nome: o.nome, alc: o.alc || '', regime: o.regime, local: o.local, xp: Number(o.xp) || 0, certas: Number(o.certas) || 0, criado: Number(o.criado) || 0, vis: Number(o.vis) || Number(o.criado) || 0, pl: o.pl || 'outro', fm: o.fm || '', inst: o.inst === '1', oc: o.oc === '1', prof: o.prof === '1', v: c.v || {} };
   }).filter(Boolean).sort((x, y) => y.xp - x.xp);
   const serie = dias.map((d, k) => ({ d, c: Number(obj(rs[n + 1 + 2 * k]).c) || 0, a: Number(rs[n + 2 + 2 * k]) || 0 }));
   const hh = obj(rs[n + 1 + 28]), horas = Array.from({ length: 24 }, (_, h) => Number(hh[h]) || 0);

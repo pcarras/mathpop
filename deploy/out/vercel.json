@@ -1,1 +1,1 @@
-{"rewrites":[{"source":"/icons/:f","destination":"https://cdn.jsdelivr.net/gh/pcarras/mathpop@9c802f1cc8cc44dd840eae217cc00e276f4a3f3c/deploy/icons/:f"}]}
+{"rewrites":[{"source":"/icons/:f","destination":"https://cdn.jsdelivr.net/gh/pcarras/mathpop@b4d0ca07ec7ef5ae6e75ac9e2b4a22471432ee7c/deploy/icons/:f"}]}
