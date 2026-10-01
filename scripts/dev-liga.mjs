@@ -11,6 +11,7 @@ const CMD = {
   HSET: ([k, ...r]) => { const h = H(k); for (let i = 0; i < r.length; i += 2) h.set(r[i], r[i + 1]); return r.length / 2; },
   HGET: ([k, f]) => (db.get(k)?.get(f) ?? null), HMGET: ([k, ...f]) => f.map((x) => db.get(k)?.get(x) ?? null),
   HINCRBY: ([k, f, n]) => { const h = H(k); const v = (Number(h.get(f)) || 0) + Number(n); h.set(f, String(v)); return v; },
+  SCARD: ([k]) => (db.get(k)?.size || 0), SREM: ([k, m]) => (db.get(k)?.delete(m) ? 1 : 0), PING: () => 'PONG',
   HKEYS: ([k]) => [...(db.get(k)?.keys() || [])],
   HDEL: ([k, f]) => (db.get(k)?.delete(f) ? 1 : 0),
   SADD: ([k, ...m]) => { const s = H(k); let n = 0; for (const x of m) if (!s.has(x)) { s.set(x, 1); n++; } return n; }, SMEMBERS: ([k]) => [...(db.get(k)?.keys() || [])],

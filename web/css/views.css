@@ -104,3 +104,40 @@
 .seg button:focus-visible{outline:3px solid var(--ouro);outline-offset:2px}
 @media (max-width:380px){.entrada-t{font-size:38px}}
 .lista-simples{margin:6px 0 12px;padding-left:20px;color:var(--giz-2)} .lista-simples li{margin:4px 0}
+
+/* painel do professor e selo */
+.selo-prof{position:absolute;right:-3%;top:-3%;width:calc(var(--s)*.46);height:calc(var(--s)*.46);min-width:20px;min-height:20px;border-radius:50%;background:var(--noite);border:2px solid var(--ouro);display:grid;place-items:center;z-index:3;box-shadow:0 2px 6px rgba(0,0,0,.5)}
+.selo-prof .ico{width:70%;height:70%;vertical-align:0}
+.linha-liga.prof{border-color:var(--ouro);background:linear-gradient(90deg,rgba(255,194,61,.2),rgba(255,194,61,.05))}
+.kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:12px}
+.kpi{padding:12px 14px;border-radius:18px;background:linear-gradient(180deg,var(--painel-a),var(--painel-b));border:1px solid var(--borda)}
+.kpi b{display:block;font:900 38px/1 var(--display);color:var(--giz)}
+.kpi span{display:block;margin-top:4px;font-size:14px;font-weight:700;color:var(--giz)}
+.kpi small{display:block;margin-top:2px;color:var(--giz-2);font-size:12px}
+.grafico h3{margin:0 0 4px;font:800 20px var(--corpo)}
+.bh{display:grid;grid-template-columns:minmax(78px,32%) 1fr auto;gap:8px;align-items:center;margin:8px 0;font-size:14px}
+.bh-t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--giz-2)}
+.bh-b{height:14px;border-radius:999px;background:rgba(0,0,0,.35);overflow:hidden}
+.bh-b i{display:block;height:100%;border-radius:inherit}
+.bh b{font-size:13px;white-space:nowrap}
+.cols{display:flex;align-items:flex-end;gap:3px;height:124px;margin-top:10px}
+.cols .c{flex:1;min-width:0;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center}
+.cols .c i{display:block;width:100%;border-radius:6px 6px 2px 2px;min-height:0}
+.cols .c em{font:700 11px var(--corpo);font-style:normal;color:var(--giz-2);margin-bottom:2px}
+.cols-l{display:flex;gap:3px;margin-top:5px}
+.cols-l span{flex:1;min-width:0;text-align:center;font-size:11px;line-height:1.15;color:var(--giz-3)}
+.emp{display:flex;height:22px;border-radius:999px;overflow:hidden;margin:8px 0;background:rgba(0,0,0,.35)}
+.emp i{display:block;height:100%}
+.leg{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:13px;color:var(--giz-2)}
+.leg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px}
+.tabela-t{margin-top:8px;border-top:1px solid var(--borda)}
+.tabela-t div{display:grid;grid-template-columns:1fr;gap:0;padding:8px 0;border-bottom:1px solid rgba(62,102,189,.3);font-size:13px;color:var(--giz-2)}
+.tabela-t b{color:var(--giz);font-size:14px}
+.filtros{display:grid;gap:8px;margin:8px 0 6px}
+.filtros .campo{font-size:15px;padding:11px 12px}
+.jog{display:grid;grid-template-columns:auto 1fr auto;gap:4px 12px;align-items:center;padding:10px 12px;margin:8px 0;border-radius:18px;background:rgba(255,255,255,.05);border:1px solid rgba(62,102,189,.35)}
+.jog-c{min-width:0;display:flex;flex-direction:column;gap:1px}
+.jog-c b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.jog-c .nota{font-size:12px}
+.jog-d{display:flex;flex-direction:column;align-items:flex-end;gap:2px}
+.jog .btn{grid-column:1/-1;min-height:40px;font-size:13px;padding:0 12px}

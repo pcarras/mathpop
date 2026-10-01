@@ -23,7 +23,7 @@ export function go(rota) { const alvo = '#/' + rota; if (location.hash === alvo)
 function marcarNav(nome) { document.querySelectorAll('#barra button').forEach((b) => { if (b.dataset.go === (VISTAS[nome] ? nome : 'home')) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); }); }
 function atualizarTopo() {
   const s = estado(), nv = nivelDe(s.xp), n = sequencia(), d = diasAteTeste();
-  document.getElementById('topo-id').innerHTML = `${avatarHTML(s.avatar, { s: 44 })}<span class="topo-nome"><b>${(s.perfil.alcunha || (s.perfil.nome || '').split(' ')[0] || 'Jogador').replace(/[<>&]/g, '')}</b><small>${s.liga.prof ? 'Professor' : nv.titulo}</small></span>`;
+  document.getElementById('topo-id').innerHTML = `${avatarHTML(s.avatar, { s: 44, selo: !!s.liga.prof })}<span class="topo-nome"><b>${(s.perfil.alcunha || (s.perfil.nome || '').split(' ')[0] || 'Jogador').replace(/[<>&]/g, '')}</b><small>${s.liga.prof ? 'Professor' : nv.titulo}</small></span>`;
   document.getElementById('topo-dir').innerHTML = `<span class="chip chama" title="Dias seguidos">${icon('chama')}${n}</span><span class="chip" title="Dias até ao teste">${d > 0 ? d + ' d' : 'Hoje'}</span><button class="icon-btn" id="btnSom" aria-label="${s.som !== false ? 'Desligar sons' : 'Ligar sons'}">${icon(s.som !== false ? 'som' : 'mudo')}</button>`;
   document.getElementById('btnSom').addEventListener('click', () => { alternarSom(); sfx.clique(); atualizarTopo(); });
 }

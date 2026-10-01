@@ -33,7 +33,20 @@ with sync_playwright() as p:
     pr.screenshot(path=f'{OUT}/prof_def.png')
     pr.fill('#codProf', 'codigo-de-teste'); pr.click('#okProf'); pr.wait_for_selector('text=Estás reconhecido como professor', timeout=8000); print('Reconhecido; topo:', pr.inner_text('.topo-nome').replace('\n', ' '))
     pr.goto(base + '#/liga'); pr.wait_for_selector('#abrePainel'); pr.wait_for_selector('.podio', timeout=8000); print('Podio do prof:', pr.inner_text('.podio').replace('\n', ' | ')); print('Msg:', pr.inner_text('section.painel >> nth=1').replace('\n', ' ')); pr.screenshot(path=f'{OUT}/prof_liga.png')
-    pr.click('#abrePainel'); pr.wait_for_selector('[data-oc]', timeout=8000); print('Painel:', pr.inner_text('#corpo').replace('\n', ' ')); pr.screenshot(path=f'{OUT}/prof_painel.png')
-    pr.click('[data-oc="1"]'); pr.wait_for_selector('[data-oc="0"]'); print('Botao agora:', pr.inner_text('[data-oc="0"]'))
-    al.goto(base + '#/liga'); al.wait_for_selector('.podio', timeout=8000); print('Aluno ve o seu nome na tabela:', al.inner_text('.podio').replace('\n', ' | '))
+    # avatar: aluno tem itens trancados, professor nao
+    for pg, nm in [(al, 'aluno'), (pr, 'professor')]:
+        pg.goto(base + '#/perfil'); pg.reload(); pg.wait_for_selector('.item'); pg.click('[data-aba=avatar]') if pg.locator('[data-aba=avatar]').count() else None
+        print(f'Itens trancados no nivel 0 ({nm}):', pg.evaluate("import('/js/ui/avatar.js').then(m => ['top','clothing','accessories','fundo','moldura'].reduce((n, c) => n + m.categoria(c).opcoes.filter((o) => !m.desbloqueado(o, 0)).length, 0))"))
+    pr.goto(base + '#/liga'); pr.reload(); pr.wait_for_selector('#abrePainel')
+    print('Selo no topo do professor:', pr.locator('#topo-id .selo-prof').count(), '| no do aluno:', al.locator('#topo-id .selo-prof').count())
+    al.goto(base + '#/liga'); al.reload(); al.wait_for_selector('.podio', timeout=8000); print('Aluno ve linha do professor:', al.locator('.linha-liga.prof').count(), al.inner_text('.linha-liga.prof').replace('\n', ' ') if al.locator('.linha-liga.prof').count() else '')
+    print('Periodo ainda existe:', al.locator('[data-periodo]').count()); al.screenshot(path=f'{OUT}/aluno_liga.png')
+    pr.click('#abrePainel'); pr.wait_for_selector('.jog', timeout=8000); pr.wait_for_timeout(500)
+    print('KPIs:', pr.inner_text('.kpis').replace('\n', ' | ')); pr.screenshot(path=f'{OUT}/prof_painel_topo.png')
+    pr.screenshot(path=f'{OUT}/prof_painel_completo.png', full_page=True)
+    print('Jogadores na lista:', pr.locator('.jog').count(), '| avatares:', pr.locator('.jog .av').count())
+    pr.click('.jog [data-oc="1"]'); pr.wait_for_selector('.jog [data-oc="0"]'); print('Botao agora:', pr.inner_text('.jog [data-oc="0"]'))
+    pr.fill('#busca', 'zzz'); print('Busca sem resultado:', pr.inner_text('#lista')); pr.fill('#busca', '')
+    with pr.expect_download() as dl: pr.click('#baixaCsv')
+    print('CSV:', dl.value.suggested_filename)
     print('ERROS:', ea, ep); b.close()

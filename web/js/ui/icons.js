@@ -8,6 +8,7 @@ const P = {
   estrela: '<path d="m12 2.5 2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4 6.1 20.5l1.2-6.5L2.5 9.4l6.6-.9z" fill="url(#gOuro)" stroke="#B97F08" stroke-width="1" stroke-linejoin="round"/>',
   estrelaVazia: '<path d="m12 2.5 2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4 6.1 20.5l1.2-6.5L2.5 9.4l6.6-.9z" fill="rgba(255,255,255,.08)" stroke="rgba(255,255,255,.3)" stroke-width="1.2" stroke-linejoin="round"/>',
   raio: '<path d="M13.5 2 5 13.5h6L9.5 22 19 9.5h-6.2z" fill="url(#gOuro)" stroke="#B97F08" stroke-width="1" stroke-linejoin="round"/>',
+  capelo: '<path d="M12 3.5 1.8 8.6 12 13.7l10.2-5.1z" fill="url(#gOuro)" stroke="#B97F08" stroke-width="1.1" stroke-linejoin="round"/><path d="M6 11.4v4.3c0 1.5 2.7 3 6 3s6-1.5 6-3v-4.3L12 14.4z" fill="url(#gOuro)" stroke="#B97F08" stroke-width="1.1" stroke-linejoin="round"/><path d="M21 9.2v6.3" stroke="#B97F08" stroke-width="1.6" stroke-linecap="round"/><circle cx="21" cy="16.4" r="1.3" fill="#FFC23D" stroke="#B97F08" stroke-width=".8"/>',
   coroa: '<path d="M3 8l4.5 4L12 5l4.5 7L21 8l-2 11H5z" fill="url(#gOuro)" stroke="#B97F08" stroke-width="1" stroke-linejoin="round"/>',
   cadeado: '<rect x="5" y="10" width="14" height="11" rx="2.5" fill="currentColor"/><path d="M8 10V7.5a4 4 0 0 1 8 0V10" fill="none" stroke="currentColor" stroke-width="2.4"/>',
   bau: '<path d="M3 11a9 7 0 0 1 18 0v2H3z" fill="#B97F08"/><rect x="3" y="12" width="18" height="9" rx="1.5" fill="#E2A412"/><rect x="10" y="11" width="4" height="6" rx="1" fill="#FFF1B0" stroke="#7A5204"/><path d="M3 12h18" stroke="#7A5204" stroke-width="1.2"/>',

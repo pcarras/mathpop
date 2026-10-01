@@ -16,11 +16,18 @@ async function post(corpo) {
   let j = {}; try { j = await r.json(); } catch { /* sem corpo */ }
   return { status: r.status, ...j };
 }
-const instantaneo = () => { const s = estado(), p = s.perfil; return { nome: p.nome, alc: p.alcunha || '', regime: p.regime, local: p.local, avatar: s.avatar }; };
+// plataforma e se a app esta instalada (so isto, para o professor ver a adesao)
+export function dispositivo() {
+  const ua = navigator.userAgent || ''; let pl = 'outro';
+  if (/iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)) pl = 'ios'; else if (/Android/.test(ua)) pl = 'android'; else if (/Windows/.test(ua)) pl = 'windows'; else if (/Macintosh|Mac OS/.test(ua)) pl = 'mac'; else if (/Linux|X11|CrOS/.test(ua)) pl = 'linux';
+  let inst = false; try { inst = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true; } catch { /* sem matchMedia */ }
+  return { pl, inst };
+}
+const instantaneo = () => { const s = estado(), p = s.perfil; return { nome: p.nome, alc: p.alcunha || '', regime: p.regime, local: p.local, avatar: s.avatar, disp: dispositivo() }; };
 
 export async function entrarNaLiga() {
   const s = estado(), L = s.liga, p = s.perfil;
-  const corpo = () => ({ a: 'registar', id: p.id, sal: s.sal, nome: p.nome, alc: p.alcunha || '', regime: p.regime, local: p.local, avatar: s.avatar, consentimento: true });
+  const corpo = () => ({ a: 'registar', id: p.id, sal: s.sal, nome: p.nome, alc: p.alcunha || '', regime: p.regime, local: p.local, avatar: s.avatar, disp: dispositivo(), consentimento: true });
   let r = await post(corpo());
   if (r.status === 409) { p.id = crypto.randomUUID(); r = await post(corpo()); }
   if (r.status === 200 && r.chave) { L.chave = r.chave; L.prof = 0; L.aceitou = Date.now(); L.visto = JSON.stringify(instantaneo()); L.fila = []; L.xp = 0; gravar(); return { ok: true }; }
@@ -32,7 +39,7 @@ export function enfileirar(ev) {
 }
 export function agendar(ms = 20000) { clearTimeout(timer); timer = setTimeout(() => { sincronizar(); }, ms); }
 // envia a fila (e o perfil, se mudou). Devolve {ok, xp}. Nunca lanca erro.
-export function sincronizar() {
+export function sincronizar(forcar = false) {
   if (aCorrer) return aCorrer;
   const L = estado().liga; if (!L.chave) return Promise.resolve({ ok: false, erro: 'fora' });
   const exec = (async () => {
@@ -40,7 +47,7 @@ export function sincronizar() {
     try {
       for (let volta = 0; volta < 20; volta++) {
         const snap = JSON.stringify(instantaneo()), lote = L.fila.slice(0, 50);
-        if (!lote.length && snap === L.visto) return { ok: true, xp: L.xp };
+        if (!lote.length && snap === L.visto && !(forcar && volta === 0)) return { ok: true, xp: L.xp };
         const corpo = { a: 'sync', id: estado().perfil.id, chave: L.chave, ev: lote };
         if (snap !== L.visto) corpo.perfil = JSON.parse(snap);
         const r = await post(corpo);
@@ -85,5 +92,7 @@ export async function ocultarAluno(alvo, oculto) {
 export function iniciarLiga() {
   addEventListener('online', () => { if (naLiga()) sincronizar(); });
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && naLiga() && estado().liga.fila.length) sincronizar(); });
-  if (naLiga()) agendar(3000);
+  let ultimoPing = 0; const ping = () => { if (naLiga() && Date.now() - ultimoPing > 30 * 60000) { ultimoPing = Date.now(); sincronizar(true); } };
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') ping(); });
+  if (naLiga()) setTimeout(ping, 3000);
 }

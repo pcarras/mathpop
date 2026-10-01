@@ -18,6 +18,9 @@ const avatarLimpo = (av) => { const o = {}; if (av && typeof av === 'object') fo
 const primeiro = (nome) => String(nome || '').split(' ')[0];
 const segunda = (dia) => { const d = new Date(dia + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7)); return d.toISOString().slice(0, 10); };
 const ontem = (dia) => new Date(new Date(dia + 'T00:00:00Z').getTime() - DIA_MS).toISOString().slice(0, 10);
+const PLAT = ['ios', 'android', 'windows', 'mac', 'linux', 'outro'];
+const dispLimpo = (d) => ({ pl: d && PLAT.includes(d.pl) ? d.pl : 'outro', inst: d && d.inst === true ? 1 : 0 });
+const horaLx = (ts) => Number(new Intl.DateTimeFormat('en-GB', { hour: '2-digit', hourCycle: 'h23', timeZone: 'Europe/Lisbon' }).format(ts));
 const chaveG = (per) => `rk:g:${per}`;
 const chaveT = (regime, local, per) => `rk:t:${regime}:${local}:${per}`;
 
@@ -48,10 +51,10 @@ async function registar(b, req) {
   if (n === 1) await cmd('EXPIRE', `rl:r:${ip}:${Math.floor(Date.now() / 3600000)}`, 7200);
   if (n > 300) return [429, { erro: 'muitos_pedidos' }];
   if (await cmd('EXISTS', 'p:' + b.id)) return [409, { erro: 'existe' }];
-  const chave = randomBytes(16).toString('hex'), av = avatarLimpo(b.avatar);
+  const chave = randomBytes(16).toString('hex'), av = avatarLimpo(b.avatar), dp = dispLimpo(b.disp);
   const p = { nome, alc, regime, local };
   await pipe([
-    ['HSET', 'p:' + b.id, 'nome', nome, 'alc', alc, 'regime', regime, 'local', local, 'sal', sal, 'chave', chave, 'xp', 0, 'certas', 0, 'ctr', 0, 'criado', Date.now()],
+    ['HSET', 'p:' + b.id, 'nome', nome, 'alc', alc, 'regime', regime, 'local', local, 'sal', sal, 'chave', chave, 'xp', 0, 'certas', 0, 'ctr', 0, 'criado', Date.now(), 'vis', Date.now(), 'pl', dp.pl, 'inst', dp.inst],
     ['HSET', 'cards', b.id, cartao(p, av)],
   ]);
   return [200, { ok: 1, chave }];
@@ -69,6 +72,9 @@ async function sync(b) {
     if (pf.nome !== undefined) { const v = limpa(pf.nome, 40); if (v.length >= 2 && v !== nome) { nome = v; mudouCartao = true; cmds.push(['HSET', 'p:' + b.id, 'nome', nome]); } }
     if (pf.alc !== undefined) { const v = limpa(pf.alc, 16); if (v !== alc) { alc = v; mudouCartao = true; cmds.push(['HSET', 'p:' + b.id, 'alc', alc]); } }
     if (pf.avatar !== undefined) { av = avatarLimpo(pf.avatar); mudouCartao = true; }
+    if (pf.disp) { const dp = dispLimpo(pf.disp); cmds.push(['HSET', 'p:' + b.id, 'pl', dp.pl, 'inst', dp.inst]); }
+    cmds.push(['HSET', 'p:' + b.id, 'vis', Date.now()]);
+    if (ehProf(p)) cmds.push(['SADD', 'profs', b.id]);
     // mudanca de turma: leva os pontos consigo
     const novoRegime = REGIMES.includes(pf.regime) ? pf.regime : regime, novoLocal = LOCAIS.includes(pf.local) ? pf.local : local;
     if (novoRegime !== regime || novoLocal !== local) {
@@ -88,7 +94,7 @@ async function sync(b) {
     const evs = (Array.isArray(b.ev) ? b.ev : []).slice(0, MAX_EVENTOS).filter((e) => e && typeof e === 'object').sort((x, y) => (Number(x.ts) || 0) - (Number(y.ts) || 0) || (Number(x.s) || 0) - (Number(y.s) || 0));
     if (evs.length) {
       const sal = Number(p.sal), diasSet = new Set((await cmd('SMEMBERS', 'dias:' + b.id)) || []);
-      const contDia = {}; const porDiaTipo = {}; const porSemana = {}; const novosDias = new Set();
+      const contDia = {}; const porDiaTipo = {}; const porSemana = {}; const novosDias = new Set(); const est = { dias: {}, horas: {}, tipos: {} };
       for (const e of evs) {
         const ts = Number(e.ts), t = String(e.t), n = Number(e.n), pistas = Number(e.p), s = Number(e.s);
         if (!TIPOS.includes(t) || ![1, 2, 3].includes(n) || !Number.isInteger(pistas) || pistas < 0 || pistas > 5 || !Number.isInteger(s) || s < 0 || s > 4294967295 || !Number.isFinite(ts) || ts < agora - 3 * DIA_MS || ts > agora + 5 * 60000) { rejeitados++; continue; }
@@ -106,12 +112,19 @@ async function sync(b) {
         let xp = xpTreino({ nivel: n, pistas, nHoje: cd[t] || 0, dias: streak }); if (e.e) xp = Math.round(xp * 0.5);
         cd[t] = (cd[t] || 0) + 1; (porDiaTipo[dia] ||= {})[t] = (porDiaTipo[dia][t] || 0) + 1;
         const wk = segunda(dia); porSemana[wk] = (porSemana[wk] || 0) + xp; somaXP += xp; aceites++; ctr = c;
+        est.dias[dia] = (est.dias[dia] || 0) + 1; const hr = horaLx(ts); est.horas[hr] = (est.horas[hr] || 0) + 1;
+        const te = (est.tipos[t] ||= { n: 0, e: 0, p: 0 }); te.n++; if (e.e) te.e++; if (pistas > 0) te.p++;
       }
       if (ctr !== (Number(p.ctr) || 0)) cmds.push(['HSET', 'p:' + b.id, 'ctr', ctr]);
       if (aceites) {
         cmds.push(['HINCRBY', 'p:' + b.id, 'certas', aceites]);
         for (const dia of Object.keys(porDiaTipo)) { for (const t of Object.keys(porDiaTipo[dia])) cmds.push(['HINCRBY', `d:${b.id}:${dia}`, t, porDiaTipo[dia][t]]); cmds.push(['EXPIRE', `d:${b.id}:${dia}`, 3456000]); }
         cmds.push(['SADD', 'dias:' + b.id, ...novosDias]);
+        if (!ehProf(p)) { // estatisticas agregadas para o painel do professor (o professor nao conta)
+          for (const dia of Object.keys(est.dias)) cmds.push(['HINCRBY', 'st:d:' + dia, 'c', est.dias[dia]], ['EXPIRE', 'st:d:' + dia, 8000000], ['SADD', 'st:a:' + dia, b.id], ['EXPIRE', 'st:a:' + dia, 8000000]);
+          for (const hr of Object.keys(est.horas)) cmds.push(['HINCRBY', 'st:h', hr, est.horas[hr]]);
+          for (const t of Object.keys(est.tipos)) { const x = est.tipos[t]; cmds.push(['HINCRBY', 'st:t', t + ':n', x.n]); if (x.e) cmds.push(['HINCRBY', 'st:t', t + ':e', x.e]); if (x.p) cmds.push(['HINCRBY', 'st:t', t + ':p', x.p]); }
+        }
         if (somaXP > 0 && !ehProf(p)) {
           cmds.push(['ZINCRBY', chaveG('tot'), somaXP, b.id], ['ZINCRBY', chaveT(regime, local, 'tot'), somaXP, b.id]);
           for (const wk of Object.keys(porSemana)) if (porSemana[wk] > 0) for (const k of [chaveG(wk), chaveT(regime, local, wk)]) cmds.push(['ZINCRBY', k, porSemana[wk], b.id], ['EXPIRE', k, 7776000]);
@@ -126,21 +139,22 @@ async function sync(b) {
 
 async function ranking(b) {
   const p = await autenticar(b); if (!p) return [401, { erro: 'auth' }];
-  const wk = segunda(diaChave()), per = b.periodo === 'total' ? 'tot' : wk;
+  const wk = segunda(diaChave()), per = b.periodo === 'semana' ? wk : 'tot';
   const geral = b.escopo === 'geral', key = geral ? chaveG(per) : chaveT(p.regime, p.local, per);
-  const [topo, pos, pts, total] = await pipe([['ZREVRANGE', key, 0, 29, 'WITHSCORES'], ['ZREVRANK', key, b.id], ['ZSCORE', key, b.id], ['ZCARD', key]]);
+  const [topo, pos, pts, total, ps] = await pipe([['ZREVRANGE', key, 0, 29, 'WITHSCORES'], ['ZREVRANK', key, b.id], ['ZSCORE', key, b.id], ['ZCARD', key], ['SMEMBERS', 'profs']]);
   const lista = []; for (let i = 0; i + 1 < topo.length; i += 2) lista.push([topo[i], Number(topo[i + 1])]);
-  const ids = lista.map((x) => x[0]); const eu = lista.some((x) => x[0] === b.id);
-  const cartoes = ids.length ? await cmd('HMGET', 'cards', ...ids) : [];
+  const ids = lista.map((x) => x[0]); const eu = lista.some((x) => x[0] === b.id), pids = (ps || []).slice(0, 5);
+  const cartoes = ids.length || pids.length ? await cmd('HMGET', 'cards', ...ids, ...pids) : [];
   const out = lista.map(([id, xp], i) => { let c = {}; try { c = JSON.parse(cartoes[i] || '{}'); } catch { /* sem cartao */ } return { pos: i + 1, alc: c.a || 'Aluno', v: c.v || {}, xp, eu: id === b.id, t: geral ? `${c.l === 'faro' ? 'Faro' : 'Portimão'} ${c.r === 'noturno' ? 'noturno' : 'diurno'}` : undefined }; });
-  return [200, { ok: 1, lista: out.filter((x) => x.xp > 0), minha: pos === null ? null : { pos: Number(pos) + 1, xp: Number(pts), fora: !eu }, total: Number(total), turma: { regime: p.regime, local: p.local }, semana: wk, prof: ehProf(p) }];
+  const profs = pids.map((id, j) => { let c = {}; try { c = JSON.parse(cartoes[ids.length + j] || '{}'); } catch { /* sem cartao */ } return c.a ? { alc: c.a, v: c.v || {} } : null; }).filter(Boolean);
+  return [200, { ok: 1, lista: out.filter((x) => x.xp > 0), minha: pos === null ? null : { pos: Number(pos) + 1, xp: Number(pts), fora: !eu }, total: Number(total), turma: { regime: p.regime, local: p.local }, semana: wk, prof: ehProf(p), profs }];
 }
 
 async function apagar(b) {
   const p = await autenticar(b); if (!p) return [401, { erro: 'auth' }];
   const dias = await tirarDoRanking(b.id, p), cmds = [];
   for (const d of dias) cmds.push(['DEL', `d:${b.id}:${d}`]);
-  cmds.push(['DEL', 'dias:' + b.id], ['HDEL', 'cards', b.id], ['DEL', 'p:' + b.id]);
+  cmds.push(['DEL', 'dias:' + b.id], ['HDEL', 'cards', b.id], ['SREM', 'profs', b.id], ['DEL', 'p:' + b.id]);
   await pipe(cmds);
   return [200, { ok: 1 }];
 }
@@ -157,19 +171,29 @@ async function professor(b, req) {
   if (n1 > 8 || n2 > 40) return [429, { erro: 'muitos_pedidos' }];
   if (typeof b.codigo !== 'string' || !igual(sha256(b.codigo.trim()), sha256(segredo))) return [403, { erro: 'codigo' }];
   await tirarDoRanking(b.id, p);
-  await cmd('HSET', 'p:' + b.id, 'prof', 1);
+  await pipe([['HSET', 'p:' + b.id, 'prof', 1], ['SADD', 'profs', b.id]]);
   return [200, { ok: 1 }];
 }
 
 async function autenticarProf(b) { const p = await autenticar(b); return ehProf(p) ? p : null; }
 
-// painel do professor: todos os jogadores com nome real
+// painel do professor: todos os jogadores com nome real, avatar, aparelho e estatisticas agregadas
 async function painel(b) {
   const p = await autenticarProf(b); if (!p) return [403, { erro: 'prof' }];
   const ids = ((await cmd('HKEYS', 'cards')) || []).filter(idOk).slice(0, 400);
-  const rs = ids.length ? await pipe(ids.map((id) => ['HGETALL', 'p:' + id])) : [];
-  const lista = ids.map((id, i) => { const o = obj(rs[i]); return o.nome ? { id, nome: o.nome, alc: o.alc || '', regime: o.regime, local: o.local, xp: Number(o.xp) || 0, certas: Number(o.certas) || 0, criado: Number(o.criado) || 0, oc: o.oc === '1', prof: o.prof === '1' } : null; }).filter(Boolean).sort((x, y) => y.xp - x.xp);
-  return [200, { ok: 1, lista }];
+  const dias = Array.from({ length: 14 }, (_, k) => diaChave(new Date(Date.now() - (13 - k) * DIA_MS)));
+  const cmds = [...ids.map((id) => ['HGETALL', 'p:' + id]), ids.length ? ['HMGET', 'cards', ...ids] : ['PING'], ...dias.flatMap((d) => [['HGETALL', 'st:d:' + d], ['SCARD', 'st:a:' + d]]), ['HGETALL', 'st:h'], ['HGETALL', 'st:t']];
+  const rs = await pipe(cmds), n = ids.length, cart = ids.length ? rs[n] : [];
+  const lista = ids.map((id, i) => {
+    const o = obj(rs[i]); if (!o.nome) return null;
+    let c = {}; try { c = JSON.parse(cart[i] || '{}'); } catch { c = {}; }
+    return { id, nome: o.nome, alc: o.alc || '', regime: o.regime, local: o.local, xp: Number(o.xp) || 0, certas: Number(o.certas) || 0, criado: Number(o.criado) || 0, vis: Number(o.vis) || Number(o.criado) || 0, pl: o.pl || 'outro', inst: o.inst === '1', oc: o.oc === '1', prof: o.prof === '1', v: c.v || {} };
+  }).filter(Boolean).sort((x, y) => y.xp - x.xp);
+  const serie = dias.map((d, k) => ({ d, c: Number(obj(rs[n + 1 + 2 * k]).c) || 0, a: Number(rs[n + 2 + 2 * k]) || 0 }));
+  const hh = obj(rs[n + 1 + 28]), horas = Array.from({ length: 24 }, (_, h) => Number(hh[h]) || 0);
+  const tt = obj(rs[n + 2 + 28]), tipos = {};
+  for (const t of TIPOS) tipos[t] = { n: Number(tt[t + ':n']) || 0, e: Number(tt[t + ':e']) || 0, p: Number(tt[t + ':p']) || 0 };
+  return [200, { ok: 1, lista, dias: serie, horas, tipos, agora: Date.now() }];
 }
 
 async function ocultar(b) {

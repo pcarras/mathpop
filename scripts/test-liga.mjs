@@ -75,4 +75,16 @@ r = await post({ a: 'sync', id: ana.id, chave: ana.chave, ev: [], perfil: { alc:
 r = await post({ a: 'ocultar', id: prof.id, chave: prof.chave, alvo: ana.id, oculto: false }); r = await post({ a: 'ranking', id: eva.id, chave: eva.chave, escopo: 'geral', periodo: 'total' }); ok(r.lista.some((x) => x.alc === 'NovaAlc'), 'professor volta a mostrar a alcunha');
 r = await post({ a: 'ocultar', id: prof.id, chave: prof.chave, alvo: 'nao-existe', oculto: true }); ok(r.s === 400, 'alvo invalido recusado');
 for (let i = 0; i < 9; i++) r = await post({ a: 'professor', id: eva.id, chave: eva.chave, codigo: 'tentativa' + i }); ok(r.s === 429, 'tentativas de codigo limitadas');
+// painel completo, aparelhos e estatisticas
+const mar = jogador('Mar'); r = await post({ a: 'registar', id: mar.id, sal: mar.sal, nome: 'Maria Mar', alc: 'Marzinha', regime: 'noturno', local: 'portimao', avatar: { top: 'bob' }, disp: { pl: 'ios', inst: true }, consentimento: true }); mar.chave = r.chave;
+r = await post({ a: 'sync', id: mar.id, chave: mar.chave, ev: [certo(mar, 'inversa', 2, { e: true }), certo(mar, 'inversa', 2, { p: 2 }), certo(mar, 'produto', 1)] }); ok(r.aceites === 3, 'Mar 3 certas para as estatisticas');
+r = await post({ a: 'sync', id: ana.id, chave: ana.chave, ev: [], perfil: { disp: { pl: 'android', inst: false } } }); ok(r.s === 200, 'disp de Ana atualizado');
+r = await post({ a: 'painel', id: prof.id, chave: prof.chave }); const pm = r.lista?.find((x) => x.id === mar.id), pa = r.lista?.find((x) => x.id === ana.id);
+ok(r.s === 200 && pm && pm.pl === 'ios' && pm.inst === true && pm.nome === 'Maria Mar' && JSON.stringify(pm.v).includes('bob'), 'painel traz aparelho, instalada, nome real e avatar');
+ok(pa && pa.pl === 'android' && pa.inst === false, 'aparelho da Ana: android no browser');
+ok(Array.isArray(r.dias) && r.dias.length === 14 && r.dias[13].c >= 3 && r.dias[13].a >= 2, `serie de 14 dias com atividade de hoje (${JSON.stringify(r.dias?.[13])})`);
+ok(r.horas.length === 24 && r.horas.reduce((a, x) => a + x, 0) >= 3, 'horas do dia somam as respostas');
+ok(r.tipos.inversa.n >= 2 && r.tipos.inversa.e === 1 && r.tipos.inversa.p === 1, `tipos: inversa n>=2, e1, p1 (${JSON.stringify(r.tipos.inversa)})`);
+const antesProf = r.tipos.produto.n; r = await post({ a: 'sync', id: prof.id, chave: prof.chave, ev: [certo(prof, 'produto', 1)] }); r = await post({ a: 'painel', id: prof.id, chave: prof.chave }); ok(r.tipos.produto.n === antesProf, 'treino do professor nao entra nas estatisticas');
+r = await post({ a: 'ranking', id: eva.id, chave: eva.chave, escopo: 'geral', periodo: 'total' }); ok(r.profs.length === 1 && r.profs[0].alc === 'ProfAlc', 'alunos veem o professor numa lista a parte');
 console.log(falhas ? `\n${falhas} FALHAS` : '\nTodos os testes passaram'); process.exit(falhas ? 1 : 0);

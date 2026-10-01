@@ -2,6 +2,7 @@
 import { createAvatar, avataaars } from '../../vendor/dicebear.js';
 import { estado, AVATAR_PADRAO } from '../store.js';
 import { nivelDe, NIVEIS, NIVEL_DA_RARIDADE } from '../rules.js';
+import { icon } from './icons.js';
 
 // Cada item: [id, nome, nivelMinimo]. Nivel 0 = livre desde o inicio; so os itens mais radicais ou com adereços engraçados ficam para ganhar.
 const O = (lista) => lista.map(([id, nome, nivel = 0]) => ({ id, nome, nivel }));
@@ -40,7 +41,7 @@ export const RARIDADE = ['Comum', 'Incomum', 'Rara', 'Épica', 'Lendária', 'Mí
 export const categoria = (id) => CATEGORIAS.find((c) => c.id === id);
 export const nivelDoItem = (item) => NIVEL_DA_RARIDADE[Math.min(5, item.nivel)];
 export const nomeNivelDoItem = (item) => NIVEIS[nivelDoItem(item)][1];
-export const desbloqueado = (item, nivelIdx) => nivelDoItem(item) <= nivelIdx;
+export const desbloqueado = (item, nivelIdx) => !!estado().liga.prof || nivelDoItem(item) <= nivelIdx;
 export const nivelAtual = () => nivelDe(estado().xp).indice;
 export function desbloqueiosDoNivel(idx) {
   const out = []; for (const c of CATEGORIAS) for (const o of c.opcoes) if (nivelDoItem(o) === idx && !(c.tipo === 'cor')) out.push(`${c.nome}: ${o.nome}`);
@@ -58,10 +59,10 @@ export function svgAvatar(cfg) {
 }
 // HTML do avatar com fundo e moldura. opcoes: {s: tamanho px, quadrado, nivel: mostra distintivo}
 let semente = 0;
-export function avatarHTML(cfg = estado().avatar, { s = 48, quadrado = false, nivel = null, anim = false } = {}) {
+export function avatarHTML(cfg = estado().avatar, { s = 48, quadrado = false, nivel = null, anim = false, selo = false } = {}) {
   const c = { ...AVATAR_PADRAO, ...cfg };
   const d = anim ? ` anima" style="--s:${s}px;--d:${-((semente++ * 2.3) % 7).toFixed(1)}s;--d2:${-((semente * 3.7) % 9).toFixed(1)}s` : `" style="--s:${s}px`;
-  return `<span class="av ${quadrado ? 'quadrado' : ''}${d}"><span class="av-arte av-fundo-${c.fundo}">${svgAvatar(c)}</span><span class="moldura m${c.moldura}"></span>${nivel != null ? `<span class="nivel-badge">${nivel}</span>` : ''}</span>`;
+  return `<span class="av ${quadrado ? 'quadrado' : ''}${d}"><span class="av-arte av-fundo-${c.fundo}">${svgAvatar(c)}</span><span class="moldura m${c.moldura}"></span>${nivel != null ? `<span class="nivel-badge">${nivel}</span>` : ''}${selo ? `<span class="selo-prof" title="Professor">${icon('capelo')}</span>` : ''}</span>`;
 }
 export function avatarAleatorio(nivelIdx, rng = Math.random, genero = estado().avatar.genero || 'h') {
   const cfg = { ...AVATAR_PADRAO, genero };
