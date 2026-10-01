@@ -10,7 +10,7 @@ export function missoesDeHoje() {
   const pool = [
     { id: 'certas5', txt: 'Resolve 5 exercícios', alvo: 5, xp: 20, prog: (h) => h.certas },
     { id: 'sem3', txt: 'Acerta 3 sem usar pistas', alvo: 3, xp: 30, prog: (h) => h.semPistas },
-    { id: 'passos1', txt: 'Faz um desafio por passos', alvo: 1, xp: 30, prog: (h) => h.desafios },
+    { id: 'sem5', txt: 'Acerta 5 sem usar pistas', alvo: 5, xp: 40, prog: (h) => h.semPistas },
     { id: 'tipo:' + t, txt: `Treina ${NOMES[t]} 3 vezes`, alvo: 3, xp: 25, prog: (h) => h.n[t] || 0 },
     { id: 'certas10', txt: 'Resolve 10 exercícios', alvo: 10, xp: 40, prog: (h) => h.certas },
   ];

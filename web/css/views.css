@@ -7,7 +7,7 @@
 .mapa-cx{padding:8px 4px}
 .mapa{width:100%;height:auto;display:block;overflow:visible}
 .mapa .glifo{font:900 22px var(--display);fill:#fff;letter-spacing:.3px} .mapa .rot{font:800 15px var(--display);fill:var(--giz);letter-spacing:.4px}
-.mapa .balao{font:700 20px var(--giz-fonte);fill:#FFE9A6}
+.mapa .balao{font:800 15px var(--giz-fonte);fill:#FFE9A6}
 .mapa .no{cursor:pointer;outline:none} .mapa .no:hover polygon:nth-of-type(2),.mapa .no:focus-visible polygon:nth-of-type(2){filter:brightness(1.25)}
 .mapa .no:focus-visible{filter:drop-shadow(0 0 6px #27D8E0)}
 .mapa .pulso{fill:none;stroke:var(--ciano);stroke-width:3;transform-box:fill-box;transform-origin:center;animation:pulsa 1.8s ease-out infinite}
@@ -19,7 +19,7 @@
 .combo{font:900 22px var(--display);color:var(--chama);display:flex;align-items:center;gap:2px}
 .pista-cx{border-left:4px solid var(--ouro);background:linear-gradient(90deg,rgba(255,194,61,.14),transparent);padding:10px 14px;margin:10px 0;border-radius:0 14px 14px 0;animation:aparece .3s both}
 .pista-cx small{color:var(--ouro);font-weight:800}
-.dock{position:fixed;left:0;right:0;bottom:0;z-index:35}
+.dock{position:fixed;left:max(0px,calc(50% - 360px));right:max(0px,calc(50% - 360px));bottom:0;z-index:35}
 .dock .acoes{display:flex;gap:10px;padding:0 12px 10px}
 .dock .acoes .btn{flex:1}
 .tipo-cartao{display:flex;align-items:center;gap:14px;width:100%;text-align:left;margin:10px 0;padding:14px}
@@ -71,3 +71,7 @@
 .item .lock svg{margin:0 0 1px}
 .combo .ico{width:22px;height:22px}
 .folha .btn{padding:0 12px;font-size:16px;white-space:nowrap}
+
+/* ecras pequenos */
+@media (max-width:400px){.heroi{gap:8px 10px}.heroi-av>*{width:84px!important;height:84px!important}.heroi .anel{width:62px!important;height:62px!important}.heroi .anel .num{font-size:26px!important}.heroi .titulo-nv{font-size:clamp(22px,6.6vw,30px);line-height:1.05}}
+@media (max-height:720px){.teclado button{height:42px;font-size:22px}.teclado{gap:6px;padding-top:8px}.dock .acoes{padding-bottom:6px}.dock .acoes .btn{min-height:50px}}

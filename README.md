@@ -12,7 +12,6 @@ Precisa de Node 20 ou superior. No telemóvel, na mesma rede Wi-Fi, abrir http:/
 
 ## O que já faz
 - Treinar: produto, determinante, inversa, característica e sistemas, com exercícios novos de cada vez (semente), verificação exata em frações, pistas (−25% cada) e resolução passo a passo.
-- Por passos: escreve cada operação (Jacobi com o multiplicador à esquerda da linha que muda, ×k, :k, troca) e a matriz; o motor aponta o primeiro passo errado, distingue método de cálculo, nomeia erros típicos e dá pontos (método 40%, cálculos 40%, resposta 20%).
 - Visual "Noite de estudo": quadro azul-noite, botões em relevo, folha de resultado que sobe do fundo, confetes, sons sintetizados, teclado no ecrã no telemóvel, mapa de temas com estrelas e o teste de 28 de outubro como chefe final.
 - Avatar: compositor com cabelo, cores, barba, olhos, sobrancelhas, boca, óculos, roupa, estampa, pele, fundo e moldura. Os itens desbloqueiam-se por nível (6 níveis). Só galeria, sem fotografias.
 - Missões diárias com baú, 15 conquistas com raridade, liga da turma (nesta versão, com colegas simulados).
@@ -22,7 +21,7 @@ Precisa de Node 20 ou superior. No telemóvel, na mesma rede Wi-Fi, abrir http:/
 Servidor (Cloudflare Worker, D1), entrada com nome, email e código da turma (MAT12026), ranking e ligas, correção por fotografia (imagem só em memória), geradores de discussão com parâmetros, enunciados de gestão por IA, painel do professor, modo teste, PWA instalável e notificações.
 
 ## Créditos
-Avatares: Avataaars, de Pablo Stanley, via DiceBear (uso livre, com crédito). KaTeX, canvas-confetti. Tipos Big Shoulders Display, Figtree e Caveat (licença OFL). Tudo incluído localmente em `web/vendor`, sem pedidos externos.
+Avatares: Avataaars, de Pablo Stanley, via DiceBear (uso livre, com crédito). KaTeX, canvas-confetti. Tipos Big Shoulders Display e Figtree (licença OFL). Tudo incluído localmente em `web/vendor`, sem pedidos externos.
 
 ## Estrutura
 - `mat1-engine/`: frações BigInt, matrizes, operações elementares, geradores com semente, verificador de passos e testes.

@@ -5,13 +5,12 @@ import { avatarHTML } from './ui/avatar.js';
 import { alternarSom, sfx } from './ui/sfx.js';
 import { home } from './views/home.js';
 import { treinar } from './views/treinar.js';
-import { passos } from './views/passos.js';
 import { perfil } from './views/perfil.js';
 
 document.body.insertAdjacentHTML('afterbegin', defs);
 const root = document.getElementById('vista');
-const VISTAS = { home, treinar, passos, perfil };  // liga: escondida ate haver ranking verdadeiro (views/liga.js)
-const NAV = [['home', 'Início'], ['treinar', 'Treinar'], ['passos', 'Passos'], ['perfil', 'Perfil']];
+const VISTAS = { home, treinar, perfil };  // liga: escondida ate haver ranking verdadeiro (views/liga.js)
+const NAV = [['home', 'Início'], ['treinar', 'Treinar'], ['perfil', 'Perfil']];
 document.getElementById('barra').innerHTML = NAV.map(([k, n]) => `<button data-go="${k}">${icon(k)}<span>${n}</span></button>`).join('');
 export function go(rota) { const alvo = '#/' + rota; if (location.hash === alvo) render(); else location.hash = alvo; }
 function atualizarTopo() {

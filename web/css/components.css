@@ -23,7 +23,7 @@
 /* topo */
 .topo{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:12px;padding:10px 16px;background:linear-gradient(180deg,rgba(10,18,38,.96),rgba(10,18,38,.78));backdrop-filter:blur(10px);border-bottom:1px solid rgba(62,102,189,.35)}
 .topo-id{display:flex;align-items:center;gap:10px;min-width:0;flex:1;text-align:left}
-.topo-nome{display:flex;flex-direction:column;min-width:0;line-height:1.1} .topo-nome b{font:900 22px var(--display);white-space:nowrap;overflow:hidden;text-overflow:ellipsis} .topo-nome small{color:var(--giz-2);font-size:12.5px}
+.topo-nome{display:flex;flex-direction:column;min-width:0;line-height:1.1} .topo-nome b{font:900 22px var(--display);white-space:nowrap;overflow:hidden;text-overflow:ellipsis} .topo-nome small{color:var(--giz-2);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .topo-dir{display:flex;gap:6px;align-items:center}
 .icon-btn{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:rgba(255,255,255,.07);border:1px solid var(--borda)} .icon-btn svg{width:20px;height:20px}
 body.imersivo .topo{display:none}
@@ -83,7 +83,7 @@ body.imersivo .barra{display:none}
 .teclado .t-acao{background:linear-gradient(180deg,#0FB6BF,#0E8F98);color:#032A30;box-shadow:0 4px 0 #0A5F66}
 .teclado .t-apaga{background:linear-gradient(180deg,#7A2D3C,#5A1F2B);box-shadow:0 4px 0 #3A1119}
 /* folha de feedback */
-.folha{position:fixed;left:0;right:0;bottom:0;z-index:40;padding:18px 18px calc(18px + var(--safe-b));border-radius:26px 26px 0 0;animation:sobe .35s var(--ease) both}
+.folha{position:fixed;left:max(0px,calc(50% - 360px));right:max(0px,calc(50% - 360px));bottom:0;z-index:40;padding:18px 18px calc(18px + var(--safe-b));border-radius:26px 26px 0 0;animation:sobe .35s var(--ease) both}
 .folha.certo{background:linear-gradient(180deg,#1C5F46,#123F2E);border-top:2px solid var(--certo)} .folha.erro{background:linear-gradient(180deg,#6B2431,#431520);border-top:2px solid var(--erro)}
 .folha.info{background:linear-gradient(180deg,#5A4512,#3A2C0B);border-top:2px solid var(--ouro)}
 .folha h3{font-size:30px;margin-bottom:4px} .folha .xp{font:900 30px var(--display);color:var(--ouro)}

@@ -71,7 +71,7 @@ function vConq(s) {
       <div style="flex:1;min-width:0"><div class="linha" style="gap:8px"><b>${c.nome}</b><span class="rar">${RARIDADE[c.r]}</span></div>
       <div class="nota" style="margin:2px 0 6px">${c.desc}</div>
       <div class="barra-p ouro" style="height:8px"><i style="width:${Math.round((100 * p.p) / p.alvo)}%"></i></div>
-      <div class="nota" style="font-size:12px;margin-top:3px">${ok ? 'Desbloqueada em ' + s.conquistas[c.id] : p.p + ' de ' + p.alvo}</div></div></div>`; }).join('');
+      <div class="nota" style="font-size:12px;margin-top:3px">${ok ? 'Desbloqueada em ' + s.conquistas[c.id].split('-').reverse().join('/') : p.p + ' de ' + p.alvo}</div></div></div>`; }).join('');
 }
 
 function vDef(s) {
@@ -79,7 +79,7 @@ function vDef(s) {
   <h2 style="margin-top:6px">Definições</h2>
   <section class="painel">
     <label for="alc"><b>Alcunha</b></label>
-    <p class="nota" style="margin:2px 0 8px">É o nome que aparece no ranking da turma. Até 16 caracteres. O teu nome verdadeiro só o professor vê.</p>
+    <p class="nota" style="margin:2px 0 8px">É o nome que aparece no topo e na tua página inicial. Até 16 caracteres.</p>
     <div class="linha"><input id="alc" maxlength="16" autocomplete="off" value="${(s.perfil.alcunha || '').replace(/"/g, '')}" placeholder="Ex.: Pivô Veloz" style="flex:1;min-width:0;padding:12px 14px;border-radius:14px;border:2px solid var(--borda-2);background:rgba(0,0,0,.35);color:var(--giz);font:700 17px var(--corpo)"><button class="btn" id="gravAlc">Guardar</button></div>
   </section>
   <section class="painel" style="margin-top:12px">
@@ -92,7 +92,7 @@ function vDef(s) {
   </section>
   <section class="painel" style="margin-top:12px">
     <b>Créditos</b>
-    <p class="nota" style="margin:4px 0 0">Avatares: Avataaars, de Pablo Stanley, através da biblioteca DiceBear. Fórmulas: KaTeX. Confetes: canvas-confetti. Tipos de letra Big Shoulders Display, Figtree e Caveat, licença OFL. Exercícios e regras: Paulo Carrasco, ESGHT, Universidade do Algarve.</p>
+    <p class="nota" style="margin:4px 0 0">Avatares: Avataaars, de Pablo Stanley, através da biblioteca DiceBear. Fórmulas: KaTeX. Confetes: canvas-confetti. Tipos de letra Big Shoulders Display e Figtree, licença OFL. Exercícios e regras: Paulo Carrasco, ESGHT, Universidade do Algarve.</p>
   </section>`;
 }
 

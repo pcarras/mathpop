@@ -45,7 +45,7 @@ export function treinar(root, go, tipoArg, atualizarTopo) {
     acoes.querySelector('svg').style.cssText = 'width:30px;height:30px';
     const verificarFn = () => { if (feito) return; fn.ver(); };
     dock.appendChild(acoes); if (usarTeclado()) dock.appendChild(teclado(root, { onOk: verificarFn }));
-    requestAnimationFrame(() => { root.style.paddingBottom = dock.offsetHeight + 20 + 'px'; w.focus(); });
+    requestAnimationFrame(() => { root.style.paddingBottom = dock.offsetHeight + 20 + 'px'; w.focus({ preventScroll: true }); const r = $('#resp').getBoundingClientRect(), livre = innerHeight - dock.offsetHeight - 12; if (r.bottom > livre) scrollBy({ top: r.bottom - livre, behavior: 'auto' }); });
     const folha = (cls, html) => { const f = document.createElement('div'); f.className = 'folha ' + cls; f.innerHTML = html; document.body.appendChild(f); dock.style.display = 'none'; return f; };
     const fecharFolha = (f) => { f.remove(); dock.style.display = ''; };
     const passoHTML = (p, i) => `<div class="pista-cx"><small>Pista ${i + 1}</small><div>${tex(p.texto || '')}</div>${p.latex ? texBloco(p.latex) : ''}</div>`;
@@ -77,7 +77,7 @@ export function treinar(root, go, tipoArg, atualizarTopo) {
       if (pistas >= passos.length) return; pistas++; $('#pistas').insertAdjacentHTML('beforeend', passoHTML(passos[pistas - 1], pistas - 1)); root.style.paddingBottom = dock.offsetHeight + 20 + 'px';
     });
     $('#desisto').addEventListener('click', () => {
-      if (feito) return; feito = true; if (!errou) registarResultado(tipo, false, 0, {}); sessao.combo = 0; segs();
+      if (feito) return; feito = true; $('#desisto').remove(); if (!errou) registarResultado(tipo, false, 0, {}); sessao.combo = 0; segs();
       $('#pistas').innerHTML = `<div class="painel"><b>Resolução</b>${ex.resolucao.map((p, i) => passoHTML(p, i).replace('Pista', 'Passo')).join('')}<p style="margin-top:10px"><b>Resposta:</b> ${respostaTxt(ex)}</p></div>`;
       const f = folha('info', `<h3>Sem pontos desta vez</h3><p>Lê a resolução com calma. O próximo exercício vem com números novos.</p><button class="btn ouro grande" id="cont">Continuar</button>`);
       f.querySelector('#cont').addEventListener('click', () => proximo(f, 'mau', 0)); f.querySelector('#cont').focus();

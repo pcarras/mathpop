@@ -7,13 +7,15 @@ import { Frac, F } from './fraction.js';
 const MAXDIG = 3; // nenhum numero com mais de 3 algarismos nas respostas
 const rndMat = (rng, m, n, lo, hi) => Matrix.from(Array.from({ length: m }, () => Array.from({ length: n }, () => F(rng.int(lo, hi)))));
 const L = (M, aug = -1) => '$' + M.toLatex(aug) + '$';
+const mTex = (m) => (m.toLatex ? m.toLatex() : String(m));
 const opTexto = (op) => {
-  const r = (i) => `L${i + 1}`;
+  const k = op.k !== undefined && op.k !== null ? mTex(op.k) : '';
   switch (op.t) {
-    case 'troca': return `trocar ${r(op.i)} com ${r(op.j)}`;
-    case 'escala': return `${r(op.i)} × ${op.k}`;
-    case 'divide': return `${r(op.i)} : ${op.k}`;
-    case 'jacobi': return `${r(op.r)} ← ${r(op.r)} + (${op.m}) × ${r(op.p)}`;
+    case 'troca': return `Trocar $L_${op.i + 1}$ com $L_${op.j + 1}$.`;
+    case 'escala': return `Multiplicar $L_${op.i + 1}$ por $${k}$.`;
+    case 'divide': return `Dividir $L_${op.i + 1}$ por $${k}$.`;
+    case 'jacobi': { const m = op.m, mt = m.eq && m.eq(1) ? '' : m.eq && m.eq(-1) ? '-' : mTex(m);
+      return `Jacobi: $${mt}L_${op.p + 1} + L_${op.r + 1}$ (a linha $L_${op.r + 1}$ é a que muda).`; }
     default: return '';
   }
 };
@@ -127,10 +129,11 @@ function sistema(rng, nivel) {
     if (nivel === 3 && (s.tipo === 'SPD' || s.rA !== 2)) return null;
     if (s.final.maxSize() > MAXDIG || s.steps.length > 14) return null;
     const vars = ['x', 'y', 'z'];
-    const eq = Af.rows.map((r, i) => r.map((c, j) => (c.isZero() ? '' : `${c.sign() < 0 ? '-' : '+'} ${c.abs().eq(1) ? '' : c.abs()}${vars[j]}`)).filter(Boolean).join(' ').replace(/^\+ /, '') + ` = ${b.get(i, 0)}`);
+    const cel = (c, j) => (c.isZero() ? '' : `${c.sign() < 0 ? '-' : (j === 0 ? '' : '+')}${c.abs().eq(1) ? '' : c.abs().toLatex()}${vars[j]}`);
+    const sis = Af.rows.map((r, i) => r.map((c, j) => cel(c, j)).join(' & ') + ` & = & ${b.get(i, 0).toLatex()}`).join(' \\\\ ');
     return {
       tipo: 'sistema', nivel,
-      enunciado: `Resolva o sistema pelo método de Gauss-Jordan e classifique-o (SPD, SPI ou SI):\n${eq.join(';  ')}`,
+      enunciado: `Resolva o sistema pelo método de Gauss-Jordan e classifique-o (SPD, SPI ou SI):\n$\\left\\{\\begin{array}{rrrcr}${sis}\\end{array}\\right.$`,
       dados: { A: Af, b },
       resposta: { kind: 'sistema', valor: { tipo: s.tipo, solucao: s.solucao, gi: s.gi, rA: s.rA, rAug: s.rAug } },
       resolucao: stepsToRes(Af.hcat(b), s.steps, 3),

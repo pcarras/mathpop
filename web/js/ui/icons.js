@@ -2,7 +2,6 @@
 const P = {
   home: '<path d="M3 11.5 12 4l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" fill="currentColor"/>',
   treinar: '<circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2.4"/><circle cx="12" cy="12" r="4.6" fill="none" stroke="currentColor" stroke-width="2.4"/><circle cx="12" cy="12" r="1.4" fill="currentColor"/>',
-  passos: '<path d="M3 20h5v-5h5v-5h5V5h3v15z" fill="currentColor"/>',
   liga: '<path d="M7 3h10v5a5 5 0 0 1-10 0zM4 4h3v3a2 2 0 0 1-2 2H4zM17 4h3v4a2 2 0 0 1-2 2h-1zM11 13h2v3h3v3H8v-3h3z" fill="currentColor"/>',
   perfil: '<circle cx="12" cy="8" r="4.2" fill="currentColor"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7z" fill="currentColor"/>',
   chama: '<path d="M12 2c1 3.4 5.4 5.6 5.4 11a5.4 5.4 0 0 1-10.8 0c0-2 .9-3.4 2-4.5.2 1.6 1 2.3 1.8 2.6C9.6 8.3 10.6 4.6 12 2z" fill="url(#gChama)"/><path d="M12 12.5c.8 1.3 2.2 2 2.2 3.6a2.2 2.2 0 0 1-4.4 0c0-1.3 1.2-2 2.2-3.6z" fill="#FFE9A6"/>',

@@ -28,7 +28,7 @@ function mapa() {
       <text x="${x}" y="${y + 9}" text-anchor="middle" class="glifo">${GLIFO[t]}</text>
       ${[0, 1, 2].map((k) => `<g transform="translate(${x - 30 + k * 20} ${y - 66}) scale(.82)">${icon(k < est ? 'estrela' : 'estrelaVazia').replace('<svg class="ico "', '<svg class="ico " width="24" height="24"')}</g>`).join('')}
       <text x="${x}" y="${y + 66}" text-anchor="middle" class="rot">${NOMES[t]}</text>
-      ${i === rec ? `<text x="${x + (x > 180 ? -62 : 62)}" y="${y - 40}" text-anchor="middle" class="balao">Começa aqui</text>` : ''}
+      ${i === rec ? `<text x="${x > 180 ? 327 : 33}" y="${y - 4}" text-anchor="middle" class="balao"><tspan x="${x > 180 ? 327 : 33}">Começa</tspan><tspan x="${x > 180 ? 327 : 33}" dy="16">aqui</tspan></text>` : ''}
     </g>`;
   }).join('');
   const dias = Math.max(0, diasAteTeste());
