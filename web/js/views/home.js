@@ -5,6 +5,7 @@ import { avatarHTML } from '../ui/avatar.js';
 import { missoesDeHoje, estadoMissao, reclamar } from '../game/missions.js';
 import { festa, celebrar, contar } from '../ui/fx.js';
 import { sfx } from '../ui/sfx.js';
+import { deveSugerir, conteudo, ligar, aoMudar } from '../ui/instalar.js';
 
 const ORDEM = ['produto', 'determinante', 'caracteristica', 'inversa', 'sistema'];
 const GLIFO = { produto: 'A·B', determinante: '|A|', caracteristica: 'R(A)', inversa: 'A⁻¹', sistema: 'Ax=b' };
@@ -70,6 +71,7 @@ export function home(root, go, _a, atualizarTopo) {
       <p class="nota" style="margin:6px 0 0">${nv.proximo ? `Faltam <b>${nv.proximo - s.xp}</b> XP para o nível seguinte.` : 'Nível máximo. És uma lenda.'}</p></div>
   </section>
   <div class="linha" style="margin:14px 0 0"><button class="btn grande" data-go="treinar">${icon('treinar')} Treinar agora</button></div>
+  ${deveSugerir() ? `<section class="painel instalar" id="instalar">${conteudo()}</section>` : ''}
   <h2>Missões de hoje</h2>
   <section id="missoes">${miss.map((m) => { const e = estadoMissao(m); return `<div class="painel missao ${e.feita ? 'feita' : ''}" data-m="${m.id}">
       <div class="m-ico">${icon(e.reclamada ? 'check' : e.feita ? 'bau' : 'raio')}</div>
@@ -79,6 +81,7 @@ export function home(root, go, _a, atualizarTopo) {
   <p class="giz" style="margin:-4px 0 6px">Cada tema tem um anel vermelho: quanto mais domínio, mais fechado.</p>
   <section class="painel mapa-cx">${mapa()}</section>`;
   requestAnimationFrame(() => { const p = root.querySelector('.anel .prog'); if (p) setTimeout(() => p.setAttribute('stroke-dashoffset', p.dataset.alvo), 60); });
+  const cx = root.querySelector('#instalar'); if (cx) { ligar(cx, () => home(root, go, _a, atualizarTopo)); const off = aoMudar(() => { if (cx.isConnected) { cx.innerHTML = conteudo(); ligar(cx, () => home(root, go, _a, atualizarTopo)); } else off(); }); }
   root.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', () => go(b.dataset.go)));
   root.querySelectorAll('.no').forEach((n) => { const f = () => { sfx.clique(); go(n.dataset.tipo === 'teste' ? 'treinar' : 'treinar/' + n.dataset.tipo); }; n.addEventListener('click', f); n.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); f(); } }); });
   root.querySelectorAll('[data-rec]').forEach((b) => b.addEventListener('click', async () => {

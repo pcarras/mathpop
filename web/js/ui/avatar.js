@@ -29,6 +29,13 @@ export const CATEGORIAS = [
   { id: 'fundo', nome: 'Fundo', tipo: 'fundo', opcoes: [{ id: 0, nome: 'Quadro', nivel: 0 }, { id: 1, nome: 'Lagoa', nivel: 0 }, { id: 2, nome: 'Aurora', nivel: 1 }, { id: 3, nome: 'Pôr do sol', nivel: 2 }, { id: 4, nome: 'Crepúsculo', nivel: 3 }, { id: 5, nome: 'Espectro', nivel: 4 }, { id: 6, nome: 'Ouro', nivel: 5 }] },
   { id: 'moldura', nome: 'Moldura', tipo: 'moldura', opcoes: [{ id: 0, nome: 'Giz', nivel: 0 }, { id: 1, nome: 'Bronze', nivel: 1 }, { id: 2, nome: 'Prata', nivel: 2 }, { id: 3, nome: 'Ouro', nivel: 3 }, { id: 4, nome: 'Energia', nivel: 4 }, { id: 5, nome: 'Redutor lendário', nivel: 5 }] },
 ];
+// listas por genero (o Avataaars nao tem genero: agrupamos os penteados pela aparencia mais comum)
+export const CABELOS = {
+  h: ['shortFlat', 'shortRound', 'shortCurly', 'shortWaved', 'sides', 'theCaesar', 'theCaesarAndSidePart', 'shavedSides', 'shaggy', 'shaggyMullet', 'frizzle', 'fro', 'froBand', 'dreads01', 'dreads02', 'bun', 'none'],
+  m: ['shortCurly', 'shortWaved', 'shortRound', 'bob', 'bun', 'straight01', 'straight02', 'straightAndStrand', 'longButNotTooLong', 'curly', 'curvy', 'frida', 'miaWallace', 'bigHair', 'dreads', 'fro', 'froBand', 'frizzle', 'none'],
+};
+export const CHAPEUS = { h: ['hat', 'winterHat1', 'winterHat02', 'winterHat03', 'winterHat04', 'turban'], m: ['hat', 'winterHat1', 'winterHat02', 'winterHat03', 'winterHat04', 'turban', 'hijab'] };
+export const PENTEADO_INICIAL = { h: 'shortFlat', m: 'bob' };
 export const RARIDADE = ['Comum', 'Incomum', 'Rara', 'Épica', 'Lendária', 'Mítica'];
 export const categoria = (id) => CATEGORIAS.find((c) => c.id === id);
 export const desbloqueado = (item, nivelIdx) => item.nivel <= nivelIdx;
@@ -52,8 +59,13 @@ export function avatarHTML(cfg = estado().avatar, { s = 48, quadrado = false, ni
   const c = { ...AVATAR_PADRAO, ...cfg };
   return `<span class="av ${quadrado ? 'quadrado' : ''}" style="--s:${s}px"><span class="av-arte av-fundo-${c.fundo}">${svgAvatar(c)}</span><span class="moldura m${c.moldura}"></span>${nivel != null ? `<span class="nivel-badge">${nivel}</span>` : ''}</span>`;
 }
-export function avatarAleatorio(nivelIdx, rng = Math.random) {
-  const cfg = { ...AVATAR_PADRAO };
-  for (const c of CATEGORIAS) { const ok = c.opcoes.filter((o) => desbloqueado(o, nivelIdx)); cfg[c.id] = ok[Math.floor(rng() * ok.length)].id; }
+export function avatarAleatorio(nivelIdx, rng = Math.random, genero = estado().avatar.genero || 'h') {
+  const cfg = { ...AVATAR_PADRAO, genero };
+  for (const c of CATEGORIAS) {
+    let ok = c.opcoes.filter((o) => desbloqueado(o, nivelIdx));
+    if (c.id === 'top') { const lista = rng() < 0.85 ? CABELOS[genero] : CHAPEUS[genero]; ok = ok.filter((o) => lista.includes(o.id)); }
+    if (c.id === 'facialHair' && genero === 'm') ok = ok.filter((o) => o.id === 'none');
+    cfg[c.id] = ok[Math.floor(rng() * ok.length)].id;
+  }
   return cfg;
 }

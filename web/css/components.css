@@ -21,7 +21,7 @@
 .chip svg{width:18px;height:18px}
 .chip.ouro{color:var(--ouro)} .chip.chama{color:var(--chama)} .chip.ciano{color:var(--ciano)}
 /* topo */
-.topo{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:12px;padding:10px 16px;background:linear-gradient(180deg,rgba(10,18,38,.96),rgba(10,18,38,.78));backdrop-filter:blur(10px);border-bottom:1px solid rgba(62,102,189,.35)}
+.topo{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:12px;padding:calc(10px + env(safe-area-inset-top,0px)) 16px 10px;background:linear-gradient(180deg,rgba(10,18,38,.96),rgba(10,18,38,.78));backdrop-filter:blur(10px);border-bottom:1px solid rgba(62,102,189,.35)}
 .topo-id{display:flex;align-items:center;gap:10px;min-width:0;flex:1;text-align:left}
 .topo-nome{display:flex;flex-direction:column;min-width:0;line-height:1.1} .topo-nome b{font:900 22px var(--display);white-space:nowrap;overflow:hidden;text-overflow:ellipsis} .topo-nome small{color:var(--giz-2);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .topo-dir{display:flex;gap:6px;align-items:center}

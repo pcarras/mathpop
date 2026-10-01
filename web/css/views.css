@@ -75,3 +75,16 @@
 /* ecras pequenos */
 @media (max-width:400px){.heroi{gap:8px 10px}.heroi-av>*{width:84px!important;height:84px!important}.heroi .anel{width:62px!important;height:62px!important}.heroi .anel .num{font-size:26px!important}.heroi .titulo-nv{font-size:clamp(22px,6.6vw,30px);line-height:1.05}}
 @media (max-height:720px){.teclado button{height:42px;font-size:22px}.teclado{gap:6px;padding-top:8px}.dock .acoes{padding-bottom:6px}.dock .acoes .btn{min-height:50px}}
+/* assistente do avatar */
+.palco.compacto{display:flex;align-items:center;gap:14px;padding:14px;place-items:initial;overflow:visible} .palco.compacto:after{display:none}
+.palco.compacto .palco-av{flex:none} .palco-txt{min-width:0;flex:1} .passo-t{font-size:30px;line-height:1.05;margin:2px 0 0}
+.btn.peq{min-height:40px;padding:0 10px;font-size:14px;gap:6px}
+.pontos{display:flex;gap:7px;justify-content:center;margin:14px 0 6px;flex-wrap:wrap} .pontos button{width:12px;height:12px;border-radius:50%;background:rgba(255,255,255,.18);padding:0;border:0} .pontos button.feito{background:var(--ciano-esc)} .pontos button[aria-current=true]{background:var(--ouro);width:30px;border-radius:8px}
+.sec{margin-top:12px} .sec-t{font:900 22px var(--display);margin:0 0 8px;color:var(--giz)}
+.loja.dois{grid-template-columns:1fr 1fr} .item.grande{min-height:150px} .item.grande .nome{font-size:15px;font-weight:800;min-height:auto}
+.nav-assist{display:grid;grid-template-columns:1fr 2fr;gap:10px;margin-top:18px;position:sticky;bottom:calc(84px + var(--safe-b));padding:10px 0 6px;z-index:5;background:linear-gradient(transparent,rgba(10,18,38,.92) 38%)} .nav-assist .btn:disabled{opacity:.4;pointer-events:none}
+@media (max-width:400px){.palco.compacto .av{--s:104px!important}.passo-t{font-size:26px}}
+/* convite para instalar */
+.instalar{margin-top:12px;border-color:var(--ciano-esc);background:linear-gradient(180deg,#14407A,#0E2A58)}
+.inst-t{font:900 22px var(--display);display:block} .inst-p{margin:4px 0 8px;font-size:15px} .inst-l{margin:0 0 10px;padding-left:22px;font-size:15px;line-height:1.5} .inst-l li{margin:2px 0}
+.ico-p{vertical-align:-4px;color:var(--ciano)} .inst-acoes{display:flex;gap:8px;flex-wrap:wrap}

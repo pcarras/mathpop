@@ -6,6 +6,7 @@ import { alternarSom, sfx } from './ui/sfx.js';
 import { home } from './views/home.js';
 import { treinar } from './views/treinar.js';
 import { perfil } from './views/perfil.js';
+import { registarSW } from './ui/instalar.js';
 
 document.body.insertAdjacentHTML('afterbegin', defs);
 const root = document.getElementById('vista');
@@ -35,3 +36,4 @@ document.getElementById('topo-id').addEventListener('click', () => go('perfil'))
 document.querySelectorAll('#barra [data-go]').forEach((b) => b.addEventListener('click', () => { sfx.clique(); go(b.dataset.go); }));
 window.addEventListener('hashchange', render);
 render();
+registarSW();
