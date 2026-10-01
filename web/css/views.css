@@ -103,3 +103,4 @@
 .seg button[aria-checked=true]{border-color:var(--ciano);background:rgba(39,216,224,.16);box-shadow:0 0 0 2px rgba(39,216,224,.35)}
 .seg button:focus-visible{outline:3px solid var(--ouro);outline-offset:2px}
 @media (max-width:380px){.entrada-t{font-size:38px}}
+.lista-simples{margin:6px 0 12px;padding-left:20px;color:var(--giz-2)} .lista-simples li{margin:4px 0}

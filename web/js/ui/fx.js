@@ -1,6 +1,6 @@
 import { icon } from './icons.js';
 import { sfx } from './sfx.js';
-import { nivelDe } from '../rules.js';
+import { nivelDe, NIVEIS } from '../rules.js';
 import { estado } from '../store.js';
 import { verificarConquistas } from '../game/achievements.js';
 import { desbloqueiosDoNivel } from './avatar.js';
@@ -47,7 +47,7 @@ export async function celebrar(antes) {
     sfx.nivel(); festa(2);
     const des = desbloqueiosDoNivel(b.indice);
     await overlay(`<div class="giz">Subiste de nível!</div><div class="titulo-lv">${b.titulo}</div>
-      <p class="nota" style="margin:12px 0">Nível ${b.indice + 1} de 6</p>
+      <p class="nota" style="margin:12px 0">Nível ${b.indice + 1} de ${NIVEIS.length}</p>
       ${des.length ? `<div class="painel" style="text-align:left"><b>Desbloqueaste</b><ul style="margin:8px 0 0;padding-left:18px">${des.slice(0, 6).map((d) => `<li>${d}</li>`).join('')}${des.length > 6 ? `<li>e mais ${des.length - 6} itens no editor de avatar</li>` : ''}</ul></div>` : ''}`);
   }
 }

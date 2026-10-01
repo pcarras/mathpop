@@ -1,5 +1,5 @@
 import { estado, sequencia, nivelTipo, gravar } from '../store.js';
-import { nivelDe, NOMES } from '../rules.js';
+import { nivelDe, NOMES, NIVEIS } from '../rules.js';
 const cert = (t) => (estado().stats.certasTipo[t] || 0);
 // raridade: 0 comum, 1 incomum, 2 raro, 3 epico, 4 lendario, 5 mitico
 export const CONQUISTAS = [
@@ -16,7 +16,7 @@ export const CONQUISTAS = [
   { id: 'sis5', nome: 'Sistemático', desc: 'Acerta 5 sistemas.', r: 1, alvo: 5, prog: () => cert('sistema'), ico: 'estrela' },
   { id: 'explora', nome: 'Explorador', desc: 'Acerta pelo menos um exercício de cada tipo.', r: 2, alvo: Object.keys(NOMES).length, prog: () => Object.keys(NOMES).filter((t) => cert(t) > 0).length, ico: 'mapa' },
   { id: 'nivel3', nome: 'Terreno difícil', desc: 'Chega ao nível 3 num tipo de exercício.', r: 2, alvo: 1, prog: () => Object.keys(NOMES).filter((t) => nivelTipo(t) >= 3).length, ico: 'raio' },
-  { id: 'mestre', nome: 'Mestre de Sistemas', desc: 'Atinge o nível máximo.', r: 4, alvo: 1, prog: () => (nivelDe(estado().xp).indice >= 5 ? 1 : 0), ico: 'coroa' },
+  { id: 'mestre', nome: 'Topo da tabela', desc: 'Atinge o nível máximo, Aluno expert 3.', r: 4, alvo: 1, prog: () => (nivelDe(estado().xp).indice >= NIVEIS.length - 1 ? 1 : 0), ico: 'coroa' },
 ];
 export function progresso(c) { const p = Math.min(c.alvo, c.prog()); return { p, alvo: c.alvo, feito: p >= c.alvo }; }
 // devolve as conquistas desbloqueadas agora

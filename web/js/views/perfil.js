@@ -2,11 +2,12 @@
 import { estado, gravar, apagarTudo, AVATAR_PADRAO } from '../store.js';
 import { nivelDe, NIVEIS } from '../rules.js';
 import { icon } from '../ui/icons.js';
-import { avatarHTML, categoria, desbloqueado, RARIDADE, CABELOS, CHAPEUS, PENTEADO_INICIAL } from '../ui/avatar.js';
+import { avatarHTML, categoria, desbloqueado, nomeNivelDoItem, RARIDADE, CABELOS, CHAPEUS, PENTEADO_INICIAL } from '../ui/avatar.js';
 import { CONQUISTAS, progresso } from '../game/achievements.js';
 import { sfx, alternarSom } from '../ui/sfx.js';
 import { toast, festa } from '../ui/fx.js';
 import { camposHTML, ligarCampos, valido } from './entrada.js';
+import { naLiga, sairDaLiga, agendar, disponivelAgora } from '../game/liga.js';
 import { conteudo as instConteudo, ligar as instLigar, ehTelemovel } from '../ui/instalar.js';
 
 let aba = 'avatar', passoId = 'quem';
@@ -46,7 +47,7 @@ function itemHTML(c, o, a, nv, lista) {
   else if (c.tipo === 'genero') vista = avatarHTML({ ...a, genero: o.id, top: o.id === 'm' ? PENTEADO_INICIAL.m : PENTEADO_INICIAL.h, facialHair: 'none' }, { s: 92 });
   else vista = avatarHTML({ ...a, [c.id]: o.id }, { s: 70 });
   const r = Math.min(5, o.nivel);
-  return `<button class="item r${r} ${c.tipo === 'genero' ? 'grande' : ''} ${ok ? '' : 'trancado'}" data-cat="${c.id}" data-id="${o.id}" aria-pressed="${sel}" aria-label="${o.nome}${ok ? '' : ', desbloqueia no nível ' + (o.nivel + 1)}">${vista}<span class="nome">${o.nome}</span>${ok ? '' : `<span class="lock">${icon('cadeado')}Nível ${o.nivel + 1}</span>`}</button>`;
+  return `<button class="item r${r} ${c.tipo === 'genero' ? 'grande' : ''} ${ok ? '' : 'trancado'}" data-cat="${c.id}" data-id="${o.id}" aria-pressed="${sel}" aria-label="${o.nome}${ok ? '' : ', desbloqueia em ' + nomeNivelDoItem(o)}">${vista}<span class="nome">${o.nome}</span>${ok ? '' : `<span class="lock">${icon('cadeado')}${nomeNivelDoItem(o).replace('Aluno ', '')}</span>`}</button>`;
 }
 
 function vAvatar(s, nv) {
@@ -69,7 +70,7 @@ function vAvatar(s, nv) {
   <div class="pontos" role="group" aria-label="Passos do avatar">${lista.map((x, k) => `<button data-passo="${x.id}" aria-label="${x.nome}" aria-current="${k === i}" class="${k < i ? 'feito' : ''}"></button>`).join('')}</div>
   ${seccoes}
   <div class="nav-assist"><button class="btn fantasma" id="ant" ${i === 0 ? 'disabled' : ''}>Anterior</button><button class="btn grande" id="seg">${ultimo ? 'Concluir' : 'Seguinte'}</button></div>
-  <p class="nota" style="margin-top:14px">Sobe de nível para desbloquear mais penteados, cores, molduras e fundos. Tens ${nv.indice + 1} de ${NIVEIS.length} níveis.</p>`;
+  <p class="nota" style="margin-top:14px">Sobe de nível para desbloquear mais penteados, cores, molduras e fundos. Estás em ${nv.titulo}, nível ${nv.indice + 1} de ${NIVEIS.length}.</p>`;
 }
 
 function ligarAvatar(root, s, nv, redesenhar, atualizarTopo, go) {
@@ -81,11 +82,11 @@ function ligarAvatar(root, s, nv, redesenhar, atualizarTopo, go) {
   root.querySelector('#seg').addEventListener('click', () => {
     const l = lista(), k = l.findIndex((x) => x.id === passoId);
     if (k < l.length - 1) return ir(l[k + 1].id);
-    sfx.bau(); festa(0.5, { x: 0.5, y: 0.3 }); passoId = 'quem'; toast(`<div><b>Avatar guardado</b><br><span class="nota">Já aparece no topo e na página inicial.</span></div>`); atualizarTopo(); go('home');
+    sfx.bau(); festa(0.5, { x: 0.5, y: 0.3 }); passoId = 'quem'; toast(`<div><b>Avatar guardado</b><br><span class="nota">Já aparece no topo e na página inicial.</span></div>`); atualizarTopo(); agendar(2000); go('home');
   });
   root.querySelectorAll('.item').forEach((b) => b.addEventListener('click', () => {
     const c = catDe(b.dataset.cat), o = c.opcoes.find((x) => String(x.id) === b.dataset.id);
-    if (!desbloqueado(o, nv.indice)) { sfx.erro(); sfx.vibrar(30); toast(`<span style="width:30px">${icon('cadeado')}</span><div><b>${o.nome}</b><br><span class="nota">Desbloqueia no nível ${o.nivel + 1}, ${RARIDADE[Math.min(5, o.nivel)]}.</span></div>`); return; }
+    if (!desbloqueado(o, nv.indice)) { sfx.erro(); sfx.vibrar(30); toast(`<span style="width:30px">${icon('cadeado')}</span><div><b>${o.nome}</b><br><span class="nota">Desbloqueia em ${nomeNivelDoItem(o)}, ${RARIDADE[Math.min(5, o.nivel)]}.</span></div>`); return; }
     if (c.id === 'genero') {
       a.genero = o.id;
       if (![...CABELOS[o.id], ...CHAPEUS[o.id]].includes(a.top)) a.top = PENTEADO_INICIAL[o.id];
@@ -113,17 +114,18 @@ function vDef(s) {
   <h2 style="margin-top:6px">Definições</h2>
   <section class="painel">
     <b>Os teus dados</b>
-    <p class="nota" style="margin:2px 0 10px">Servem para te colocar na liga da tua turma. Por agora ficam só neste aparelho.</p>
+    <p class="nota" style="margin:2px 0 10px">Servem para te colocar na liga da tua turma. Só são enviados para o servidor se entrares na liga.</p>
     ${camposHTML(s.perfil, 'd')}
     <button class="btn" id="gravDados" style="margin-top:14px" disabled>Guardar</button>
   </section>
+  ${disponivelAgora() ? `<section class="painel" style="margin-top:12px"><b>Liga</b>${naLiga() ? `<p class="nota" style="margin:2px 0 10px">Estás na liga. Sair apaga do servidor os teus dados e os teus pontos de liga.</p><button class="btn fantasma" id="sairLiga">Sair da liga e apagar os meus dados do servidor</button>` : `<p class="nota" style="margin:2px 0 10px">Ainda não estás na liga.</p><button class="btn ouro" id="irLiga">Ver a liga</button>`}</section>` : ''}
   <section class="painel" style="margin-top:12px">
     <div class="linha"><div><b>Sons e vibração</b><div class="nota">Efeitos curtos ao acertar e ao subir de nível.</div></div><span class="espaco"></span><button class="btn fantasma" id="som" aria-pressed="${s.som !== false}">${icon(s.som !== false ? 'som' : 'mudo')} ${s.som !== false ? 'Ligados' : 'Desligados'}</button></div>
   </section>
   ${ehTelemovel() ? `<section class="painel instalar" id="instalar" style="margin-top:12px">${instConteudo({ comDispensar: false })}</section>` : ''}
   <section class="painel" style="margin-top:12px">
     <b>Apagar tudo</b>
-    <p class="nota" style="margin:2px 0 10px">Nesta versão de teste, o progresso fica só neste aparelho. Apagar remove pontos, avatar, conquistas e os teus dados.</p>
+    <p class="nota" style="margin:2px 0 10px">Nesta versão de teste, o progresso fica só neste aparelho. Apagar remove pontos, avatar, conquistas e os teus dados deste aparelho. Se estiveres na liga, sai primeiro da liga para apagar também do servidor.</p>
     <button class="btn erro" id="apagar">Apagar os meus dados</button>
   </section>
   <section class="painel" style="margin-top:12px">
@@ -135,7 +137,13 @@ function vDef(s) {
 function ligarDef(root, s, go, redesenhar, atualizarTopo) {
   const ci = root.querySelector('#instalar'); if (ci) instLigar(ci, redesenhar);
   const ler = ligarCampos(root, 'd', () => { const p = ler(), o = s.perfil; root.querySelector('#gravDados').disabled = !valido(p) || (p.nome === o.nome && p.regime === o.regime && p.local === o.local && p.alcunha === (o.alcunha || '')); });
-  root.querySelector('#gravDados').addEventListener('click', () => { const p = ler(); if (!valido(p)) return; Object.assign(s.perfil, p); gravar(); sfx.xp(); toast(`<div><b>Dados guardados</b><br><span class="nota">${p.nome}, ${p.regime === 'diurno' ? 'diurno' : 'noturno'}, ${p.local === 'faro' ? 'Faro' : 'Portimão'}.</span></div>`); atualizarTopo(); redesenhar(); });
+  root.querySelector('#gravDados').addEventListener('click', () => { const p = ler(); if (!valido(p)) return; Object.assign(s.perfil, p); gravar(); sfx.xp(); agendar(1500); toast(`<div><b>Dados guardados</b><br><span class="nota">${p.nome}, ${p.regime === 'diurno' ? 'diurno' : 'noturno'}, ${p.local === 'faro' ? 'Faro' : 'Portimão'}.</span></div>`); atualizarTopo(); redesenhar(); });
+  root.querySelector('#irLiga')?.addEventListener('click', () => go('liga'));
+  root.querySelector('#sairLiga')?.addEventListener('click', async (e) => {
+    const b = e.currentTarget;
+    if (!b.dataset.sim) { b.dataset.sim = '1'; b.textContent = 'Toca outra vez para confirmar'; setTimeout(() => { if (b.isConnected) { delete b.dataset.sim; b.textContent = 'Sair da liga e apagar os meus dados do servidor'; } }, 4000); return; }
+    b.disabled = true; const ok = await sairDaLiga(); toast(ok ? '<div><b>Saíste da liga</b><br><span class="nota">Os teus dados foram apagados do servidor.</span></div>' : '<div><b>Sem ligação</b><br><span class="nota">Não foi possível apagar agora. Tenta outra vez com rede.</span></div>'); redesenhar();
+  });
   root.querySelector('#som').addEventListener('click', () => { alternarSom(); sfx.clique(); redesenhar(); atualizarTopo(); });
   root.querySelector('#apagar').addEventListener('click', (e) => {
     const b = e.currentTarget;

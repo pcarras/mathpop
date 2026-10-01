@@ -7,6 +7,7 @@ import { teclado, usarTeclado } from '../ui/keypad.js';
 import { icon } from '../ui/icons.js';
 import { sfx } from '../ui/sfx.js';
 import { festa, tintaEm, celebrar, contar } from '../ui/fx.js';
+import { enfileirar } from '../game/liga.js';
 
 const N = 5; // exercicios por sessao
 const GLIFO = { produto: 'A·B', determinante: '|A|', caracteristica: 'R(A)', inversa: 'A⁻¹', sistema: 'Ax=b', misto: '?' };
@@ -60,6 +61,7 @@ export function treinar(root, go, tipoArg, atualizarTopo) {
           const antes = snapshot(); feito = true;
           let xp = xpTreino({ nivel, pistas, nHoje: nHoje(tipo), dias: Math.max(1, sequencia()) }); if (errou) xp = Math.round(xp * 0.5);
           registarResultado(tipo, true, xp, { semPistas: pistas === 0 && !errou, semHist: errou });
+          enfileirar({ t: tipo, n: nivel, s: ex.semente, p: pistas, e: errou, r: w.get(), ts: Date.now() });
           sessao.combo++; segs(); sfx.certo(); sfx.vibrar(25); w.marcar(true); tintaEm(w.alvo, $('#resp')); festa(0.6, { x: 0.5, y: 0.75 });
           const f = folha('certo', `<h3>${['Certo!', 'Boa!', 'Exato!', 'Limpinho!'][sessao.combo % 4]}</h3><div class="linha espaco"><span class="xp"><span id="ganho">0</span> XP</span><span class="nota" style="color:#CFF5E3">${errou ? 'Depois de um erro: metade dos pontos' : pistas === 0 ? 'Sem pistas: +50%' : `${pistas} pista${pistas > 1 ? 's' : ''} usada${pistas > 1 ? 's' : ''}`}</span></div><button class="btn certo grande" id="cont" style="margin-top:14px">Continuar</button>`);
           f._antes = antes; contar(f.querySelector('#ganho'), 0, xp, 700); atualizarTopo(); f.querySelector('#cont').addEventListener('click', () => proximo(f, errou ? 'ok2' : 'ok1', xp)); f.querySelector('#cont').focus();

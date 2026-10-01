@@ -1,5 +1,8 @@
 // Regras do jogo: pontos, niveis, limites diarios. Sao as mesmas que o servidor revalida.
-export const NIVEIS = [[0, 'Aprendiz de Matriz'], [100, 'Redutor'], [300, 'Condensador'], [700, 'Determinante'], [1300, 'Inversor'], [2200, 'Mestre de Sistemas']];
+// 9 niveis: 3 escaloes x 3. Limiares de XP (total acumulado).
+export const NIVEIS = [[0, 'Aluno iniciante 1'], [80, 'Aluno iniciante 2'], [200, 'Aluno iniciante 3'], [400, 'Aluno standard 1'], [650, 'Aluno standard 2'], [950, 'Aluno standard 3'], [1350, 'Aluno expert 1'], [1800, 'Aluno expert 2'], [2400, 'Aluno expert 3']];
+// o avatar guarda a "raridade" de cada item (0 a 5); cada raridade abre num nivel (indice em NIVEIS)
+export const NIVEL_DA_RARIDADE = [0, 1, 3, 5, 7, 8];
 export const DATA_TESTE = '2026-10-28';
 export const NOMES = { produto: 'Produto', determinante: 'Determinante', inversa: 'Inversa', caracteristica: 'Característica', sistema: 'Sistemas' };
 export const PASSOS_TIPOS = ['inversa', 'caracteristica', 'sistema'];

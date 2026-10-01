@@ -5,10 +5,12 @@ sha = sys.argv[1]; root = pathlib.Path(__file__).resolve().parent.parent; out = 
 shutil.rmtree(out, ignore_errors=True); (out / 'icons').mkdir(parents=True)
 CDN = f'https://cdn.jsdelivr.net/gh/pcarras/mathpop@{sha}/web/'
 for f in (root / 'deploy' / 'icons').glob('*.png'): shutil.copy(f, out / 'icons' / f.name)
-files = sorted(str(p.relative_to(root / 'web')) for p in (root / 'web').rglob('*') if p.is_file() and p.name not in ('index.html', 'liga.js') and not p.name.endswith('.map'))
+files = sorted(str(p.relative_to(root / 'web')) for p in (root / 'web').rglob('*') if p.is_file() and p.name != 'index.html' and not p.name.endswith('.map'))
 manifest = {"id": "/", "name": "Arena Mat I", "short_name": "Arena Mat I", "description": "Treino de Matemática I: matrizes e sistemas de equações lineares", "lang": "pt-PT", "start_url": "/", "scope": "/",
   "display": "standalone", "display_override": ["standalone", "minimal-ui"], "orientation": "portrait", "background_color": "#0A1226", "theme_color": "#0A1226",
   "icons": [{"src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"}, {"src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"}, {"src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}]}
+# funcao da liga (servidor): api/*.js + package.json (ESM)
+(out / 'api').mkdir(); [shutil.copy(f, out / 'api' / f.name) for f in (root / 'api').glob('*.js')]; (out / 'package.json').write_text('{"type":"module"}\n')
 (out / 'manifest.webmanifest').write_text(json.dumps(manifest, ensure_ascii=False, indent=1), encoding='utf-8')
 sw = f"""// Service worker da Arena Mat I. Guarda a app no aparelho para abrir depressa e funcionar sem rede. Versao {sha[:7]}.
 const CACHE = 'mat1-{sha[:10]}';

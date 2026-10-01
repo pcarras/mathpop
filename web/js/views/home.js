@@ -52,7 +52,7 @@ function mapa() {
 }
 
 export function home(root, go, _a, atualizarTopo) {
-  const s = estado(), nv = nivelDe(s.xp), nome = s.perfil.alcunha || 'Jogador';
+  const s = estado(), nv = nivelDe(s.xp), nome = s.perfil.alcunha || (s.perfil.nome || '').split(' ')[0] || 'Jogador';
   const pct = nv.proximo ? Math.min(100, (100 * (s.xp - nv.base)) / (nv.proximo - nv.base)) : 100, circ = 2 * Math.PI * 38;
   const miss = missoesDeHoje();
   root.innerHTML = `

@@ -1,7 +1,7 @@
 // Avatar: biblioteca Avataaars (Pablo Stanley, uso livre) via DiceBear, offline. Itens desbloqueados por nivel (0 a 5).
 import { createAvatar, avataaars } from '../../vendor/dicebear.js';
 import { estado, AVATAR_PADRAO } from '../store.js';
-import { nivelDe } from '../rules.js';
+import { nivelDe, NIVEIS, NIVEL_DA_RARIDADE } from '../rules.js';
 
 // Cada item: [id, nome, nivelMinimo]. Nivel 0 = livre desde o inicio; so os itens mais radicais ou com adereços engraçados ficam para ganhar.
 const O = (lista) => lista.map(([id, nome, nivel = 0]) => ({ id, nome, nivel }));
@@ -38,11 +38,13 @@ export const CHAPEUS = { h: ['hat', 'winterHat1', 'winterHat02', 'winterHat03', 
 export const PENTEADO_INICIAL = { h: 'shortFlat', m: 'bob' };
 export const RARIDADE = ['Comum', 'Incomum', 'Rara', 'Épica', 'Lendária', 'Mítica'];
 export const categoria = (id) => CATEGORIAS.find((c) => c.id === id);
-export const desbloqueado = (item, nivelIdx) => item.nivel <= nivelIdx;
+export const nivelDoItem = (item) => NIVEL_DA_RARIDADE[Math.min(5, item.nivel)];
+export const nomeNivelDoItem = (item) => NIVEIS[nivelDoItem(item)][1];
+export const desbloqueado = (item, nivelIdx) => nivelDoItem(item) <= nivelIdx;
 export const nivelAtual = () => nivelDe(estado().xp).indice;
 export function desbloqueiosDoNivel(idx) {
-  const out = []; for (const c of CATEGORIAS) for (const o of c.opcoes) if (o.nivel === idx && !(c.tipo === 'cor')) out.push(`${c.nome}: ${o.nome}`);
-  const cores = CATEGORIAS.filter((c) => c.tipo === 'cor').reduce((n, c) => n + c.opcoes.filter((o) => o.nivel === idx).length, 0); if (cores) out.push(`${cores} cores novas`);
+  const out = []; for (const c of CATEGORIAS) for (const o of c.opcoes) if (nivelDoItem(o) === idx && !(c.tipo === 'cor')) out.push(`${c.nome}: ${o.nome}`);
+  const cores = CATEGORIAS.filter((c) => c.tipo === 'cor').reduce((n, c) => n + c.opcoes.filter((o) => nivelDoItem(o) === idx).length, 0); if (cores) out.push(`${cores} cores novas`);
   return out;
 }
 const cache = new Map();

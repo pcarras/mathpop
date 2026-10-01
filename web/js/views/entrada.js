@@ -42,10 +42,10 @@ export function entrada(root, go, _t, atualizarTopo) {
   <section class="entrada">
     <div class="entrada-av">${avatarHTML(s.avatar, { s: 132, anim: true })}</div>
     <h1 class="entrada-t">Arena Mat I</h1>
-    <p class="entrada-p">Antes de entrares, diz-nos quem és. Assim podes aparecer na liga da tua turma.</p>
+    <p class="entrada-p">Antes de entrares, diz-nos quem és. Assim podes competir na liga da tua turma.</p>
     <div class="painel entrada-f">${camposHTML(s.perfil)}</div>
     <button class="btn grande ouro" id="entrar" disabled>Entrar na Arena</button>
-    <p class="nota" style="margin:12px 4px 0">O nome serve para o professor te reconhecer. Na liga aparece apenas a alcunha ou o teu primeiro nome. Por agora estes dados ficam só neste aparelho, e podes mudá-los em Perfil, Definições.</p>
+    <p class="nota" style="margin:12px 4px 0">Estes dados ficam neste aparelho. Só seguem para o servidor se entrares na liga, e aí os colegas veem apenas a alcunha (ou o primeiro nome). Podes mudá-los em Perfil, Definições.</p>
   </section>`;
   const ler = ligarCampos(root, 'e', () => { root.querySelector('#entrar').disabled = !valido(ler()); });
   root.querySelector('#entrar').disabled = !valido(ler());
