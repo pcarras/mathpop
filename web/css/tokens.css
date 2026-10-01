@@ -1,0 +1,19 @@
+/* Arena Mat I: direcao de arte "Noite de estudo". Quadro azul-noite, giz, tinta vermelha do elemento redutor. */
+@font-face{font-family:"Big Shoulders Display";font-weight:700;font-display:swap;src:url(../vendor/fonts/big-shoulders-display-latin-700-normal.woff2) format("woff2")}
+@font-face{font-family:"Big Shoulders Display";font-weight:800;font-display:swap;src:url(../vendor/fonts/big-shoulders-display-latin-800-normal.woff2) format("woff2")}
+@font-face{font-family:"Big Shoulders Display";font-weight:900;font-display:swap;src:url(../vendor/fonts/big-shoulders-display-latin-900-normal.woff2) format("woff2")}
+@font-face{font-family:"Figtree";font-weight:500;font-display:swap;src:url(../vendor/fonts/figtree-latin-500-normal.woff2) format("woff2")}
+@font-face{font-family:"Figtree";font-weight:700;font-display:swap;src:url(../vendor/fonts/figtree-latin-700-normal.woff2) format("woff2")}
+@font-face{font-family:"Figtree";font-weight:800;font-display:swap;src:url(../vendor/fonts/figtree-latin-800-normal.woff2) format("woff2")}
+@font-face{font-family:"Caveat";font-weight:700;font-display:swap;src:url(../vendor/fonts/caveat-latin-700-normal.woff2) format("woff2")}
+:root{
+  color-scheme:dark;
+  --noite:#0A1226; --quadro:#12244A; --painel-a:#1A366C; --painel-b:#10224A; --borda:#2F5096; --borda-2:#3E66BD;
+  --giz:#EAF1FF; --giz-2:#A9B9D8; --giz-3:#6F84AD;
+  --ciano:#27D8E0; --ciano-esc:#0E8F98; --ouro:#FFC23D; --ouro-esc:#B97F08;
+  --certo:#3DDC97; --certo-esc:#1B8F5F; --erro:#FF5A6A; --erro-esc:#B02B3A; --redutor:#FF3B4E;
+  --violeta:#9B7BFF; --violeta-esc:#5E43C4; --chama:#FF8A3D;
+  --r-comum:#8EA0BF; --r-incomum:#3DDC97; --r-raro:#27B7FF; --r-epico:#B07BFF; --r-lendario:#FFC23D; --r-mitico:#FF3B4E;
+  --display:"Big Shoulders Display","Arial Narrow",Impact,sans-serif; --corpo:"Figtree","Segoe UI",system-ui,sans-serif; --giz-fonte:"Caveat","Segoe Print",cursive;
+  --ease:cubic-bezier(.2,.9,.25,1.15); --safe-b:env(safe-area-inset-bottom,0px);
+}

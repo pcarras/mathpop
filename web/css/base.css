@@ -1,0 +1,25 @@
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{-webkit-text-size-adjust:100%;background:var(--noite)}
+body{margin:0;min-height:100vh;color:var(--giz);font:500 16px/1.45 var(--corpo);background:
+  radial-gradient(120% 60% at 50% -10%,#21438A 0%,rgba(33,67,138,0) 60%),
+  linear-gradient(180deg,#0B1530 0%,#0A1226 55%,#070D1C 100%);background-attachment:fixed;overflow-x:hidden}
+body:before{content:"";position:fixed;inset:0;z-index:-2;pointer-events:none;opacity:.5;
+  background-image:linear-gradient(rgba(120,160,255,.08) 1px,transparent 1px),linear-gradient(90deg,rgba(120,160,255,.08) 1px,transparent 1px);
+  background-size:32px 32px;-webkit-mask-image:radial-gradient(90% 70% at 50% 25%,#000 20%,transparent 75%);mask-image:radial-gradient(90% 70% at 50% 25%,#000 20%,transparent 75%)}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;padding:0}
+:focus-visible{outline:3px solid var(--ciano);outline-offset:3px;border-radius:10px}
+h1,h2,h3{font-family:var(--display);font-weight:900;line-height:1;margin:0;letter-spacing:.2px}
+h1{font-size:40px} h2{font-size:26px;margin:26px 0 12px} h3{font-size:20px}
+p{margin:0 0 10px}
+.nota{color:var(--giz-2);font-size:14px}
+.giz{font-family:var(--giz-fonte);font-weight:700;color:#FFE9A6;font-size:19px;line-height:1.1}
+.num{font-family:var(--display);font-weight:900;font-variant-numeric:tabular-nums;letter-spacing:.5px}
+/* mundo: numeros e parenteses a flutuar, muito subtil */
+.mundo{position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden}
+.mundo span{position:absolute;font:900 clamp(48px,14vw,120px)/1 var(--display);color:rgba(130,170,255,.06);animation:flutua 26s ease-in-out infinite alternate}
+@keyframes flutua{from{transform:translateY(0) rotate(-3deg)}to{transform:translateY(-36px) rotate(3deg)}}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important}}
+main{max-width:720px;margin:0 auto;padding:12px 16px calc(96px + var(--safe-b))}
+body.imersivo main{padding-bottom:calc(16px + var(--safe-b))}
+.ocultar-imersivo{display:block} body.imersivo .ocultar-imersivo{display:none!important}
+.katex{color:inherit;font-size:1.12em}
