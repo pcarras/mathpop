@@ -11,6 +11,7 @@ const CMD = {
   HSET: ([k, ...r]) => { const h = H(k); for (let i = 0; i < r.length; i += 2) h.set(r[i], r[i + 1]); return r.length / 2; },
   HGET: ([k, f]) => (db.get(k)?.get(f) ?? null), HMGET: ([k, ...f]) => f.map((x) => db.get(k)?.get(x) ?? null),
   HINCRBY: ([k, f, n]) => { const h = H(k); const v = (Number(h.get(f)) || 0) + Number(n); h.set(f, String(v)); return v; },
+  HKEYS: ([k]) => [...(db.get(k)?.keys() || [])],
   HDEL: ([k, f]) => (db.get(k)?.delete(f) ? 1 : 0),
   SADD: ([k, ...m]) => { const s = H(k); let n = 0; for (const x of m) if (!s.has(x)) { s.set(x, 1); n++; } return n; }, SMEMBERS: ([k]) => [...(db.get(k)?.keys() || [])],
   SET: ([k, v, ...o]) => { if (o.includes('NX') && db.has(k)) return null; db.set(k, v); return 'OK'; },
@@ -24,7 +25,7 @@ const CMD = {
   ZREVRANGE: ([k, a, b, ws]) => { const l = rank(k).slice(Number(a), Number(b) + 1); return ws ? l.flatMap(([m, s]) => [m, String(s)]) : l.map((x) => x[0]); },
 };
 http.createServer((req, res) => { let d = ''; req.on('data', (c) => (d += c)); req.on('end', () => { const cmds = JSON.parse(d || '[]'); res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify(cmds.map((c) => { try { return { result: CMD[c[0].toUpperCase()](c.slice(1)) }; } catch (e) { return { error: String(e) }; } }))); }); }).listen(REDIS);
-process.env.UPSTASH_REDIS_REST_URL = `http://127.0.0.1:${REDIS}`; process.env.UPSTASH_REDIS_REST_TOKEN = 'teste';
+process.env.UPSTASH_REDIS_REST_URL = `http://127.0.0.1:${REDIS}`; process.env.UPSTASH_REDIS_REST_TOKEN = 'teste'; process.env.TEACHER_KEY = 'codigo-de-teste';
 const { default: handler } = await import(path.join(raiz, 'api/liga.js'));
 const TIPOS = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.woff2': 'font/woff2', '.png': 'image/png', '.svg': 'image/svg+xml', '.webmanifest': 'application/manifest+json' };
 http.createServer((req, res) => {

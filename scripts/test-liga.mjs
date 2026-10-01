@@ -55,4 +55,24 @@ ok(tot === 80 && rej === 40, `limite de 80 por dia (aceites ${tot}, rejeitados $
 r = await post({ a: 'apagar', id: rui.id, chave: rui.chave }); ok(r.s === 200, 'Rui apaga os dados');
 r = await post({ a: 'ranking', id: ana.id, chave: ana.chave, escopo: 'turma', periodo: 'total' }); ok(r.lista.length === 2, 'Rui desapareceu do ranking');
 r = await post({ a: 'sync', id: rui.id, chave: rui.chave, ev: [] }); ok(r.s === 401, 'Rui ja nao se autentica');
+// professor
+const prof = jogador('Prof'); r = await reg(prof, 'diurno', 'portimao', 'ProfAlc'); prof.chave = r.chave;
+r = await post({ a: 'sync', id: prof.id, chave: prof.chave, ev: [certo(prof, 'produto', 1)] }); ok(r.aceites === 1 && r.prof === false, 'antes do codigo conta como aluno');
+r = await post({ a: 'ranking', id: ana.id, chave: ana.chave, escopo: 'geral', periodo: 'total' }); ok(r.lista.some((x) => x.alc === 'ProfAlc'), 'aluno aparece no ranking antes de ser professor');
+r = await post({ a: 'professor', id: ana.id, chave: ana.chave, codigo: 'errado' }); ok(r.s === 403, 'codigo errado recusado');
+r = await post({ a: 'professor', id: ana.id, chave: 'x', codigo: 'codigo-de-teste' }); ok(r.s === 401, 'sem chave do jogador nao entra');
+r = await post({ a: 'painel', id: ana.id, chave: ana.chave }); ok(r.s === 403, 'aluno nao ve o painel');
+r = await post({ a: 'professor', id: prof.id, chave: prof.chave, codigo: '  codigo-de-teste ' }); ok(r.s === 200, 'codigo certo reconhece o professor');
+r = await post({ a: 'ranking', id: ana.id, chave: ana.chave, escopo: 'geral', periodo: 'total' }); ok(!r.lista.some((x) => x.alc === 'ProfAlc'), 'professor sai do ranking');
+r = await post({ a: 'sync', id: prof.id, chave: prof.chave, ev: [certo(prof, 'produto', 1)] }); ok(r.aceites === 1 && r.prof === true, 'professor treina e o servidor confirma o estatuto');
+r = await post({ a: 'ranking', id: ana.id, chave: ana.chave, escopo: 'geral', periodo: 'total' }); ok(!r.lista.some((x) => x.alc === 'ProfAlc'), 'pontos do professor nao entram no ranking');
+r = await post({ a: 'ranking', id: prof.id, chave: prof.chave, escopo: 'geral', periodo: 'total' }); ok(r.prof === true && r.minha === null, 'professor ve a tabela sem posicao');
+r = await post({ a: 'painel', id: prof.id, chave: prof.chave }); ok(r.s === 200 && r.lista.length >= 4 && r.lista.some((x) => x.nome === 'Aluno Ana' || x.nome === 'Ana') && r.lista.some((x) => x.prof), `painel lista os jogadores com nome real (${r.lista?.length})`);
+r = await post({ a: 'ocultar', id: ana.id, chave: ana.chave, alvo: eva.id, oculto: true }); ok(r.s === 403, 'aluno nao pode ocultar');
+r = await post({ a: 'ocultar', id: prof.id, chave: prof.chave, alvo: ana.id, oculto: true }); ok(r.s === 200, 'professor oculta a alcunha da Ana');
+r = await post({ a: 'ranking', id: rui.id === ana.id ? eva.id : eva.id, chave: eva.chave, escopo: 'geral', periodo: 'total' }); ok(!r.lista.some((x) => x.alc === 'AnaF') && r.lista.some((x) => x.alc === 'Aluno' && x.xp === xpAna), 'alcunha oculta aparece como Aluno');
+r = await post({ a: 'sync', id: ana.id, chave: ana.chave, ev: [], perfil: { alc: 'NovaAlc' } }); r = await post({ a: 'ranking', id: eva.id, chave: eva.chave, escopo: 'geral', periodo: 'total' }); ok(!r.lista.some((x) => x.alc === 'NovaAlc'), 'mudar de alcunha nao desfaz a ocultacao');
+r = await post({ a: 'ocultar', id: prof.id, chave: prof.chave, alvo: ana.id, oculto: false }); r = await post({ a: 'ranking', id: eva.id, chave: eva.chave, escopo: 'geral', periodo: 'total' }); ok(r.lista.some((x) => x.alc === 'NovaAlc'), 'professor volta a mostrar a alcunha');
+r = await post({ a: 'ocultar', id: prof.id, chave: prof.chave, alvo: 'nao-existe', oculto: true }); ok(r.s === 400, 'alvo invalido recusado');
+for (let i = 0; i < 9; i++) r = await post({ a: 'professor', id: eva.id, chave: eva.chave, codigo: 'tentativa' + i }); ok(r.s === 429, 'tentativas de codigo limitadas');
 console.log(falhas ? `\n${falhas} FALHAS` : '\nTodos os testes passaram'); process.exit(falhas ? 1 : 0);

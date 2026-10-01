@@ -7,7 +7,7 @@ import { CONQUISTAS, progresso } from '../game/achievements.js';
 import { sfx, alternarSom } from '../ui/sfx.js';
 import { toast, festa } from '../ui/fx.js';
 import { camposHTML, ligarCampos, valido } from './entrada.js';
-import { naLiga, sairDaLiga, agendar, disponivelAgora } from '../game/liga.js';
+import { naLiga, sairDaLiga, agendar, disponivelAgora, eProfessor, tornarProfessor } from '../game/liga.js';
 import { conteudo as instConteudo, ligar as instLigar, ehTelemovel } from '../ui/instalar.js';
 
 let aba = 'avatar', passoId = 'quem';
@@ -119,6 +119,7 @@ function vDef(s) {
     <button class="btn" id="gravDados" style="margin-top:14px" disabled>Guardar</button>
   </section>
   ${disponivelAgora() ? `<section class="painel" style="margin-top:12px"><b>Liga</b>${naLiga() ? `<p class="nota" style="margin:2px 0 10px">Estás na liga. Sair apaga do servidor os teus dados e os teus pontos de liga.</p><button class="btn fantasma" id="sairLiga">Sair da liga e apagar os meus dados do servidor</button>` : `<p class="nota" style="margin:2px 0 10px">Ainda não estás na liga.</p><button class="btn ouro" id="irLiga">Ver a liga</button>`}</section>` : ''}
+  ${disponivelAgora() && naLiga() ? `<section class="painel" style="margin-top:12px"><details${eProfessor() ? ' open' : ''}><summary style="cursor:pointer;font-weight:700">Acesso do professor</summary>${eProfessor() ? `<p class="nota" style="margin:8px 0 0">Estás reconhecido como professor. Ficas fora da tabela e vês o painel na página Liga.</p>` : `<p class="nota" style="margin:8px 0 10px">Só para o professor da UC. Escreve o código para seres reconhecido.</p><input id="codProf" class="campo" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Código do professor"><button class="btn" id="okProf" style="margin-top:10px">Confirmar</button><p class="nota" id="erroProf" style="margin:8px 0 0;color:var(--erro)"></p>`}</details></section>` : ''}
   <section class="painel" style="margin-top:12px">
     <div class="linha"><div><b>Sons e vibração</b><div class="nota">Efeitos curtos ao acertar e ao subir de nível.</div></div><span class="espaco"></span><button class="btn fantasma" id="som" aria-pressed="${s.som !== false}">${icon(s.som !== false ? 'som' : 'mudo')} ${s.som !== false ? 'Ligados' : 'Desligados'}</button></div>
   </section>
@@ -139,6 +140,12 @@ function ligarDef(root, s, go, redesenhar, atualizarTopo) {
   const ler = ligarCampos(root, 'd', () => { const p = ler(), o = s.perfil; root.querySelector('#gravDados').disabled = !valido(p) || (p.nome === o.nome && p.regime === o.regime && p.local === o.local && p.alcunha === (o.alcunha || '')); });
   root.querySelector('#gravDados').addEventListener('click', () => { const p = ler(); if (!valido(p)) return; Object.assign(s.perfil, p); gravar(); sfx.xp(); agendar(1500); toast(`<div><b>Dados guardados</b><br><span class="nota">${p.nome}, ${p.regime === 'diurno' ? 'diurno' : 'noturno'}, ${p.local === 'faro' ? 'Faro' : 'Portimão'}.</span></div>`); atualizarTopo(); redesenhar(); });
   root.querySelector('#irLiga')?.addEventListener('click', () => go('liga'));
+  root.querySelector('#okProf')?.addEventListener('click', async (e) => {
+    const b = e.currentTarget, c = root.querySelector('#codProf').value.trim(), er = root.querySelector('#erroProf'); if (!c) { er.textContent = 'Escreve o código.'; return; }
+    b.disabled = true; er.textContent = ''; const r = await tornarProfessor(c); b.disabled = false;
+    if (r.ok) { sfx.bau(); toast('<div><b>Professor reconhecido</b><br><span class="nota">Ficas fora da tabela. O painel está na página Liga.</span></div>'); atualizarTopo(); redesenhar(); return; }
+    er.textContent = { codigo: 'Código errado.', muitas: 'Demasiadas tentativas. Tenta daqui a uma hora.', sem_codigo: 'O código do professor ainda não está configurado.', rede: 'Sem ligação ao servidor.' }[r.erro] || 'Não foi possível confirmar agora.';
+  });
   root.querySelector('#sairLiga')?.addEventListener('click', async (e) => {
     const b = e.currentTarget;
     if (!b.dataset.sim) { b.dataset.sim = '1'; b.textContent = 'Toca outra vez para confirmar'; setTimeout(() => { if (b.isConnected) { delete b.dataset.sim; b.textContent = 'Sair da liga e apagar os meus dados do servidor'; } }, 4000); return; }

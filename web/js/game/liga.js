@@ -10,6 +10,7 @@ export async function ligaDisponivel() {
   return disp;
 }
 export const naLiga = () => !!estado().liga.chave;
+export const eProfessor = () => !!estado().liga.prof;
 async function post(corpo) {
   const r = await fetch(API, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(corpo) });
   let j = {}; try { j = await r.json(); } catch { /* sem corpo */ }
@@ -22,7 +23,7 @@ export async function entrarNaLiga() {
   const corpo = () => ({ a: 'registar', id: p.id, sal: s.sal, nome: p.nome, alc: p.alcunha || '', regime: p.regime, local: p.local, avatar: s.avatar, consentimento: true });
   let r = await post(corpo());
   if (r.status === 409) { p.id = crypto.randomUUID(); r = await post(corpo()); }
-  if (r.status === 200 && r.chave) { L.chave = r.chave; L.aceitou = Date.now(); L.visto = JSON.stringify(instantaneo()); L.fila = []; L.xp = 0; gravar(); return { ok: true }; }
+  if (r.status === 200 && r.chave) { L.chave = r.chave; L.prof = 0; L.aceitou = Date.now(); L.visto = JSON.stringify(instantaneo()); L.fila = []; L.xp = 0; gravar(); return { ok: true }; }
   return { ok: false, erro: r.erro || 'rede' };
 }
 export function enfileirar(ev) {
@@ -43,7 +44,7 @@ export function sincronizar() {
         const corpo = { a: 'sync', id: estado().perfil.id, chave: L.chave, ev: lote };
         if (snap !== L.visto) corpo.perfil = JSON.parse(snap);
         const r = await post(corpo);
-        if (r.status === 200) { L.fila.splice(0, lote.length); L.xp = r.xp; L.visto = snap; gravar(); if (!L.fila.length) return { ok: true, xp: L.xp }; continue; }
+        if (r.status === 200) { L.fila.splice(0, lote.length); L.xp = r.xp; L.visto = snap; L.prof = r.prof ? 1 : 0; gravar(); if (!L.fila.length) return { ok: true, xp: L.xp }; continue; }
         if (r.status === 401) { L.chave = ''; L.fila = []; gravar(); return { ok: false, erro: 'auth' }; }
         agendar(30000); return { ok: false, erro: r.erro || 'servidor' };
       }
@@ -55,12 +56,30 @@ export function sincronizar() {
 }
 export async function ranking(escopo, periodo) {
   await sincronizar();
-  try { const L = estado().liga; const r = await post({ a: 'ranking', id: estado().perfil.id, chave: L.chave, escopo, periodo }); if (r.status === 401) { L.chave = ''; gravar(); return { erro: 'auth' }; } return r.status === 200 ? r : { erro: r.erro || 'servidor' }; } catch { return { erro: 'rede' }; }
+  try { const L = estado().liga; const r = await post({ a: 'ranking', id: estado().perfil.id, chave: L.chave, escopo, periodo }); if (r.status === 401) { L.chave = ''; gravar(); return { erro: 'auth' }; } if (r.status === 200) { const antes = L.prof; L.prof = r.prof ? 1 : 0; if (antes !== L.prof) gravar(); } return r.status === 200 ? r : { erro: r.erro || 'servidor' }; } catch { return { erro: 'rede' }; }
 }
 export async function sairDaLiga() {
   const L = estado().liga;
   try { const r = await post({ a: 'apagar', id: estado().perfil.id, chave: L.chave }); if (r.status !== 200 && r.status !== 401) return false; } catch { return false; }
-  L.chave = ''; L.fila = []; L.xp = 0; L.visto = ''; L.aceitou = 0; gravar(); return true;
+  L.chave = ''; L.fila = []; L.xp = 0; L.visto = ''; L.aceitou = 0; L.prof = 0; gravar(); return true;
+}
+// professor: o servidor confere o codigo (nunca fica na app) e guarda o estatuto
+export async function tornarProfessor(codigo) {
+  const L = estado().liga; if (!L.chave) return { ok: false, erro: 'fora' };
+  try {
+    await sincronizar();
+    const r = await post({ a: 'professor', id: estado().perfil.id, chave: L.chave, codigo });
+    if (r.status === 200) { L.prof = 1; gravar(); return { ok: true }; }
+    return { ok: false, erro: r.status === 403 ? 'codigo' : r.status === 429 ? 'muitas' : r.status === 503 ? 'sem_codigo' : 'servidor' };
+  } catch { return { ok: false, erro: 'rede' }; }
+}
+export async function painelProf() {
+  const L = estado().liga;
+  try { const r = await post({ a: 'painel', id: estado().perfil.id, chave: L.chave }); if (r.status === 403) { L.prof = 0; gravar(); } return r.status === 200 ? r : { erro: r.erro || 'servidor' }; } catch { return { erro: 'rede' }; }
+}
+export async function ocultarAluno(alvo, oculto) {
+  const L = estado().liga;
+  try { const r = await post({ a: 'ocultar', id: estado().perfil.id, chave: L.chave, alvo, oculto }); return r.status === 200; } catch { return false; }
 }
 // arranque: tenta enviar o que ficou por enviar e volta a tentar quando a rede regressa
 export function iniciarLiga() {
