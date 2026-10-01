@@ -1,9 +1,11 @@
 // API da liga da Arena Mat I. Uma unica funcao: GET devolve o estado, POST executa uma acao (registar, sync, ranking, apagar).
 // Os pontos so contam depois de o servidor regenerar cada exercicio a partir da semente e conferir a resposta.
-import { randomBytes, timingSafeEqual } from 'node:crypto';
+import { randomBytes, timingSafeEqual, createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { gerar, verificar, xpTreino, diaChave, TIPOS } from './_motor.js';
 import { pipe, cmd, obj, ligado } from './_redis.js';
 
+const sha = (f) => { try { return createHash('sha256').update(readFileSync(new URL(f, import.meta.url))).digest('hex').slice(0, 12); } catch { return null; } };
 const REGIMES = ['diurno', 'noturno'], LOCAIS = ['portimao', 'faro'];
 const CHAVES_AV = ['genero', 'top', 'hairColor', 'hatColor', 'accessories', 'accessoriesColor', 'facialHair', 'facialHairColor', 'clothing', 'clothesColor', 'clothingGraphic', 'eyebrows', 'eyes', 'mouth', 'skinColor', 'fundo', 'moldura'];
 const MAX_POR_DIA = 80, MAX_EVENTOS = 50, JANELA_SEMENTES = 3000;
@@ -137,7 +139,7 @@ async function apagar(b) {
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
-  if (req.method === 'GET') return res.status(200).json({ ligado: ligado() });
+  if (req.method === 'GET') return res.status(200).json({ ligado: ligado(), v: { liga: sha('./liga.js'), motor: sha('./_motor.js'), redis: sha('./_redis.js') } });
   if (req.method !== 'POST') return res.status(405).json({ erro: 'metodo' });
   if (!ligado()) return res.status(503).json({ erro: 'sem_base' });
   let b = req.body; if (typeof b === 'string') { try { b = JSON.parse(b); } catch { b = null; } }
