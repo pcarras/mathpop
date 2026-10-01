@@ -88,3 +88,18 @@
 .instalar{margin-top:12px;border-color:var(--ciano-esc);background:linear-gradient(180deg,#14407A,#0E2A58)}
 .inst-t{font:900 22px var(--display);display:block} .inst-p{margin:4px 0 8px;font-size:15px} .inst-l{margin:0 0 10px;padding-left:22px;font-size:15px;line-height:1.5} .inst-l li{margin:2px 0}
 .ico-p{vertical-align:-4px;color:var(--ciano)} .inst-acoes{display:flex;gap:8px;flex-wrap:wrap}
+
+/* Entrada e dados do aluno */
+.entrada{max-width:520px;margin:0 auto;padding:18px 4px 28px;display:flex;flex-direction:column;gap:14px}
+.entrada-av{display:grid;place-items:center;margin-top:6px}
+.entrada-t{font:900 44px/1 var(--display);text-align:center;margin:0;letter-spacing:.5px}
+.entrada-p{text-align:center;margin:0 6px;color:var(--giz-2)}
+.entrada-f{display:flex;flex-direction:column;gap:6px}
+.campo-t{font-weight:800;margin-top:8px}
+.campo{width:100%;padding:13px 14px;border-radius:14px;border:2px solid var(--borda-2);background:rgba(0,0,0,.35);color:var(--giz);font:700 17px var(--corpo)}
+.campo:focus{outline:none;border-color:var(--ciano);box-shadow:0 0 0 3px rgba(39,216,224,.25)}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.seg button{min-height:52px;border-radius:14px;border:2px solid var(--borda);background:rgba(255,255,255,.05);color:var(--giz);font:800 17px var(--corpo);cursor:pointer}
+.seg button[aria-checked=true]{border-color:var(--ciano);background:rgba(39,216,224,.16);box-shadow:0 0 0 2px rgba(39,216,224,.35)}
+.seg button:focus-visible{outline:3px solid var(--ouro);outline-offset:2px}
+@media (max-width:380px){.entrada-t{font-size:38px}}

@@ -7,6 +7,7 @@ import { home } from './views/home.js';
 import { treinar } from './views/treinar.js';
 import { perfil } from './views/perfil.js';
 import { registarSW } from './ui/instalar.js';
+import { entrada, perfilCompleto } from './views/entrada.js';
 
 document.body.insertAdjacentHTML('afterbegin', defs);
 const root = document.getElementById('vista');
@@ -16,7 +17,7 @@ document.getElementById('barra').innerHTML = NAV.map(([k, n]) => `<button data-g
 export function go(rota) { const alvo = '#/' + rota; if (location.hash === alvo) render(); else location.hash = alvo; }
 function atualizarTopo() {
   const s = estado(), nv = nivelDe(s.xp), n = sequencia(), d = diasAteTeste();
-  document.getElementById('topo-id').innerHTML = `${avatarHTML(s.avatar, { s: 44 })}<span class="topo-nome"><b>${(s.perfil.alcunha || 'Jogador').replace(/[<>&]/g, '')}</b><small>${nv.titulo}</small></span>`;
+  document.getElementById('topo-id').innerHTML = `${avatarHTML(s.avatar, { s: 44 })}<span class="topo-nome"><b>${(s.perfil.alcunha || (s.perfil.nome || '').split(' ')[0] || 'Jogador').replace(/[<>&]/g, '')}</b><small>${nv.titulo}</small></span>`;
   document.getElementById('topo-dir').innerHTML = `<span class="chip chama" title="Dias seguidos">${icon('chama')}${n}</span><span class="chip" title="Dias até ao teste">${d > 0 ? d + ' d' : 'Hoje'}</span><button class="icon-btn" id="btnSom" aria-label="${s.som !== false ? 'Desligar sons' : 'Ligar sons'}">${icon(s.som !== false ? 'som' : 'mudo')}</button>`;
   document.getElementById('btnSom').addEventListener('click', () => { alternarSom(); sfx.clique(); atualizarTopo(); });
 }
@@ -24,6 +25,7 @@ function render() {
   registarDia();
   const [nome, resto] = (location.hash.replace(/^#\//, '') || 'home').split('/');
   const tipo = (resto || '').split('?')[0];
+  if (!perfilCompleto(estado().perfil)) { document.querySelectorAll('.folha,.overlay').forEach((e) => e.remove()); scrollTo(0, 0); entrada(root, go, '', atualizarTopo); return; }
   const v = VISTAS[nome] || home;
   document.body.classList.remove('imersivo'); root.style.paddingBottom = '';
   document.querySelectorAll('.folha,.overlay').forEach((e) => e.remove());

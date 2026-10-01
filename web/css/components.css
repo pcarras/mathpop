@@ -108,3 +108,13 @@ body.imersivo .barra{display:none}
 .btn .ico{width:24px;height:24px} .chip .ico{width:18px;height:18px}
 .barra button .ico{width:26px;height:26px}
 .m-ico .ico{width:26px;height:26px} .icon-btn .ico{width:20px;height:20px}
+
+/* Avatar vivo: pisca, olha de lado e respira. Só nos avatares grandes (.anima). */
+.av.anima .av-olhos{transform-box:fill-box;transform-origin:50% 55%;animation:av-pisca 5.2s infinite var(--d,0s),av-olha 9s infinite var(--d2,0s)}
+.av.anima .av-sobr{transform-box:fill-box;transform-origin:50% 50%;animation:av-sobr 9s infinite var(--d2,0s)}
+.av.anima .av-arte svg{animation:av-respira 4.6s ease-in-out infinite var(--d,0s);transform-origin:50% 90%}
+@keyframes av-pisca{0%,90%,100%{scale:1 1}93%{scale:1 .08}96%{scale:1 1}97.5%{scale:1 .08}99%{scale:1 1}}
+@keyframes av-olha{0%,18%,100%{translate:0 0}22%,34%{translate:-5px 0}38%,56%{translate:0 0}60%,70%{translate:5px 0}74%{translate:0 -1px}78%{translate:0 0}}
+@keyframes av-sobr{0%,58%,100%{translate:0 0}62%,68%{translate:0 -3px}72%{translate:0 0}}
+@keyframes av-respira{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-1.5%) scale(1.012)}}
+@media (prefers-reduced-motion:reduce){.av.anima .av-olhos,.av.anima .av-sobr,.av.anima .av-arte svg{animation:none}}

@@ -57,7 +57,7 @@ export function home(root, go, _a, atualizarTopo) {
   const miss = missoesDeHoje();
   root.innerHTML = `
   <section class="heroi painel">
-    <div class="heroi-av">${avatarHTML(s.avatar, { s: 104 })}</div>
+    <div class="heroi-av">${avatarHTML(s.avatar, { s: 104, anim: true })}</div>
     <div class="heroi-txt">
       <div class="giz">Olá, ${nome.replace(/</g, '&lt;')}</div>
       <h1 class="titulo-nv">${nv.titulo}</h1>

@@ -2,13 +2,13 @@
 import { estado, gravar, apagarTudo, AVATAR_PADRAO } from '../store.js';
 import { nivelDe, NIVEIS } from '../rules.js';
 import { icon } from '../ui/icons.js';
-import { avatarHTML, categoria, desbloqueado, avatarAleatorio, RARIDADE, CABELOS, CHAPEUS, PENTEADO_INICIAL } from '../ui/avatar.js';
+import { avatarHTML, categoria, desbloqueado, RARIDADE, CABELOS, CHAPEUS, PENTEADO_INICIAL } from '../ui/avatar.js';
 import { CONQUISTAS, progresso } from '../game/achievements.js';
 import { sfx, alternarSom } from '../ui/sfx.js';
 import { toast, festa } from '../ui/fx.js';
+import { camposHTML, ligarCampos, valido } from './entrada.js';
 import { conteudo as instConteudo, ligar as instLigar, ehTelemovel } from '../ui/instalar.js';
 
-const limpar = (t) => String(t).replace(/[<>&"']/g, '').replace(/\s+/g, ' ').trim().slice(0, 16);
 let aba = 'avatar', passoId = 'quem';
 
 export function perfil(root, go, _a, atualizarTopo) {
@@ -62,9 +62,9 @@ function vAvatar(s, nv) {
   }).join('');
   const ultimo = i === lista.length - 1;
   return `
-  <section class="palco compacto"><div class="palco-av">${avatarHTML(a, { s: 124, nivel: nv.indice + 1 })}</div>
+  <section class="palco compacto"><div class="palco-av">${avatarHTML(a, { s: 124, nivel: nv.indice + 1, anim: true })}</div>
     <div class="palco-txt"><div class="nota">Passo ${i + 1} de ${lista.length}</div><h2 class="passo-t">${p.nome}</h2>
-      <div class="linha" style="gap:8px;margin-top:8px"><button class="btn fantasma peq" id="aleat">${icon('dado')} Aleatório</button><button class="btn fantasma peq" id="repor">${icon('repor')} Repor</button></div></div>
+      <div class="linha" style="gap:8px;margin-top:8px"><button class="btn fantasma peq" id="repor">${icon('repor')} Repor</button></div></div>
   </section>
   <div class="pontos" role="group" aria-label="Passos do avatar">${lista.map((x, k) => `<button data-passo="${x.id}" aria-label="${x.nome}" aria-current="${k === i}" class="${k < i ? 'feito' : ''}"></button>`).join('')}</div>
   ${seccoes}
@@ -94,7 +94,6 @@ function ligarAvatar(root, s, nv, redesenhar, atualizarTopo, go) {
     if (c.id === 'hairColor') a.facialHairColor = o.id;
     gravar(); sfx.xp(); const y = scrollY; redesenhar(); scrollTo(0, y); atualizarTopo();
   }));
-  root.querySelector('#aleat').addEventListener('click', () => { s.avatar = avatarAleatorio(nv.indice, Math.random, a.genero === 'm' ? 'm' : 'h'); s.avatar.facialHairColor = s.avatar.hairColor; gravar(); sfx.bau(); festa(0.4, { x: 0.5, y: 0.3 }); redesenhar(); atualizarTopo(); });
   root.querySelector('#repor').addEventListener('click', () => { s.avatar = { ...AVATAR_PADRAO, genero: a.genero === 'm' ? 'm' : 'h', top: PENTEADO_INICIAL[a.genero === 'm' ? 'm' : 'h'] }; gravar(); sfx.clique(); redesenhar(); atualizarTopo(); });
 }
 
@@ -113,17 +112,18 @@ function vDef(s) {
   return `
   <h2 style="margin-top:6px">Definições</h2>
   <section class="painel">
-    <label for="alc"><b>Alcunha</b></label>
-    <p class="nota" style="margin:2px 0 8px">É o nome que aparece no topo e na tua página inicial. Até 16 caracteres.</p>
-    <div class="linha"><input id="alc" maxlength="16" autocomplete="off" value="${(s.perfil.alcunha || '').replace(/"/g, '')}" placeholder="Ex.: Pivô Veloz" style="flex:1;min-width:0;padding:12px 14px;border-radius:14px;border:2px solid var(--borda-2);background:rgba(0,0,0,.35);color:var(--giz);font:700 17px var(--corpo)"><button class="btn" id="gravAlc">Guardar</button></div>
+    <b>Os teus dados</b>
+    <p class="nota" style="margin:2px 0 10px">Servem para te colocar na liga da tua turma. Por agora ficam só neste aparelho.</p>
+    ${camposHTML(s.perfil, 'd')}
+    <button class="btn" id="gravDados" style="margin-top:14px" disabled>Guardar</button>
   </section>
   <section class="painel" style="margin-top:12px">
     <div class="linha"><div><b>Sons e vibração</b><div class="nota">Efeitos curtos ao acertar e ao subir de nível.</div></div><span class="espaco"></span><button class="btn fantasma" id="som" aria-pressed="${s.som !== false}">${icon(s.som !== false ? 'som' : 'mudo')} ${s.som !== false ? 'Ligados' : 'Desligados'}</button></div>
   </section>
   ${ehTelemovel() ? `<section class="painel instalar" id="instalar" style="margin-top:12px">${instConteudo({ comDispensar: false })}</section>` : ''}
   <section class="painel" style="margin-top:12px">
-    <b>Os teus dados</b>
-    <p class="nota" style="margin:2px 0 10px">Nesta versão de teste, o progresso fica só neste aparelho. Apagar remove pontos, avatar e conquistas.</p>
+    <b>Apagar tudo</b>
+    <p class="nota" style="margin:2px 0 10px">Nesta versão de teste, o progresso fica só neste aparelho. Apagar remove pontos, avatar, conquistas e os teus dados.</p>
     <button class="btn erro" id="apagar">Apagar os meus dados</button>
   </section>
   <section class="painel" style="margin-top:12px">
@@ -134,7 +134,8 @@ function vDef(s) {
 
 function ligarDef(root, s, go, redesenhar, atualizarTopo) {
   const ci = root.querySelector('#instalar'); if (ci) instLigar(ci, redesenhar);
-  root.querySelector('#gravAlc').addEventListener('click', () => { s.perfil.alcunha = limpar(root.querySelector('#alc').value); gravar(); sfx.xp(); toast(`<div><b>Alcunha guardada</b><br><span class="nota">${s.perfil.alcunha || 'Sem alcunha: aparece um nome automático.'}</span></div>`); atualizarTopo(); });
+  const ler = ligarCampos(root, 'd', () => { const p = ler(), o = s.perfil; root.querySelector('#gravDados').disabled = !valido(p) || (p.nome === o.nome && p.regime === o.regime && p.local === o.local && p.alcunha === (o.alcunha || '')); });
+  root.querySelector('#gravDados').addEventListener('click', () => { const p = ler(); if (!valido(p)) return; Object.assign(s.perfil, p); gravar(); sfx.xp(); toast(`<div><b>Dados guardados</b><br><span class="nota">${p.nome}, ${p.regime === 'diurno' ? 'diurno' : 'noturno'}, ${p.local === 'faro' ? 'Faro' : 'Portimão'}.</span></div>`); atualizarTopo(); redesenhar(); });
   root.querySelector('#som').addEventListener('click', () => { alternarSom(); sfx.clique(); redesenhar(); atualizarTopo(); });
   root.querySelector('#apagar').addEventListener('click', (e) => {
     const b = e.currentTarget;
