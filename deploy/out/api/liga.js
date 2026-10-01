@@ -1,4 +1,4 @@
-// API da liga da Arena Mat I. Uma unica funcao: GET devolve o estado, POST executa uma acao (registar, sync, ranking, apagar).
+// API da liga da Arena Mat I. Uma unica funcao: GET devolve o estado, POST executa uma acao (registar, sync, ranking, apagar, professor, painel, ocultar).
 // Os pontos so contam depois de o servidor regenerar cada exercicio a partir da semente e conferir a resposta.
 import { randomBytes, timingSafeEqual, createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
@@ -26,7 +26,17 @@ async function autenticar(b) {
   const p = obj(await cmd('HGETALL', 'p:' + b.id));
   return p.chave && igual(p.chave, b.chave) ? p : null;
 }
-const cartao = (p, av) => JSON.stringify({ a: p.alc || primeiro(p.nome) || 'Aluno', v: av, r: p.regime, l: p.local });
+const nomeCartao = (p) => (p.oc === '1' ? 'Aluno' : (p.alc || primeiro(p.nome) || 'Aluno'));
+const cartao = (p, av) => JSON.stringify({ a: nomeCartao(p), v: av, r: p.regime, l: p.local });
+const sha256 = (t) => createHash('sha256').update(String(t)).digest('hex');
+const ehProf = (p) => p && p.prof === '1';
+// tira o jogador de todas as tabelas (usado ao sair da liga e ao ser reconhecido como professor)
+async function tirarDoRanking(id, p) {
+  const dias = (await cmd('SMEMBERS', 'dias:' + id)) || [], pers = ['tot', ...new Set(dias.map(segunda))], cmds = [];
+  for (const per of pers) cmds.push(['ZREM', chaveG(per), id], ['ZREM', chaveT(p.regime, p.local, per), id]);
+  if (cmds.length) await pipe(cmds);
+  return dias;
+}
 
 async function registar(b, req) {
   if (!idOk(b.id)) return [400, { erro: 'id' }];
@@ -70,7 +80,7 @@ async function sync(b) {
     }
     if (mudouCartao) {
       if (av === null) { try { av = JSON.parse((await cmd('HGET', 'cards', b.id)) || '{}').v || {}; } catch { av = {}; } }
-      cmds.push(['HSET', 'cards', b.id, cartao({ nome, alc, regime, local }, av)]);
+      cmds.push(['HSET', 'cards', b.id, cartao({ nome, alc, regime, local, oc: p.oc }, av)]);
     }
 
     // eventos
@@ -102,7 +112,7 @@ async function sync(b) {
         cmds.push(['HINCRBY', 'p:' + b.id, 'certas', aceites]);
         for (const dia of Object.keys(porDiaTipo)) { for (const t of Object.keys(porDiaTipo[dia])) cmds.push(['HINCRBY', `d:${b.id}:${dia}`, t, porDiaTipo[dia][t]]); cmds.push(['EXPIRE', `d:${b.id}:${dia}`, 3456000]); }
         cmds.push(['SADD', 'dias:' + b.id, ...novosDias]);
-        if (somaXP > 0) {
+        if (somaXP > 0 && !ehProf(p)) {
           cmds.push(['ZINCRBY', chaveG('tot'), somaXP, b.id], ['ZINCRBY', chaveT(regime, local, 'tot'), somaXP, b.id]);
           for (const wk of Object.keys(porSemana)) if (porSemana[wk] > 0) for (const k of [chaveG(wk), chaveT(regime, local, wk)]) cmds.push(['ZINCRBY', k, porSemana[wk], b.id], ['EXPIRE', k, 7776000]);
         }
@@ -110,7 +120,7 @@ async function sync(b) {
     }
     cmds.push(['HINCRBY', 'p:' + b.id, 'xp', somaXP]);
     const res = await pipe(cmds);
-    return [200, { ok: 1, aceites, rejeitados, xp: Number(res[res.length - 1]) }];
+    return [200, { ok: 1, aceites, rejeitados, xp: Number(res[res.length - 1]), prof: ehProf(p) }];
   } finally { await cmd('DEL', 'lock:' + b.id).catch(() => {}); }
 }
 
@@ -123,17 +133,53 @@ async function ranking(b) {
   const ids = lista.map((x) => x[0]); const eu = lista.some((x) => x[0] === b.id);
   const cartoes = ids.length ? await cmd('HMGET', 'cards', ...ids) : [];
   const out = lista.map(([id, xp], i) => { let c = {}; try { c = JSON.parse(cartoes[i] || '{}'); } catch { /* sem cartao */ } return { pos: i + 1, alc: c.a || 'Aluno', v: c.v || {}, xp, eu: id === b.id, t: geral ? `${c.l === 'faro' ? 'Faro' : 'Portimão'} ${c.r === 'noturno' ? 'noturno' : 'diurno'}` : undefined }; });
-  return [200, { ok: 1, lista: out.filter((x) => x.xp > 0), minha: pos === null ? null : { pos: Number(pos) + 1, xp: Number(pts), fora: !eu }, total: Number(total), turma: { regime: p.regime, local: p.local }, semana: wk }];
+  return [200, { ok: 1, lista: out.filter((x) => x.xp > 0), minha: pos === null ? null : { pos: Number(pos) + 1, xp: Number(pts), fora: !eu }, total: Number(total), turma: { regime: p.regime, local: p.local }, semana: wk, prof: ehProf(p) }];
 }
 
 async function apagar(b) {
   const p = await autenticar(b); if (!p) return [401, { erro: 'auth' }];
-  const dias = (await cmd('SMEMBERS', 'dias:' + b.id)) || [], semanas = [...new Set(dias.map(segunda))], pers = ['tot', ...semanas];
-  const cmds = [];
-  for (const per of pers) cmds.push(['ZREM', chaveG(per), b.id], ['ZREM', chaveT(p.regime, p.local, per), b.id]);
+  const dias = await tirarDoRanking(b.id, p), cmds = [];
   for (const d of dias) cmds.push(['DEL', `d:${b.id}:${d}`]);
   cmds.push(['DEL', 'dias:' + b.id], ['HDEL', 'cards', b.id], ['DEL', 'p:' + b.id]);
   await pipe(cmds);
+  return [200, { ok: 1 }];
+}
+
+// o professor prova que o e com um codigo que so existe no servidor (variavel TEACHER_KEY)
+async function professor(b, req) {
+  const p = await autenticar(b); if (!p) return [401, { erro: 'auth' }];
+  const segredo = process.env.TEACHER_KEY;
+  if (!segredo || segredo.length < 6) return [503, { erro: 'sem_codigo' }];
+  const hora = Math.floor(Date.now() / 3600000), ip = String(req.headers['x-forwarded-for'] || 'x').split(',')[0].trim().slice(0, 45);
+  const [n1, n2] = await pipe([['INCR', `rl:p:${b.id}:${hora}`], ['INCR', `rl:pi:${ip}:${hora}`]]);
+  if (n1 === 1) await cmd('EXPIRE', `rl:p:${b.id}:${hora}`, 7200);
+  if (n2 === 1) await cmd('EXPIRE', `rl:pi:${ip}:${hora}`, 7200);
+  if (n1 > 8 || n2 > 40) return [429, { erro: 'muitos_pedidos' }];
+  if (typeof b.codigo !== 'string' || !igual(sha256(b.codigo.trim()), sha256(segredo))) return [403, { erro: 'codigo' }];
+  await tirarDoRanking(b.id, p);
+  await cmd('HSET', 'p:' + b.id, 'prof', 1);
+  return [200, { ok: 1 }];
+}
+
+async function autenticarProf(b) { const p = await autenticar(b); return ehProf(p) ? p : null; }
+
+// painel do professor: todos os jogadores com nome real
+async function painel(b) {
+  const p = await autenticarProf(b); if (!p) return [403, { erro: 'prof' }];
+  const ids = ((await cmd('HKEYS', 'cards')) || []).filter(idOk).slice(0, 400);
+  const rs = ids.length ? await pipe(ids.map((id) => ['HGETALL', 'p:' + id])) : [];
+  const lista = ids.map((id, i) => { const o = obj(rs[i]); return o.nome ? { id, nome: o.nome, alc: o.alc || '', regime: o.regime, local: o.local, xp: Number(o.xp) || 0, certas: Number(o.certas) || 0, criado: Number(o.criado) || 0, oc: o.oc === '1', prof: o.prof === '1' } : null; }).filter(Boolean).sort((x, y) => y.xp - x.xp);
+  return [200, { ok: 1, lista }];
+}
+
+async function ocultar(b) {
+  const p = await autenticarProf(b); if (!p) return [403, { erro: 'prof' }];
+  if (!idOk(b.alvo)) return [400, { erro: 'alvo' }];
+  const q = obj(await cmd('HGETALL', 'p:' + b.alvo)); if (!q.nome) return [404, { erro: 'alvo' }];
+  q.oc = b.oculto === true ? '1' : '0';
+  let c = {}; try { c = JSON.parse((await cmd('HGET', 'cards', b.alvo)) || '{}'); } catch { c = {}; }
+  c.a = nomeCartao(q);
+  await pipe([[q.oc === '1' ? 'HSET' : 'HDEL', 'p:' + b.alvo, 'oc', ...(q.oc === '1' ? [1] : [])], ['HSET', 'cards', b.alvo, JSON.stringify(c)]]);
   return [200, { ok: 1 }];
 }
 
@@ -145,7 +191,7 @@ export default async function handler(req, res) {
   let b = req.body; if (typeof b === 'string') { try { b = JSON.parse(b); } catch { b = null; } }
   if (!b || typeof b !== 'object') return res.status(400).json({ erro: 'corpo' });
   try {
-    const fn = { registar: (x) => registar(x, req), sync, ranking, apagar }[b.a];
+    const fn = { registar: (x) => registar(x, req), sync, ranking, apagar, professor: (x) => professor(x, req), painel, ocultar }[b.a];
     if (!fn) return res.status(400).json({ erro: 'acao' });
     const [codigo, corpo] = await fn(b);
     return res.status(codigo).json(corpo);
