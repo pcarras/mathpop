@@ -9,6 +9,7 @@ import { painelProf, ocultarAluno } from '../game/liga.js';
 import { nomeRegime, nomeLocal } from './entrada.js';
 
 const esc = (t) => String(t ?? '').replace(/[<>&"']/g, '');
+const FORMA = { tel: 'Telemóvel', tab: 'Tablet', pc: 'Computador' };
 const PLAT = { ios: 'iPhone ou iPad', android: 'Android', windows: 'Windows', mac: 'Mac', linux: 'Linux', outro: 'Outro' };
 const turma = (t) => `${nomeLocal(t.local)}, ${nomeRegime(t.regime).toLowerCase()}`;
 const soma = (a) => a.reduce((x, y) => x + y, 0);
@@ -38,8 +39,8 @@ const secao = (t, corpo, nota = '') => `<section class="painel grafico"><h3>${t}
 // ---------- csv ----------
 function csv(alunos) {
   const c = (x) => `"${String(x ?? '').replace(/"/g, '""')}"`;
-  const linhas = [['nome', 'alcunha', 'regime', 'local', 'pontos', 'respostas_certas', 'nivel', 'aparelho', 'app_instalada', 'ultima_atividade', 'inscrito_em'].map(c).join(';')];
-  for (const t of alunos) linhas.push([t.nome, t.alc, t.regime, t.local, t.xp, t.certas, NIVEIS[nivelDe(t.xp).indice][1], PLAT[t.pl] || t.pl, t.inst ? 'sim' : 'nao', new Date(t.vis).toISOString(), new Date(t.criado).toISOString()].map(c).join(';'));
+  const linhas = [['nome', 'alcunha', 'regime', 'local', 'pontos', 'respostas_certas', 'nivel', 'tipo_aparelho', 'sistema', 'app_instalada', 'ultima_atividade', 'inscrito_em'].map(c).join(';')];
+  for (const t of alunos) linhas.push([t.nome, t.alc, t.regime, t.local, t.xp, t.certas, NIVEIS[nivelDe(t.xp).indice][1], FORMA[t.fm] || '', PLAT[t.pl] || t.pl, t.inst ? 'sim' : 'nao', new Date(t.vis).toISOString(), new Date(t.criado).toISOString()].map(c).join(';'));
   const blob = new Blob(['﻿' + linhas.join('\r\n')], { type: 'text/csv;charset=utf-8' });
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'arena-mat1-alunos.csv'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
 }
@@ -74,7 +75,8 @@ export async function painelProfessor(root, voltar) {
 
   // aparelhos
   const pl = {}; for (const t of alunos) pl[t.pl] = (pl[t.pl] || 0) + 1;
-  h += secao('Aparelhos', `${barrasH(Object.entries(pl).sort((a, b) => b[1] - a[1]).map(([k, v]) => ({ r: PLAT[k] || k, v, txt: `${v} (${pct(v, n)}%)` })), 'var(--violeta)') || '<p class="nota">Sem dados.</p>'}<p class="nota" style="margin:10px 0 0">App instalada no ecrã inicial ou aberta no browser</p>${empilhada([{ r: 'Instalada', v: inst, cor: 'var(--certo)' }, { r: 'No browser', v: n - inst, cor: 'var(--giz-3)' }])}`, 'Cada aluno só aparece uma vez, no último aparelho que usou.');
+  const fm = {}; for (const t of alunos) { const k = FORMA[t.fm] ? t.fm : 'sem'; fm[k] = (fm[k] || 0) + 1; }
+  h += secao('Aparelhos', `<p class="nota" style="margin:0 0 6px">Tipo de aparelho</p>${barrasH(Object.entries(fm).sort((a, b) => b[1] - a[1]).map(([k, v]) => ({ r: FORMA[k] || 'Ainda sem dado', v, txt: `${v} (${pct(v, n)}%)` })), 'var(--ciano)')}<p class="nota" style="margin:12px 0 6px">Sistema</p>${barrasH(Object.entries(pl).sort((a, b) => b[1] - a[1]).map(([k, v]) => ({ r: PLAT[k] || k, v, txt: `${v} (${pct(v, n)}%)` })), 'var(--violeta)') || '<p class="nota">Sem dados.</p>'}<p class="nota" style="margin:10px 0 0">App instalada no ecrã inicial ou aberta no browser</p>${empilhada([{ r: 'Instalada', v: inst, cor: 'var(--certo)' }, { r: 'No browser', v: n - inst, cor: 'var(--giz-3)' }])}`, 'Cada aluno só aparece uma vez, no último aparelho que usou.');
 
   // quando estudam
   const pico = r.horas.indexOf(Math.max(...r.horas));
@@ -90,7 +92,7 @@ export async function painelProfessor(root, voltar) {
   root.insertAdjacentHTML('beforeend', h);
 
   const lista = root.querySelector('#lista');
-  const linha = (t) => `<div class="jog" data-id="${esc(t.id)}">${av(t.v, 46)}<div class="jog-c"><b>${esc(t.nome)}${t.prof ? ' (professor)' : ''}</b><span class="nota">${t.alc ? `Alcunha: ${esc(t.alc)}${t.oc ? ' (escondida)' : ''}. ` : ''}${esc(turma(t))}</span><span class="nota">${esc(NIVEIS[nivelDe(t.xp).indice][1])}. ${esc(PLAT[t.pl] || t.pl)}${t.inst ? ', app instalada' : ', no browser'}. Ativo ${ha(t.vis, agora)}.</span></div><div class="jog-d"><span class="chip ouro">${icon('raio')}${t.xp}</span><span class="nota">${t.certas} certas</span></div>${t.prof ? '' : `<button class="btn fantasma" data-oc="${t.oc ? 0 : 1}">${t.oc ? 'Mostrar alcunha' : 'Esconder alcunha'}</button>`}</div>`;
+  const linha = (t) => `<div class="jog" data-id="${esc(t.id)}">${av(t.v, 46)}<div class="jog-c"><b>${esc(t.nome)}${t.prof ? ' (professor)' : ''}</b><span class="nota">${t.alc ? `Alcunha: ${esc(t.alc)}${t.oc ? ' (escondida)' : ''}. ` : ''}${esc(turma(t))}</span><span class="nota">${esc(NIVEIS[nivelDe(t.xp).indice][1])}. ${esc(FORMA[t.fm] ? FORMA[t.fm] + ', ' : '')}${esc(PLAT[t.pl] || t.pl)}${t.inst ? ', app instalada' : ', no browser'}. Ativo ${ha(t.vis, agora)}.</span></div><div class="jog-d"><span class="chip ouro">${icon('raio')}${t.xp}</span><span class="nota">${t.certas} certas</span></div>${t.prof ? '' : `<button class="btn fantasma" data-oc="${t.oc ? 0 : 1}">${t.oc ? 'Mostrar alcunha' : 'Esconder alcunha'}</button>`}</div>`;
   const filtrada = () => {
     const q = root.querySelector('#busca').value.trim().toLowerCase(), f = root.querySelector('#fTurma').value, o = root.querySelector('#ordem').value;
     const l = alunos.filter((t) => (!q || t.nome.toLowerCase().includes(q) || t.alc.toLowerCase().includes(q)) && (!f || turma(t) === f));

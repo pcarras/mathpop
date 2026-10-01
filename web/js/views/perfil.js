@@ -8,7 +8,7 @@ import { sfx, alternarSom } from '../ui/sfx.js';
 import { toast, festa } from '../ui/fx.js';
 import { camposHTML, ligarCampos, valido } from './entrada.js';
 import { naLiga, sairDaLiga, agendar, disponivelAgora, eProfessor, tornarProfessor } from '../game/liga.js';
-import { conteudo as instConteudo, ligar as instLigar, ehTelemovel } from '../ui/instalar.js';
+import { conteudo as instConteudo, ligar as instLigar } from '../ui/instalar.js';
 
 let aba = 'avatar', passoId = 'quem';
 
@@ -123,7 +123,7 @@ function vDef(s) {
   <section class="painel" style="margin-top:12px">
     <div class="linha"><div><b>Sons e vibração</b><div class="nota">Efeitos curtos ao acertar e ao subir de nível.</div></div><span class="espaco"></span><button class="btn fantasma" id="som" aria-pressed="${s.som !== false}">${icon(s.som !== false ? 'som' : 'mudo')} ${s.som !== false ? 'Ligados' : 'Desligados'}</button></div>
   </section>
-  ${ehTelemovel() ? `<section class="painel instalar" id="instalar" style="margin-top:12px">${instConteudo({ comDispensar: false })}</section>` : ''}
+  <section class="painel instalar" id="instalar" style="margin-top:12px">${instConteudo({ comDispensar: false })}</section>
   <section class="painel" style="margin-top:12px">
     <b>Apagar tudo</b>
     <p class="nota" style="margin:2px 0 10px">Nesta versão de teste, o progresso fica só neste aparelho. Apagar remove pontos, avatar, conquistas e os teus dados deste aparelho. Se estiveres na liga, sai primeiro da liga para apagar também do servidor.</p>

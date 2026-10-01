@@ -16,12 +16,14 @@ async function post(corpo) {
   let j = {}; try { j = await r.json(); } catch { /* sem corpo */ }
   return { status: r.status, ...j };
 }
-// plataforma e se a app esta instalada (so isto, para o professor ver a adesao)
+// plataforma, tipo de aparelho (telemovel, tablet, computador) e se a app esta instalada (so isto, para o professor ver a adesao)
 export function dispositivo() {
   const ua = navigator.userAgent || ''; let pl = 'outro';
   if (/iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)) pl = 'ios'; else if (/Android/.test(ua)) pl = 'android'; else if (/Windows/.test(ua)) pl = 'windows'; else if (/Macintosh|Mac OS/.test(ua)) pl = 'mac'; else if (/Linux|X11|CrOS/.test(ua)) pl = 'linux';
   let inst = false; try { inst = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true; } catch { /* sem matchMedia */ }
-  return { pl, inst };
+  const maxT = navigator.maxTouchPoints || 0;
+  const fm = /iPad/.test(ua) || (/Macintosh/.test(ua) && maxT > 1) || (/Android/.test(ua) && !/Mobile/.test(ua)) ? 'tab' : /iPhone|iPod|Android/.test(ua) ? 'tel' : 'pc';
+  return { pl, fm, inst };
 }
 const instantaneo = () => { const s = estado(), p = s.perfil; return { nome: p.nome, alc: p.alcunha || '', regime: p.regime, local: p.local, avatar: s.avatar, disp: dispositivo() }; };
 

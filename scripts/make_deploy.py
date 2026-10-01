@@ -7,7 +7,7 @@ CDN = f'https://cdn.jsdelivr.net/gh/pcarras/mathpop@{sha}/web/'
 for f in (root / 'deploy' / 'icons').glob('*.png'): shutil.copy(f, out / 'icons' / f.name)
 files = sorted(str(p.relative_to(root / 'web')) for p in (root / 'web').rglob('*') if p.is_file() and p.name != 'index.html' and not p.name.endswith('.map'))
 manifest = {"id": "/", "name": "Arena Mat I", "short_name": "Arena Mat I", "description": "Treino de Matemática I: matrizes e sistemas de equações lineares", "lang": "pt-PT", "start_url": "/", "scope": "/",
-  "display": "standalone", "display_override": ["standalone", "minimal-ui"], "orientation": "portrait", "background_color": "#0A1226", "theme_color": "#0A1226",
+  "display": "standalone", "display_override": ["standalone", "minimal-ui"], "background_color": "#0A1226", "theme_color": "#0A1226",
   "icons": [{"src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"}, {"src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"}, {"src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}]}
 # funcao da liga (servidor): api/*.js + package.json (ESM)
 (out / 'api').mkdir(); [shutil.copy(f, out / 'api' / f.name) for f in (root / 'api').glob('*.js')]; (out / 'package.json').write_text('{"type":"module"}\n')
