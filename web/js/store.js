@@ -4,12 +4,14 @@ const KEY = 'mat1.v2';
 let mem = null;
 export const AVATAR_PADRAO = { genero: 'h', top: 'shortFlat', hairColor: '2c1b18', hatColor: '25557c', accessories: 'none', accessoriesColor: '262e33', facialHair: 'none', facialHairColor: '2c1b18',
   clothing: 'shirtCrewNeck', clothesColor: '3c4f5c', clothingGraphic: 'diamond', eyebrows: 'defaultNatural', eyes: 'default', mouth: 'smile', skinColor: 'edb98a', fundo: 0, moldura: 0 };
-const vazio = () => ({ perfil: { alcunha: '', nome: '', regime: '', local: '', id: '', criado: 0 }, liga: { chave: '', aceitou: 0, fila: [], xp: 0, visto: '', prof: 0 }, avatar: { ...AVATAR_PADRAO }, som: true, sal: Math.floor(Math.random() * 1e9), xp: 0, dias: [], porTipo: {}, contador: 0,
+const vazio = () => ({ perfil: { alcunha: '', nome: '', regime: '', local: '', id: '', criado: 0, teste: '' }, conta: { email: '', dev: '0', ver: 0, rem: { xp: 0, st: {}, tipo: {} }, rd: {}, avSnap: '', avT: 0, pfSnap: '', pfT: 0, visto: '' }, liga: { chave: '', aceitou: 0, fila: [], xp: 0, visto: '', prof: 0 }, avatar: { ...AVATAR_PADRAO }, som: true, sal: Math.floor(Math.random() * 1e9), xp: 0, dias: [], porTipo: {}, contador: 0,
   hoje: { dia: '', n: {}, certas: 0, semPistas: 0, desafios: 0, reclamadas: [] },
   stats: { certas: 0, erradas: 0, semPistas: 0, desafios: 0, perfeitos: 0, certasTipo: {} }, conquistas: {} });
 function ler() { try { const s = localStorage.getItem(KEY); if (s) return JSON.parse(s); } catch { /* sem armazenamento */ } return null; }
-export function estado() { if (!mem) { mem = Object.assign(vazio(), ler() || {}); mem.avatar = { ...AVATAR_PADRAO, ...mem.avatar }; mem.perfil = { ...vazio().perfil, ...mem.perfil }; mem.liga = { ...vazio().liga, ...mem.liga }; } return mem; }
+export function estado() { if (!mem) { mem = Object.assign(vazio(), ler() || {}); mem.avatar = { ...AVATAR_PADRAO, ...mem.avatar }; mem.perfil = { ...vazio().perfil, ...mem.perfil }; mem.liga = { ...vazio().liga, ...mem.liga }; mem.conta = { ...vazio().conta, ...mem.conta }; mem.conta.rem = { ...vazio().conta.rem, ...mem.conta.rem }; } return mem; }
 export function gravar() { try { localStorage.setItem(KEY, JSON.stringify(mem)); } catch { /* ok */ } }
+// copia de seguranca do progresso antes de operacoes que o fundem com a conta (nunca se apaga sozinha)
+export function copiaSeguranca() { try { const s = localStorage.getItem(KEY); if (s) localStorage.setItem(KEY + '.bak', s); } catch { /* sem armazenamento */ } }
 export function apagarTudo() { try { localStorage.removeItem(KEY); } catch { /* ok */ } mem = null; }
 export function sequencia() {
   const s = estado(); let n = 0; const dias = new Set(s.dias); let d = new Date();

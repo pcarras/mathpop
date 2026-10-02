@@ -12,7 +12,7 @@ with sync_playwright() as p:
     # entrada: sem dados, aparece o ecra de entrada; botao desativado ate estar completo
     pg.goto(base + '#/home'); pg.evaluate('localStorage.clear()'); pg.reload(); pg.wait_for_selector('.entrada')
     assert pg.is_disabled('#entrar'); pg.screenshot(path=f'{OUT}/entrada_vazia.png')
-    pg.fill('#e-nome', 'Ana Silva'); pg.click('[data-seg=regime][data-v=noturno]'); assert pg.is_disabled('#entrar'); pg.click('[data-seg=local][data-v=faro]')
+    pg.fill('#e-nome', 'Ana Silva'); pg.click('[data-seg=regime][data-v=noturno]'); assert pg.is_disabled('#entrar'); pg.click('[data-seg=local][data-v=faro]'); assert pg.is_disabled('#entrar'); pg.fill('#e-teste', '2026-12-10')
     assert not pg.is_disabled('#entrar'); pg.screenshot(path=f'{OUT}/entrada_cheia.png'); pg.click('#entrar'); pg.wait_for_selector('h1')
     print('ENTRADA ok:', pg.evaluate("JSON.stringify((JSON.parse(localStorage.getItem('mat1.v2')).perfil))")[:120])
     # rotas principais sem erros

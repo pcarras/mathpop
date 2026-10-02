@@ -1,5 +1,5 @@
 import { estado, sequencia, registarDia } from './store.js';
-import { nivelDe, diasAteTeste } from './rules.js';
+import { nivelDe, diasAteTeste, dataDoTeste } from './rules.js';
 import { defs, icon } from './ui/icons.js';
 import { avatarHTML } from './ui/avatar.js';
 import { alternarSom, sfx } from './ui/sfx.js';
@@ -9,6 +9,7 @@ import { perfil } from './views/perfil.js';
 import { registarSW } from './ui/instalar.js';
 import { entrada, perfilCompleto } from './views/entrada.js';
 import { ligaDisponivel, disponivelAgora, iniciarLiga } from './game/liga.js';
+import { iniciarConta, aoMudarConta } from './game/conta.js';
 
 document.body.insertAdjacentHTML('afterbegin', defs);
 const root = document.getElementById('vista');
@@ -22,7 +23,7 @@ montarNav(disponivelAgora());
 export function go(rota) { const alvo = '#/' + rota; if (location.hash === alvo) render(); else location.hash = alvo; }
 function marcarNav(nome) { document.querySelectorAll('#barra button').forEach((b) => { if (b.dataset.go === (VISTAS[nome] ? nome : 'home')) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); }); }
 function atualizarTopo() {
-  const s = estado(), nv = nivelDe(s.xp), n = sequencia(), d = diasAteTeste();
+  const s = estado(), nv = nivelDe(s.xp), n = sequencia(), d = diasAteTeste(new Date(), dataDoTeste(s.perfil));
   document.getElementById('topo-id').innerHTML = `${avatarHTML(s.avatar, { s: 44, selo: !!s.liga.prof })}<span class="topo-nome"><b>${(s.perfil.alcunha || (s.perfil.nome || '').split(' ')[0] || 'Jogador').replace(/[<>&]/g, '')}</b><small>${s.liga.prof ? 'Professor' : nv.titulo}</small></span>`;
   document.getElementById('topo-dir').innerHTML = `<span class="chip chama" title="Dias seguidos">${icon('chama')}${n}</span><span class="chip" title="Dias até ao teste">${d > 0 ? d + ' d' : 'Hoje'}</span><button class="icon-btn" id="btnSom" aria-label="${s.som !== false ? 'Desligar sons' : 'Ligar sons'}">${icon(s.som !== false ? 'som' : 'mudo')}</button>`;
   document.getElementById('btnSom').addEventListener('click', () => { alternarSom(); sfx.clique(); atualizarTopo(); });
@@ -50,5 +51,7 @@ ligaDisponivel().then(async (ok) => {
   const tinha = !!document.querySelector('#barra [data-go=liga]');
   if (ok !== tinha) { montarNav(ok); marcarNav((location.hash.replace(/^#\//, '') || 'home').split('/')[0]); }
   if (ok && location.hash.startsWith('#/liga')) render();
-  if (ok) iniciarLiga();
+  if (ok) { iniciarLiga(); iniciarConta(); }
 });
+// quando outro aparelho trouxe novidades: atualiza o topo e, se estiver na pagina inicial, redesenha (nunca a meio de um exercicio)
+aoMudarConta(() => { atualizarTopo(); const r = (location.hash.replace(/^#\//, '') || 'home').split('/')[0]; if (r === 'home') render(); });

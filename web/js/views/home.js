@@ -1,11 +1,17 @@
-import { estado, dominio, nivelTipo, sequencia, snapshot } from '../store.js';
-import { nivelDe, NOMES, diasAteTeste } from '../rules.js';
+import { estado, gravar, dominio, nivelTipo, sequencia, snapshot } from '../store.js';
+import { nivelDe, NOMES, diasAteTeste, dataDoTeste } from '../rules.js';
 import { icon } from '../ui/icons.js';
 import { avatarHTML } from '../ui/avatar.js';
 import { missoesDeHoje, estadoMissao, reclamar } from '../game/missions.js';
 import { festa, celebrar, contar } from '../ui/fx.js';
 import { sfx } from '../ui/sfx.js';
 import { deveSugerir, conteudo, ligar, aoMudar } from '../ui/instalar.js';
+import { disponivelAgora, agendar } from '../game/liga.js';
+import { temConta, sincronizarNuvem } from '../game/conta.js';
+
+const CONVITE = 'mat1.convite';
+const conviteAtivo = () => { try { const t = Number(localStorage.getItem(CONVITE) || 0); return !t || Date.now() - t > 2 * 86400000; } catch { return true; } };
+const hojeISO = () => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10); };
 
 const ORDEM = ['produto', 'determinante', 'caracteristica', 'inversa', 'sistema'];
 const GLIFO = { produto: 'A·B', determinante: '|A|', caracteristica: 'R(A)', inversa: 'A⁻¹', sistema: 'Ax=b' };
@@ -32,7 +38,7 @@ function mapa() {
       ${i === rec ? `<text x="${x > 180 ? 327 : 33}" y="${y - 4}" text-anchor="middle" class="balao"><tspan x="${x > 180 ? 327 : 33}">Começa</tspan><tspan x="${x > 180 ? 327 : 33}" dy="16">aqui</tspan></text>` : ''}
     </g>`;
   }).join('');
-  const dias = Math.max(0, diasAteTeste());
+  const dias = Math.max(0, diasAteTeste(new Date(), dataDoTeste(estado().perfil)));
   return `<svg class="mapa" viewBox="0 0 360 590" role="group" aria-label="Jornada até ao teste">
     <defs><linearGradient id="gNoOn" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2E8FB8"/><stop offset="1" stop-color="#16407A"/></linearGradient>
     <linearGradient id="gNoOff" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3B5797"/><stop offset="1" stop-color="#1B2F63"/></linearGradient>
@@ -71,6 +77,8 @@ export function home(root, go, _a, atualizarTopo) {
       <p class="nota" style="margin:6px 0 0">${nv.proximo ? `Faltam <b>${nv.proximo - s.xp}</b> XP para o nível seguinte.` : 'Nível máximo. És uma lenda.'}</p></div>
   </section>
   <div class="linha" style="margin:14px 0 0"><button class="btn grande" data-go="treinar">${icon('treinar')} Treinar agora</button></div>
+  ${s.perfil.teste ? '' : `<section class="painel convite" id="cxTeste" style="margin-top:12px"><b>Qual é o dia do teste da tua turma?</b><p class="nota" style="margin:0">Serve para a contagem decrescente. Podes mudá-lo em Perfil, Definições.</p><div class="linha" style="gap:8px"><input class="campo" id="cxData" type="date" min="${hojeISO()}" max="2027-06-30" style="flex:1" aria-label="Dia do teste"><button class="btn ouro peq" id="cxGravar" disabled>Guardar</button></div></section>`}
+  ${disponivelAgora() && !temConta() && conviteAtivo() ? `<section class="painel convite" id="cxConta" style="margin-top:12px"><b>Guarda o teu progresso</b><p class="nota" style="margin:0">Cria a tua conta com o email e usa a app no telemóvel, no tablet e no computador, sempre com os mesmos pontos.</p><div class="linha" style="gap:8px"><button class="btn ouro peq" id="cxCriar">Criar conta</button><button class="btn fantasma peq" id="cxMais">Agora não</button></div></section>` : ''}
   ${deveSugerir() ? `<section class="painel instalar" id="instalar">${conteudo()}</section>` : ''}
   <h2>Missões de hoje</h2>
   <section id="missoes">${miss.map((m) => { const e = estadoMissao(m); return `<div class="painel missao ${e.feita ? 'feita' : ''}" data-m="${m.id}">
@@ -81,6 +89,9 @@ export function home(root, go, _a, atualizarTopo) {
   <p class="giz" style="margin:-4px 0 6px">Cada tema tem um anel vermelho: quanto mais domínio, mais fechado.</p>
   <section class="painel mapa-cx">${mapa()}</section>`;
   requestAnimationFrame(() => { const p = root.querySelector('.anel .prog'); if (p) setTimeout(() => p.setAttribute('stroke-dashoffset', p.dataset.alvo), 60); });
+  const cd = root.querySelector('#cxData'); if (cd) { const bg = root.querySelector('#cxGravar'); const ok = () => /^\d{4}-\d{2}-\d{2}$/.test(cd.value); cd.addEventListener('input', () => { bg.disabled = !ok(); }); cd.addEventListener('change', () => { bg.disabled = !ok(); }); bg.addEventListener('click', () => { if (!ok()) return; s.perfil.teste = cd.value; gravar(); sfx.xp(); agendar(1500); sincronizarNuvem(); atualizarTopo(); home(root, go, _a, atualizarTopo); }); }
+  root.querySelector('#cxCriar')?.addEventListener('click', () => { sfx.clique(); go('liga'); });
+  root.querySelector('#cxMais')?.addEventListener('click', () => { try { localStorage.setItem(CONVITE, String(Date.now())); } catch { /* ok */ } home(root, go, _a, atualizarTopo); });
   const cx = root.querySelector('#instalar'); if (cx) { ligar(cx, () => home(root, go, _a, atualizarTopo)); const off = aoMudar(() => { if (cx.isConnected) { cx.innerHTML = conteudo(); ligar(cx, () => home(root, go, _a, atualizarTopo)); } else off(); }); }
   root.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', () => go(b.dataset.go)));
   root.querySelectorAll('.no').forEach((n) => { const f = () => { sfx.clique(); go(n.dataset.tipo === 'teste' ? 'treinar' : 'treinar/' + n.dataset.tipo); }; n.addEventListener('click', f); n.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); f(); } }); });

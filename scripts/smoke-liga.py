@@ -10,6 +10,7 @@ def aluno(browser, nome, regime, local, alc):
     pg.goto(base + '#/home'); pg.wait_for_selector('.entrada')
     pg.fill('#e-nome', nome); pg.click(f'[data-seg=regime][data-v={regime}]'); pg.click(f'[data-seg=local][data-v={local}]')
     if alc: pg.fill('#e-alc', alc)
+    pg.fill('#e-teste', '2026-12-10')
     pg.click('#entrar'); pg.wait_for_selector('h1')
     return pg, errs
 def treinar(pg, tipo, n=1):
@@ -26,9 +27,10 @@ with sync_playwright() as p:
     r, er = aluno(b, 'Rui Costa', 'noturno', 'faro', '')
     o, eo = aluno(b, 'Zé Diurno', 'diurno', 'portimao', 'ZeD')
     print('NAV com liga:', a.locator('#barra [data-go=liga]').count())
-    for pg, tipo, n in [(a, 'determinante', 3), (r, 'determinante', 1), (o, 'determinante', 2)]:
-        pg.goto(base + '#/liga'); pg.wait_for_selector('#aceito'); pg.screenshot(path=f'{OUT}/liga_consent.png') if pg is a else None
-        assert pg.is_disabled('#entrarLiga'); pg.check('#aceito'); pg.click('#entrarLiga'); pg.wait_for_selector('.seg [data-escopo]')
+    for pg, tipo, n in [(a, 'ana', 3), (r, 'rui', 1), (o, 'ze', 2)]:
+        pg.goto(base + '#/liga'); pg.wait_for_selector('#c-email'); pg.screenshot(path=f'{OUT}/liga_consent.png') if pg is a else None
+        pg.fill('#c-email', f'{tipo}@teste.pt'); pg.fill('#c-s1', 'segredo1'); pg.fill('#c-s2', 'segredo1')
+        assert pg.is_disabled('#c-criar'); pg.check('#c-ok'); pg.click('#c-criar'); pg.wait_for_selector('.seg [data-escopo]', timeout=10000)
     # escalares: so determinante. Usa o teclado
     for pg, n in [(a, 3), (r, 1), (o, 2)]:
         for _ in range(n):
@@ -42,5 +44,5 @@ with sync_playwright() as p:
     print('LINHAS turma:', a.inner_text('.podio').replace('\n', ' | ')); a.screenshot(path=f'{OUT}/liga_turma.png')
     a.click('[data-escopo=geral]'); a.wait_for_selector('.podio'); a.wait_for_timeout(400); print('GERAL:', a.inner_text('.podio').replace('\n', ' | ')); a.screenshot(path=f'{OUT}/liga_geral.png')
     # sair da liga
-    a.goto(base + '#/perfil'); a.reload(); a.click('[data-aba=def]'); a.click('#sairLiga'); a.click('#sairLiga'); a.wait_for_selector('#irLiga', timeout=8000); print('SAIU da liga ok')
+    a.goto(base + '#/perfil'); a.reload(); a.click('[data-aba=def]'); a.click('#sairLiga'); a.click('#sairLiga'); a.wait_for_selector('#criaConta', timeout=8000); print('SAIU da liga ok')
     print('ERROS:', ea, er, eo); b.close()

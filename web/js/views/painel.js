@@ -5,7 +5,7 @@ import { avatarHTML } from '../ui/avatar.js';
 import { sfx } from '../ui/sfx.js';
 import { toast } from '../ui/fx.js';
 import { nivelDe, NIVEIS, NOMES, diaChave, diasAteTeste } from '../rules.js';
-import { painelProf, ocultarAluno } from '../game/liga.js';
+import { painelProf, ocultarAluno, reporAcesso } from '../game/liga.js';
 import { nomeRegime, nomeLocal } from './entrada.js';
 
 const esc = (t) => String(t ?? '').replace(/[<>&"']/g, '');
@@ -39,8 +39,8 @@ const secao = (t, corpo, nota = '') => `<section class="painel grafico"><h3>${t}
 // ---------- csv ----------
 function csv(alunos) {
   const c = (x) => `"${String(x ?? '').replace(/"/g, '""')}"`;
-  const linhas = [['nome', 'alcunha', 'regime', 'local', 'pontos', 'respostas_certas', 'nivel', 'tipo_aparelho', 'sistema', 'app_instalada', 'ultima_atividade', 'inscrito_em'].map(c).join(';')];
-  for (const t of alunos) linhas.push([t.nome, t.alc, t.regime, t.local, t.xp, t.certas, NIVEIS[nivelDe(t.xp).indice][1], FORMA[t.fm] || '', PLAT[t.pl] || t.pl, t.inst ? 'sim' : 'nao', new Date(t.vis).toISOString(), new Date(t.criado).toISOString()].map(c).join(';'));
+  const linhas = [['nome', 'alcunha', 'regime', 'local', 'pontos', 'respostas_certas', 'nivel', 'email', 'dia_teste', 'aparelhos', 'tipo_aparelho', 'sistema', 'app_instalada', 'ultima_atividade', 'inscrito_em'].map(c).join(';')];
+  for (const t of alunos) linhas.push([t.nome, t.alc, t.regime, t.local, t.xp, t.certas, NIVEIS[nivelDe(t.xp).indice][1], t.email || '', t.teste || '', t.ap || 1, FORMA[t.fm] || '', PLAT[t.pl] || t.pl, t.inst ? 'sim' : 'nao', new Date(t.vis).toISOString(), new Date(t.criado).toISOString()].map(c).join(';'));
   const blob = new Blob(['﻿' + linhas.join('\r\n')], { type: 'text/csv;charset=utf-8' });
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'arena-mat1-alunos.csv'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
 }
@@ -56,8 +56,8 @@ export async function painelProfessor(root, voltar) {
   // resumo
   const ativos24 = alunos.filter((t) => agora - t.vis < 86400000).length, ativos7 = alunos.filter((t) => agora - t.vis < 7 * 86400000).length;
   const inst = alunos.filter((t) => t.inst).length, pts = soma(alunos.map((t) => t.xp)), certas = soma(alunos.map((t) => t.certas)), semTreino = alunos.filter((t) => !t.certas).length;
-  const d = diasAteTeste();
-  let h = `<div class="kpis">${kpi(n, n === 1 ? 'jogador na liga' : 'jogadores na liga', d > 0 ? `${d} dias até ao teste` : '')}${kpi(ativos24, 'ativos nas últimas 24 h', `${ativos7} nos últimos 7 dias`)}${kpi(`${inst}`, 'com a app instalada', n ? `${pct(inst, n)}% dos jogadores` : '')}${kpi(certas, 'respostas certas', `${semTreino} ainda sem treinar`)}${kpi(pts, 'pontos de liga', n ? `média de ${Math.round(pts / n)} por jogador` : '')}${kpi(r.dias.reduce((m, x) => Math.max(m, x.c), 0), 'recorde diário de respostas', 'nos últimos 14 dias')}</div>`;
+  const comConta = alunos.filter((t) => t.email).length;
+  let h = `<div class="kpis">${kpi(n, n === 1 ? 'jogador na liga' : 'jogadores na liga', n ? `${comConta} com conta de email (${pct(comConta, n)}%)` : '')}${kpi(ativos24, 'ativos nas últimas 24 h', `${ativos7} nos últimos 7 dias`)}${kpi(`${inst}`, 'com a app instalada', n ? `${pct(inst, n)}% dos jogadores` : '')}${kpi(certas, 'respostas certas', `${semTreino} ainda sem treinar`)}${kpi(pts, 'pontos de liga', n ? `média de ${Math.round(pts / n)} por jogador` : '')}${kpi(r.dias.reduce((m, x) => Math.max(m, x.c), 0), 'recorde diário de respostas', 'nos últimos 14 dias')}</div>`;
   h += `<p class="nota" style="margin:8px 2px 0">Só entram aqui os alunos que aceitaram entrar na liga. Quem usa a app sem entrar na liga não é contado.</p>`;
 
   // atividade
@@ -70,6 +70,11 @@ export async function painelProfessor(root, voltar) {
   // turmas e niveis
   const grupos = {}; for (const t of alunos) { const k = turma(t); (grupos[k] ||= []).push(t); }
   h += secao('Jogadores por turma', Object.keys(grupos).length ? barrasH(Object.entries(grupos).sort((a, b) => b[1].length - a[1].length).map(([k, l]) => ({ r: k, v: l.length, txt: `${l.length} (média ${Math.round(soma(l.map((t) => t.xp)) / l.length)} pts)` }))) : '<p class="nota">Ainda ninguém entrou.</p>');
+  // dia do teste, indicado por cada aluno
+  const porTeste = {}; for (const t of alunos) { const k = turma(t), d = t.teste || 'sem'; ((porTeste[k] ||= {})[d] ||= []).push(t); }
+  const fmtD = (d) => (d === 'sem' ? 'Sem indicação' : `${d.slice(8)}/${d.slice(5, 7)}/${d.slice(0, 4)}`);
+  const quando = (d) => { if (d === 'sem') return ''; const k = diasAteTeste(new Date(), d); return k > 0 ? ` (daqui a ${k} d)` : k === 0 ? ' (hoje)' : ' (já passou)'; };
+  h += secao('Dia do teste por turma', Object.keys(porTeste).length ? Object.entries(porTeste).map(([k, ds]) => `<div class="tabela-t"><div><b>${esc(k)}</b>${Object.entries(ds).sort((a, b) => (a[0] === 'sem') - (b[0] === 'sem') || a[0].localeCompare(b[0])).map(([d, l]) => `<span>${esc(fmtD(d))}${esc(quando(d))}: ${l.length} ${l.length === 1 ? 'aluno' : 'alunos'}</span>`).join('')}</div></div>`).join('') : '<p class="nota">Ainda sem dados.</p>', 'Cada aluno indica o dia do teste da sua turma. Se numa turma aparecem datas diferentes, convém confirmar com os alunos.');
   const nivs = NIVEIS.map(([, nome], i) => ({ r: nome.replace('Aluno ', ''), v: alunos.filter((t) => nivelDe(t.xp).indice === i).length }));
   h += secao('Jogadores por nível', barrasH(nivs, 'var(--certo)'), 'Os níveis mostram quanto cada aluno já treinou.');
 
@@ -88,11 +93,11 @@ export async function painelProfessor(root, voltar) {
   h += secao('Tipos de exercício', `${barrasH(tipos.map((x) => ({ r: NOMES[x.t] || x.t, v: x.n, txt: `${x.n} certas` })), 'var(--ciano)')}<div class="tabela-t">${tipos.filter((x) => x.n).map((x) => `<div><b>${esc(NOMES[x.t] || x.t)}</b><span>${x.e100}% erraram antes de acertar</span><span>${x.p100}% usaram pistas</span></div>`).join('')}</div>`, dificeis.length ? `O tipo que mais custa é ${esc(NOMES[dificeis[0].t] || dificeis[0].t)}, com ${dificeis[0].e100}% de acertos depois de um erro e ${dificeis[0].p100}% com pistas.` : 'Ainda poucos dados para comparar os tipos.');
 
   // lista
-  h += `<section class="painel grafico"><h3>Jogadores</h3><div class="filtros"><input id="busca" class="campo" type="search" placeholder="Procurar por nome ou alcunha" autocomplete="off"><select id="fTurma" class="campo"><option value="">Todas as turmas</option>${Object.keys(grupos).map((k) => `<option value="${esc(k)}">${esc(k)}</option>`).join('')}</select><select id="ordem" class="campo"><option value="xp">Ordenar por pontos</option><option value="nome">Ordenar por nome</option><option value="vis">Ordenar por atividade recente</option><option value="criado">Ordenar por inscrição</option></select></div><div id="lista"></div><button class="btn fantasma" id="baixaCsv" style="margin-top:10px">Descarregar lista em CSV</button></section>`;
+  h += `<section class="painel grafico"><h3>Jogadores</h3><div class="filtros"><input id="busca" class="campo" type="search" placeholder="Procurar por nome ou alcunha" autocomplete="off"><select id="fTurma" class="campo"><option value="">Todas as turmas</option>${Object.keys(grupos).map((k) => `<option value="${esc(k)}">${esc(k)}</option>`).join('')}</select><select id="ordem" class="campo"><option value="xp">Ordenar por pontos</option><option value="nome">Ordenar por nome</option><option value="vis">Ordenar por atividade recente</option><option value="criado">Ordenar por inscrição</option></select></div><div id="reporMsg" class="painel convite" hidden></div><div id="lista"></div><button class="btn fantasma" id="baixaCsv" style="margin-top:10px">Descarregar lista em CSV</button></section>`;
   root.insertAdjacentHTML('beforeend', h);
 
   const lista = root.querySelector('#lista');
-  const linha = (t) => `<div class="jog" data-id="${esc(t.id)}">${av(t.v, 46)}<div class="jog-c"><b>${esc(t.nome)}${t.prof ? ' (professor)' : ''}</b><span class="nota">${t.alc ? `Alcunha: ${esc(t.alc)}${t.oc ? ' (escondida)' : ''}. ` : ''}${esc(turma(t))}</span><span class="nota">${esc(NIVEIS[nivelDe(t.xp).indice][1])}. ${esc(FORMA[t.fm] ? FORMA[t.fm] + ', ' : '')}${esc(PLAT[t.pl] || t.pl)}${t.inst ? ', app instalada' : ', no browser'}. Ativo ${ha(t.vis, agora)}.</span></div><div class="jog-d"><span class="chip ouro">${icon('raio')}${t.xp}</span><span class="nota">${t.certas} certas</span></div>${t.prof ? '' : `<button class="btn fantasma" data-oc="${t.oc ? 0 : 1}">${t.oc ? 'Mostrar alcunha' : 'Esconder alcunha'}</button>`}</div>`;
+  const linha = (t) => `<div class="jog" data-id="${esc(t.id)}">${av(t.v, 46)}<div class="jog-c"><b>${esc(t.nome)}${t.prof ? ' (professor)' : ''}</b><span class="nota">${t.alc ? `Alcunha: ${esc(t.alc)}${t.oc ? ' (escondida)' : ''}. ` : ''}${esc(turma(t))}</span><span class="nota">${esc(NIVEIS[nivelDe(t.xp).indice][1])}. ${esc(FORMA[t.fm] ? FORMA[t.fm] + ', ' : '')}${esc(PLAT[t.pl] || t.pl)}${t.inst ? ', app instalada' : ', no browser'}. Ativo ${ha(t.vis, agora)}.</span><span class="nota">${t.email ? esc(t.email) : 'Sem conta de email'}${t.ap > 1 ? `, ${t.ap} aparelhos` : ''}${t.teste ? `. Teste a ${esc(fmtD(t.teste))}` : ''}</span></div><div class="jog-d"><span class="chip ouro">${icon('raio')}${t.xp}</span><span class="nota">${t.certas} certas</span></div>${t.prof ? '' : `<button class="btn fantasma" data-oc="${t.oc ? 0 : 1}">${t.oc ? 'Mostrar alcunha' : 'Esconder alcunha'}</button>${t.email ? '<button class="btn fantasma" data-repor="1">Repor acesso</button>' : ''}`}</div>`;
   const filtrada = () => {
     const q = root.querySelector('#busca').value.trim().toLowerCase(), f = root.querySelector('#fTurma').value, o = root.querySelector('#ordem').value;
     const l = alunos.filter((t) => (!q || t.nome.toLowerCase().includes(q) || t.alc.toLowerCase().includes(q)) && (!f || turma(t) === f));
@@ -104,6 +109,16 @@ export async function painelProfessor(root, voltar) {
   ['#busca', '#fTurma', '#ordem'].forEach((s) => root.querySelector(s).addEventListener('input', desenha));
   root.querySelector('#baixaCsv').addEventListener('click', () => { sfx.clique(); csv(filtrada()); });
   lista.addEventListener('click', async (e) => {
+    const rb = e.target.closest('[data-repor]');
+    if (rb) {
+      const id = rb.closest('[data-id]').dataset.id, t = alunos.find((x) => x.id === id);
+      if (!rb.dataset.sim) { rb.dataset.sim = '1'; rb.textContent = 'Toca outra vez para confirmar'; setTimeout(() => { if (rb.isConnected) { delete rb.dataset.sim; rb.textContent = 'Repor acesso'; } }, 4000); return; }
+      rb.disabled = true; const x = await reporAcesso(id); rb.disabled = false; rb.textContent = 'Repor acesso'; delete rb.dataset.sim;
+      const cx = root.querySelector('#reporMsg');
+      if (x.ok) { sfx.bau(); cx.innerHTML = `<b>Palavra-passe temporária de ${esc(t ? t.nome : 'aluno')}</b><div class="temp">${esc(x.temp)}</div><p class="nota" style="margin:0">Diz ao aluno para entrar com o email ${esc(x.email)} e esta palavra-passe. A app pede-lhe logo que escolha outra. Só a vês agora.</p>`; cx.hidden = false; cx.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+      else toast('<div><b>Não foi possível repor</b><br><span class="nota">Tenta outra vez.</span></div>');
+      return;
+    }
     const b = e.target.closest('[data-oc]'); if (!b) return;
     const quer = b.dataset.oc === '1', id = b.closest('[data-id]').dataset.id; b.disabled = true;
     const ok = await ocultarAluno(id, quer); b.disabled = false;

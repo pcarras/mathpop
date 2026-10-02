@@ -10,8 +10,9 @@ def jog(browser, nome, regime, local, alc):
     pg.goto(base + '#/home'); pg.wait_for_selector('.entrada')
     pg.fill('#e-nome', nome); pg.click(f'[data-seg=regime][data-v={regime}]'); pg.click(f'[data-seg=local][data-v={local}]')
     if alc: pg.fill('#e-alc', alc)
+    pg.fill('#e-teste', '2026-12-10')
     pg.click('#entrar'); pg.wait_for_selector('h1')
-    pg.goto(base + '#/liga'); pg.wait_for_selector('#aceito'); pg.check('#aceito'); pg.click('#entrarLiga'); pg.wait_for_selector('.seg [data-escopo]')
+    pg.goto(base + '#/liga'); pg.wait_for_selector('#c-email'); pg.fill('#c-email', nome.split()[0].lower() + '@teste.pt'); pg.fill('#c-s1', 'segredo1'); pg.fill('#c-s2', 'segredo1'); pg.check('#c-ok'); pg.click('#c-criar'); pg.wait_for_selector('.seg [data-escopo]', timeout=10000)
     return pg, errs
 def treino(pg, n):
     for _ in range(n):

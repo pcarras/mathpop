@@ -9,6 +9,8 @@ import { toast, festa } from '../ui/fx.js';
 import { camposHTML, ligarCampos, valido } from './entrada.js';
 import { naLiga, sairDaLiga, agendar, disponivelAgora, eProfessor, tornarProfessor } from '../game/liga.js';
 import { conteudo as instConteudo, ligar as instLigar } from '../ui/instalar.js';
+import { temConta, emailDaConta, sincronizarNuvem } from '../game/conta.js';
+import { ecraCriar, ecraEntrar, ecraTrocar } from './conta.js';
 
 let aba = 'avatar', passoId = 'quem';
 
@@ -109,16 +111,28 @@ function vConq(s) {
       <div class="nota" style="font-size:12px;margin-top:3px">${ok ? 'Desbloqueada em ' + s.conquistas[c.id].split('-').reverse().join('/') : p.p + ' de ' + p.alvo}</div></div></div>`; }).join('');
 }
 
+function contaHTML() {
+  if (temConta()) return `<p class="nota" style="margin:2px 0 10px">Conta: <b>${emailDaConta().replace(/[<>&"]/g, '')}</b>. O teu progresso é o mesmo em todos os aparelhos onde entrares com este email.</p>
+    <div class="linha" style="gap:8px;flex-wrap:wrap"><button class="btn" id="sincNuvem">Sincronizar agora</button><button class="btn fantasma" id="mudaSenha">Mudar palavra-passe</button></div>
+    <p class="nota" style="margin:12px 0 8px">Apagar remove do servidor a conta, o progresso guardado e os teus pontos de liga. O que está neste aparelho fica.</p>
+    <button class="btn fantasma" id="sairLiga">Apagar a conta e os meus dados do servidor</button>`;
+  if (naLiga()) return `<p class="nota" style="margin:2px 0 10px">Estás na liga, mas sem email. Associa um email para guardar o progresso e usá-lo noutros aparelhos.</p>
+    <button class="btn ouro" id="criaConta">Associar email</button>
+    <p class="nota" style="margin:12px 0 8px">Sair apaga do servidor os teus dados e os teus pontos de liga.</p><button class="btn fantasma" id="sairLiga">Sair da liga e apagar os meus dados do servidor</button>`;
+  return `<p class="nota" style="margin:2px 0 10px">Ainda não tens conta. Com o email entras na liga e levas o progresso para qualquer aparelho.</p>
+    <div class="linha" style="gap:8px;flex-wrap:wrap"><button class="btn ouro" id="criaConta">Criar conta</button><button class="btn fantasma" id="tenhoContaDef">Já tenho conta</button></div>`;
+}
+
 function vDef(s) {
   return `
   <h2 style="margin-top:6px">Definições</h2>
   <section class="painel">
     <b>Os teus dados</b>
-    <p class="nota" style="margin:2px 0 10px">Servem para te colocar na liga da tua turma. Só são enviados para o servidor se entrares na liga.</p>
+    <p class="nota" style="margin:2px 0 10px">Servem para te colocar na liga da tua turma. Só são enviados para o servidor se tiveres conta.</p>
     ${camposHTML(s.perfil, 'd')}
     <button class="btn" id="gravDados" style="margin-top:14px" disabled>Guardar</button>
   </section>
-  ${disponivelAgora() ? `<section class="painel" style="margin-top:12px"><b>Liga</b>${naLiga() ? `<p class="nota" style="margin:2px 0 10px">Estás na liga. Sair apaga do servidor os teus dados e os teus pontos de liga.</p><button class="btn fantasma" id="sairLiga">Sair da liga e apagar os meus dados do servidor</button>` : `<p class="nota" style="margin:2px 0 10px">Ainda não estás na liga.</p><button class="btn ouro" id="irLiga">Ver a liga</button>`}</section>` : ''}
+  ${disponivelAgora() ? `<section class="painel" style="margin-top:12px"><b>Conta e liga</b>${contaHTML()}</section>` : ''}
   ${disponivelAgora() && naLiga() ? `<section class="painel" style="margin-top:12px"><details${eProfessor() ? ' open' : ''}><summary style="cursor:pointer;font-weight:700">Acesso do professor</summary>${eProfessor() ? `<p class="nota" style="margin:8px 0 0">Estás reconhecido como professor. Ficas fora da tabela e vês o painel na página Liga.</p>` : `<p class="nota" style="margin:8px 0 10px">Só para o professor da UC. Escreve o código para seres reconhecido.</p><input id="codProf" class="campo" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Código do professor"><button class="btn" id="okProf" style="margin-top:10px">Confirmar</button><p class="nota" id="erroProf" style="margin:8px 0 0;color:var(--erro)"></p>`}</details></section>` : ''}
   <section class="painel" style="margin-top:12px">
     <div class="linha"><div><b>Sons e vibração</b><div class="nota">Efeitos curtos ao acertar e ao subir de nível.</div></div><span class="espaco"></span><button class="btn fantasma" id="som" aria-pressed="${s.som !== false}">${icon(s.som !== false ? 'som' : 'mudo')} ${s.som !== false ? 'Ligados' : 'Desligados'}</button></div>
@@ -126,7 +140,7 @@ function vDef(s) {
   <section class="painel instalar" id="instalar" style="margin-top:12px">${instConteudo({ comDispensar: false })}</section>
   <section class="painel" style="margin-top:12px">
     <b>Apagar tudo</b>
-    <p class="nota" style="margin:2px 0 10px">Nesta versão de teste, o progresso fica só neste aparelho. Apagar remove pontos, avatar, conquistas e os teus dados deste aparelho. Se estiveres na liga, sai primeiro da liga para apagar também do servidor.</p>
+    <p class="nota" style="margin:2px 0 10px">Apaga pontos, avatar, conquistas e dados deste aparelho. Se tens conta, o progresso continua guardado nela e volta quando entrares outra vez. Para apagar também do servidor, usa Apagar a conta, acima.</p>
     <button class="btn erro" id="apagar">Apagar os meus dados</button>
   </section>
   <section class="painel" style="margin-top:12px">
@@ -137,9 +151,16 @@ function vDef(s) {
 
 function ligarDef(root, s, go, redesenhar, atualizarTopo) {
   const ci = root.querySelector('#instalar'); if (ci) instLigar(ci, redesenhar);
-  const ler = ligarCampos(root, 'd', () => { const p = ler(), o = s.perfil; root.querySelector('#gravDados').disabled = !valido(p) || (p.nome === o.nome && p.regime === o.regime && p.local === o.local && p.alcunha === (o.alcunha || '')); });
-  root.querySelector('#gravDados').addEventListener('click', () => { const p = ler(); if (!valido(p)) return; Object.assign(s.perfil, p); gravar(); sfx.xp(); agendar(1500); toast(`<div><b>Dados guardados</b><br><span class="nota">${p.nome}, ${p.regime === 'diurno' ? 'diurno' : 'noturno'}, ${p.local === 'faro' ? 'Faro' : 'Portimão'}.</span></div>`); atualizarTopo(); redesenhar(); });
-  root.querySelector('#irLiga')?.addEventListener('click', () => go('liga'));
+  const ler = ligarCampos(root, 'd', () => { const p = ler(), o = s.perfil; root.querySelector('#gravDados').disabled = !valido(p) || (p.nome === o.nome && p.regime === o.regime && p.local === o.local && p.alcunha === (o.alcunha || '') && (p.teste || o.teste || '') === (o.teste || '')); });
+  root.querySelector('#gravDados').addEventListener('click', () => { const p = ler(); if (!valido(p)) return; p.teste = p.teste || s.perfil.teste || ''; Object.assign(s.perfil, p); gravar(); sfx.xp(); agendar(1500); sincronizarNuvem(); toast(`<div><b>Dados guardados</b><br><span class="nota">${p.nome}, ${p.regime === 'diurno' ? 'diurno' : 'noturno'}, ${p.local === 'faro' ? 'Faro' : 'Portimão'}.</span></div>`); atualizarTopo(); redesenhar(); });
+  const volta = () => { atualizarTopo(); redesenhar(); };
+  root.querySelector('#criaConta')?.addEventListener('click', () => { sfx.clique(); ecraCriar(root, { aoFim: volta, aoVoltar: volta }); });
+  root.querySelector('#tenhoContaDef')?.addEventListener('click', () => { sfx.clique(); ecraEntrar(root, { aoFim: volta, aoCriar: () => ecraCriar(root, { aoFim: volta, aoVoltar: volta }), aoVoltar: volta }); });
+  root.querySelector('#mudaSenha')?.addEventListener('click', () => { sfx.clique(); ecraTrocar(root, { aoFim: volta, aoVoltar: volta }); });
+  root.querySelector('#sincNuvem')?.addEventListener('click', async (e) => {
+    const b = e.currentTarget; b.disabled = true; b.textContent = 'A sincronizar...'; const r = await sincronizarNuvem({ forcar: true });
+    toast(r.ok ? '<div><b>Tudo sincronizado</b><br><span class="nota">O progresso está igual em todos os aparelhos.</span></div>' : '<div><b>Sem ligação</b><br><span class="nota">Tenta outra vez quando houver rede.</span></div>'); volta();
+  });
   root.querySelector('#okProf')?.addEventListener('click', async (e) => {
     const b = e.currentTarget, c = root.querySelector('#codProf').value.trim(), er = root.querySelector('#erroProf'); if (!c) { er.textContent = 'Escreve o código.'; return; }
     b.disabled = true; er.textContent = ''; const r = await tornarProfessor(c); b.disabled = false;
@@ -147,9 +168,9 @@ function ligarDef(root, s, go, redesenhar, atualizarTopo) {
     er.textContent = { codigo: 'Código errado.', muitas: 'Demasiadas tentativas. Tenta daqui a uma hora.', sem_codigo: 'O código do professor ainda não está configurado.', rede: 'Sem ligação ao servidor.' }[r.erro] || 'Não foi possível confirmar agora.';
   });
   root.querySelector('#sairLiga')?.addEventListener('click', async (e) => {
-    const b = e.currentTarget;
-    if (!b.dataset.sim) { b.dataset.sim = '1'; b.textContent = 'Toca outra vez para confirmar'; setTimeout(() => { if (b.isConnected) { delete b.dataset.sim; b.textContent = 'Sair da liga e apagar os meus dados do servidor'; } }, 4000); return; }
-    b.disabled = true; const ok = await sairDaLiga(); toast(ok ? '<div><b>Saíste da liga</b><br><span class="nota">Os teus dados foram apagados do servidor.</span></div>' : '<div><b>Sem ligação</b><br><span class="nota">Não foi possível apagar agora. Tenta outra vez com rede.</span></div>'); redesenhar();
+    const b = e.currentTarget, rotulo = b.textContent;
+    if (!b.dataset.sim) { b.dataset.sim = '1'; b.textContent = 'Toca outra vez para confirmar'; setTimeout(() => { if (b.isConnected) { delete b.dataset.sim; b.textContent = rotulo; } }, 4000); return; }
+    b.disabled = true; const ok = await sairDaLiga(); toast(ok ? '<div><b>Dados apagados do servidor</b><br><span class="nota">A conta e os pontos de liga foram removidos.</span></div>' : '<div><b>Sem ligação</b><br><span class="nota">Não foi possível apagar agora. Tenta outra vez com rede.</span></div>'); redesenhar();
   });
   root.querySelector('#som').addEventListener('click', () => { alternarSom(); sfx.clique(); redesenhar(); atualizarTopo(); });
   root.querySelector('#apagar').addEventListener('click', (e) => {

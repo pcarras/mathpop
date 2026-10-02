@@ -20,7 +20,7 @@ with sync_playwright() as p:
         pg = ctx.new_page(); errs = []
         pg.on('pageerror', lambda e: errs.append(str(e)))
         pg.goto(base + '#/home'); pg.wait_for_selector('.entrada')
-        pg.fill('#e-nome', 'Teste Aparelho'); pg.click('[data-seg=regime][data-v=diurno]'); pg.click('[data-seg=local][data-v=portimao]'); pg.click('#entrar'); pg.wait_for_selector('h1')
+        pg.fill('#e-nome', 'Teste Aparelho'); pg.click('[data-seg=regime][data-v=diurno]'); pg.click('[data-seg=local][data-v=portimao]'); pg.fill('#e-teste', '2026-12-10'); pg.click('#entrar'); pg.wait_for_selector('h1')
         if c['evento']:
             pg.evaluate("() => { const e = new Event('beforeinstallprompt'); e.prompt = () => { window.__prompt = 1; }; e.userChoice = Promise.resolve({ outcome: 'accepted' }); dispatchEvent(e); }")
         pg.goto(base + '#/perfil'); pg.wait_for_selector('[data-aba=def]'); pg.click('[data-aba=def]'); pg.wait_for_selector('#instalar'); pg.wait_for_timeout(300)

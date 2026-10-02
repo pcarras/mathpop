@@ -14,6 +14,7 @@ const CMD = {
   SCARD: ([k]) => (db.get(k)?.size || 0), SREM: ([k, m]) => (db.get(k)?.delete(m) ? 1 : 0), PING: () => 'PONG',
   HKEYS: ([k]) => [...(db.get(k)?.keys() || [])],
   HDEL: ([k, f]) => (db.get(k)?.delete(f) ? 1 : 0),
+  HSETNX: ([k, f, v]) => { const h = H(k); if (h.has(f)) return 0; h.set(f, v); return 1; }, HLEN: ([k]) => (db.get(k)?.size || 0),
   SADD: ([k, ...m]) => { const s = H(k); let n = 0; for (const x of m) if (!s.has(x)) { s.set(x, 1); n++; } return n; }, SMEMBERS: ([k]) => [...(db.get(k)?.keys() || [])],
   SET: ([k, v, ...o]) => { if (o.includes('NX') && db.has(k)) return null; db.set(k, v); return 'OK'; },
   DEL: ([k]) => (db.delete(k) ? 1 : 0), EXISTS: ([k]) => (db.has(k) ? 1 : 0), EXPIRE: () => 1,

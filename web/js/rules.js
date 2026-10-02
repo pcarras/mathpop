@@ -27,8 +27,10 @@ export function xpDesafio({ nivel, criterios, nHoje, dias }) {
   const base = 30 * nivel * (0.4 * criterios.metodo + 0.4 * criterios.calculos + 0.2 * (criterios.resposta ?? 0));
   return Math.round(base * fatorDiario(nHoje) * multSequencia(dias));
 }
-export function diasAteTeste(hoje = new Date()) {
-  const t = new Date(DATA_TESTE + 'T09:00:00'); return Math.ceil((t - hoje) / 86400000);
+// cada aluno indica o dia do teste da sua turma; sem indicacao vale a data predefinida
+export const dataDoTeste = (p) => (p && /^\d{4}-\d{2}-\d{2}$/.test(p.teste || '') ? p.teste : DATA_TESTE);
+export function diasAteTeste(hoje = new Date(), data = DATA_TESTE) {
+  const t = new Date(data + 'T09:00:00'); return Math.ceil((t - hoje) / 86400000);
 }
 // o dia comeca as 04:00
 export function diaChave(d = new Date()) { const x = new Date(d.getTime() - 4 * 3600 * 1000); return x.toISOString().slice(0, 10); }

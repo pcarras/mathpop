@@ -11,7 +11,8 @@ export async function ligaDisponivel() {
 }
 export const naLiga = () => !!estado().liga.chave;
 export const eProfessor = () => !!estado().liga.prof;
-async function post(corpo) {
+export async function post(corpo) {
+  const dv = estado().conta.dev; if (dv && dv !== '0' && corpo.dev === undefined) corpo = { ...corpo, dev: dv };
   const r = await fetch(API, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(corpo) });
   let j = {}; try { j = await r.json(); } catch { /* sem corpo */ }
   return { status: r.status, ...j };
@@ -25,11 +26,11 @@ export function dispositivo() {
   const fm = /iPad/.test(ua) || (/Macintosh/.test(ua) && maxT > 1) || (/Android/.test(ua) && !/Mobile/.test(ua)) ? 'tab' : /iPhone|iPod|Android/.test(ua) ? 'tel' : 'pc';
   return { pl, fm, inst };
 }
-const instantaneo = () => { const s = estado(), p = s.perfil; return { nome: p.nome, alc: p.alcunha || '', regime: p.regime, local: p.local, avatar: s.avatar, disp: dispositivo() }; };
+const instantaneo = () => { const s = estado(), p = s.perfil; return { nome: p.nome, alc: p.alcunha || '', regime: p.regime, local: p.local, teste: p.teste || '', avatar: s.avatar, disp: dispositivo() }; };
 
 export async function entrarNaLiga() {
   const s = estado(), L = s.liga, p = s.perfil;
-  const corpo = () => ({ a: 'registar', id: p.id, sal: s.sal, nome: p.nome, alc: p.alcunha || '', regime: p.regime, local: p.local, avatar: s.avatar, disp: dispositivo(), consentimento: true });
+  const corpo = () => ({ a: 'registar', id: p.id, sal: s.sal, nome: p.nome, alc: p.alcunha || '', regime: p.regime, local: p.local, avatar: s.avatar, disp: dispositivo(), teste: p.teste || '', c0: s.contador, consentimento: true });
   let r = await post(corpo());
   if (r.status === 409) { p.id = crypto.randomUUID(); r = await post(corpo()); }
   if (r.status === 200 && r.chave) { L.chave = r.chave; L.prof = 0; L.aceitou = Date.now(); L.visto = JSON.stringify(instantaneo()); L.fila = []; L.xp = 0; gravar(); return { ok: true }; }
@@ -39,7 +40,11 @@ export function enfileirar(ev) {
   const L = estado().liga; if (!L.chave) return;
   L.fila.push(ev); if (L.fila.length > 500) L.fila.splice(0, L.fila.length - 500); gravar(); agendar();
 }
-export function agendar(ms = 20000) { clearTimeout(timer); timer = setTimeout(() => { sincronizar(); }, ms); }
+// ganchos para a conta (nuvem): evita dependencia circular
+const ganchos = []; export const aoSincronizar = (f) => { ganchos.push(f); };
+const avisar = () => { for (const f of ganchos) { try { f(); } catch { /* ignorado */ } } };
+let desde = 0; // no maximo 5 minutos sem enviar, mesmo a treinar sem parar
+export function agendar(ms = 90000) { const t = Date.now(); if (!desde) desde = t; clearTimeout(timer); timer = setTimeout(() => { desde = 0; sincronizar(); }, Math.max(1000, Math.min(ms, desde + 300000 - t))); }
 // envia a fila (e o perfil, se mudou). Devolve {ok, xp}. Nunca lanca erro.
 export function sincronizar(forcar = false) {
   if (aCorrer) return aCorrer;
@@ -53,7 +58,7 @@ export function sincronizar(forcar = false) {
         const corpo = { a: 'sync', id: estado().perfil.id, chave: L.chave, ev: lote };
         if (snap !== L.visto) corpo.perfil = JSON.parse(snap);
         const r = await post(corpo);
-        if (r.status === 200) { L.fila.splice(0, lote.length); L.xp = r.xp; L.visto = snap; L.prof = r.prof ? 1 : 0; gravar(); if (!L.fila.length) return { ok: true, xp: L.xp }; continue; }
+        if (r.status === 200) { L.fila.splice(0, lote.length); L.xp = r.xp; L.visto = snap; L.prof = r.prof ? 1 : 0; gravar(); if (!L.fila.length) { avisar(); return { ok: true, xp: L.xp }; } continue; }
         if (r.status === 401) { L.chave = ''; L.fila = []; gravar(); return { ok: false, erro: 'auth' }; }
         agendar(30000); return { ok: false, erro: r.erro || 'servidor' };
       }
@@ -70,7 +75,7 @@ export async function ranking(escopo, periodo) {
 export async function sairDaLiga() {
   const L = estado().liga;
   try { const r = await post({ a: 'apagar', id: estado().perfil.id, chave: L.chave }); if (r.status !== 200 && r.status !== 401) return false; } catch { return false; }
-  L.chave = ''; L.fila = []; L.xp = 0; L.visto = ''; L.aceitou = 0; L.prof = 0; gravar(); return true;
+  L.chave = ''; L.fila = []; L.xp = 0; L.visto = ''; L.aceitou = 0; L.prof = 0; const c = estado().conta; c.email = ''; c.dev = '0'; c.ver = 0; c.visto = ''; c.rem = { xp: 0, st: {}, tipo: {} }; c.rd = {}; gravar(); return true;
 }
 // professor: o servidor confere o codigo (nunca fica na app) e guarda o estatuto
 export async function tornarProfessor(codigo) {
@@ -86,6 +91,10 @@ export async function painelProf() {
   const L = estado().liga;
   try { const r = await post({ a: 'painel', id: estado().perfil.id, chave: L.chave }); if (r.status === 403) { L.prof = 0; gravar(); } return r.status === 200 ? r : { erro: r.erro || 'servidor' }; } catch { return { erro: 'rede' }; }
 }
+export async function reporAcesso(alvo) {
+  const L = estado().liga;
+  try { const r = await post({ a: 'repor', id: estado().perfil.id, chave: L.chave, alvo }); return r.status === 200 ? r : { erro: r.erro || 'servidor' }; } catch { return { erro: 'rede' }; }
+}
 export async function ocultarAluno(alvo, oculto) {
   const L = estado().liga;
   try { const r = await post({ a: 'ocultar', id: estado().perfil.id, chave: L.chave, alvo, oculto }); return r.status === 200; } catch { return false; }
@@ -93,7 +102,7 @@ export async function ocultarAluno(alvo, oculto) {
 // arranque: tenta enviar o que ficou por enviar e volta a tentar quando a rede regressa
 export function iniciarLiga() {
   addEventListener('online', () => { if (naLiga()) sincronizar(); });
-  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && naLiga() && estado().liga.fila.length) sincronizar(); });
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && naLiga()) { if (estado().liga.fila.length) sincronizar(); else avisar(); } });
   let ultimoPing = 0; const ping = () => { if (naLiga() && Date.now() - ultimoPing > 30 * 60000) { ultimoPing = Date.now(); sincronizar(true); } };
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') ping(); });
   if (naLiga()) setTimeout(ping, 3000);

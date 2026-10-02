@@ -4,7 +4,9 @@ import { icon } from '../ui/icons.js';
 import { avatarHTML } from '../ui/avatar.js';
 import { sfx } from '../ui/sfx.js';
 import { toast } from '../ui/fx.js';
-import { entrarNaLiga, naLiga, ranking, eProfessor } from '../game/liga.js';
+import { naLiga, ranking, eProfessor } from '../game/liga.js';
+import { temConta } from '../game/conta.js';
+import { ecraCriar } from './conta.js';
 import { painelProfessor } from './painel.js';
 import { nomeRegime, nomeLocal } from './entrada.js';
 
@@ -13,37 +15,8 @@ let escopo = 'turma';
 const av2 = (v, s) => { try { return avatarHTML(v, { s, selo: true }); } catch { return avatarHTML({}, { s, selo: true }); } };
 const av = (v, s) => { try { return avatarHTML(v, { s }); } catch { return avatarHTML({}, { s }); } };
 
-function consentimento(root, go) {
-  const p = estado().perfil;
-  root.innerHTML = `
-  <h1 style="margin:2px 0 4px">Liga da turma</h1>
-  <p class="giz" style="margin:0 0 12px">Compete com os colegas de ${nomeLocal(p.local)}, ${nomeRegime(p.regime).toLowerCase()}, e com a UC toda. Ganha pontos a treinar.</p>
-  <section class="painel">
-    <b>O que é enviado se entrares</b>
-    <ul class="lista-simples">
-      <li>O teu nome, a alcunha, o regime, o local e o avatar.</li>
-      <li>As respostas certas dos exercícios de treino. O servidor refaz cada exercício para conferir os pontos.</li>
-      <li>O tipo de aparelho (telemóvel, computador), se a app está instalada e quando a usaste pela última vez.</li>
-    </ul>
-    <b>O que os colegas veem</b>
-    <ul class="lista-simples">
-      <li>Só a alcunha (ou o primeiro nome), o avatar e os pontos. O teu nome completo não aparece.</li>
-    </ul>
-    <p class="nota" style="margin:8px 0 0">Os dados servem apenas para esta liga e para o acompanhamento da UC de Matemática I. Podes sair quando quiseres em Perfil, Definições, e os teus dados são apagados do servidor. Responsável: Paulo Carrasco, ESGHT, Universidade do Algarve.</p>
-  </section>
-  <label class="painel" style="margin-top:12px;display:flex;gap:12px;align-items:flex-start;cursor:pointer"><input type="checkbox" id="aceito" style="width:26px;height:26px;margin-top:2px;accent-color:var(--ciano)"><span>Li e aceito enviar estes dados para a liga.</span></label>
-  <button class="btn grande ouro" id="entrarLiga" style="margin-top:14px" disabled>Entrar na liga</button>
-  <p class="nota" id="erroLiga" style="margin-top:10px;color:var(--erro)"></p>`;
-  const cb = root.querySelector('#aceito'), bt = root.querySelector('#entrarLiga');
-  cb.addEventListener('change', () => { bt.disabled = !cb.checked; });
-  bt.addEventListener('click', async () => {
-    bt.disabled = true; bt.textContent = 'A entrar...';
-    const r = await entrarNaLiga();
-    if (r.ok) { sfx.bau(); toast('<div><b>Estás na liga</b><br><span class="nota">Os pontos dos próximos treinos já contam.</span></div>'); liga(root, go); return; }
-    bt.disabled = false; bt.textContent = 'Entrar na liga';
-    root.querySelector('#erroLiga').textContent = r.erro === 'rede' ? 'Sem ligação ao servidor. Confirma a rede e tenta outra vez.' : 'Não foi possível entrar na liga agora. Tenta mais tarde.';
-  });
-}
+// entrar na liga = criar conta (email e palavra-passe) ou entrar numa conta existente
+function consentimento(root, go) { ecraCriar(root, { aoFim: () => liga(root, go) }); }
 
 const seg = (id, lista, atual) => `<div class="seg" role="radiogroup" aria-label="${id}" style="grid-template-columns:repeat(${lista.length},1fr)">${lista.map(([k, n]) => `<button type="button" role="radio" aria-checked="${atual === k}" data-${id}="${k}" style="min-height:42px;font-size:15px">${n}</button>`).join('')}</div>`;
 
@@ -53,9 +26,11 @@ export async function liga(root, go) {
   const cab = `<div class="linha" style="margin:2px 0 8px"><h1>Liga</h1><span class="espaco"></span><span class="chip">${icon('liga')}${escopo === 'turma' ? nomeLocal(p.local) + ', ' + nomeRegime(p.regime).toLowerCase() : 'Geral'}</span></div>
     <div style="display:grid;gap:8px">${seg('escopo', [['turma', 'A minha turma'], ['geral', 'Todos']], escopo)}</div>`;
   const barraProf = eProfessor() ? `<div class="painel" style="margin-top:12px;display:flex;gap:10px;align-items:center"><span style="flex:1"><b>Professor</b><span class="nota" style="display:block">Estás fora da tabela. Os teus pontos não contam.</span></span><button class="btn ouro" id="abrePainel" style="min-height:44px">Painel</button></div>` : '';
-  root.innerHTML = cab + barraProf + '<div id="corpo" class="painel" style="margin-top:12px;text-align:center"><p class="nota">A carregar a tabela...</p></div>';
+  const barraConta = !eProfessor() && !temConta() ? `<div class="painel" style="margin-top:12px;display:flex;gap:10px;align-items:center"><span style="flex:1"><b>Guarda o teu progresso</b><span class="nota" style="display:block">Associa um email e usa a app em qualquer aparelho.</span></span><button class="btn ouro" id="assocEmail" style="min-height:44px">Associar</button></div>` : '';
+  root.innerHTML = cab + barraProf + barraConta + '<div id="corpo" class="painel" style="margin-top:12px;text-align:center"><p class="nota">A carregar a tabela...</p></div>';
   const ligar = () => root.querySelectorAll('[data-escopo]').forEach((b) => b.addEventListener('click', () => { sfx.clique(); escopo = b.dataset.escopo; liga(root, go); }));
   ligar();
+  root.querySelector('#assocEmail')?.addEventListener('click', () => { sfx.clique(); ecraCriar(root, { aoFim: () => liga(root, go), aoVoltar: () => liga(root, go) }); });
   root.querySelector('#abrePainel')?.addEventListener('click', () => { sfx.clique(); painelProfessor(root, () => liga(root, go)); });
   const r = await ranking(escopo, 'total');
   const corpo = root.querySelector('#corpo'); if (!corpo) return;
