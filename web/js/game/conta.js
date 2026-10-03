@@ -13,6 +13,7 @@ export const aoMudarConta = (f) => { ouvintes.add(f); return () => ouvintes.dele
 const avisar = () => ouvintes.forEach((f) => { try { f(); } catch { /* ignorado */ } });
 export const temConta = () => !!estado().conta.email && naLiga();
 export const emailDaConta = () => estado().conta.email;
+export const emailConfirmado = () => !!estado().conta.ev;
 
 // contadores ganhos NESTE aparelho (total menos o que veio dos outros)
 export function proprios() {
@@ -90,7 +91,7 @@ export function sincronizarNuvem({ forcar = false } = {}) {
           const r = await post({ a: 'nuvem', ...cred(), ver: c.ver });
           if (r.status === 401) return { ok: false, erro: 'auth' };
           if (r.status !== 200) return { ok: false, erro: r.erro || 'servidor' };
-          ultimaLeitura = Date.now();
+          ultimaLeitura = Date.now(); if (r.ev === true && !c.ev) c.ev = true;
           if (r.est) { mudou = fundir(r.est) || mudou; }
           c.ver = r.ver; gravar();
         }
@@ -149,7 +150,7 @@ export async function entrarConta(email, senha) {
     p.nome = r.perfil.nome; p.alcunha = r.perfil.alc || ''; p.regime = r.perfil.regime; p.local = r.perfil.local; if (r.perfil.teste) p.teste = r.perfil.teste;
     if (r.avatar && Object.keys(r.avatar).length) s.avatar = { ...AVATAR_PADRAO, ...r.avatar };
     Object.assign(L, { chave: r.chave, fila: [], xp: r.xp || 0, aceitou: Date.now(), prof: r.prof ? 1 : 0, visto: '' });
-    Object.assign(s.conta, { email: e, dev: r.dev, ver: 0, visto: '', rem: { xp: 0, st: {}, tipo: {} }, rd: {}, avSnap: jsonDe(s.avatar), pfSnap: jsonDe(perfilPartilhado()), avT: 0, pfT: 0 });
+    Object.assign(s.conta, { email: e, dev: r.dev, ev: r.ev === true, ver: 0, visto: '', rem: { xp: 0, st: {}, tipo: {} }, rd: {}, avSnap: jsonDe(s.avatar), pfSnap: jsonDe(perfilPartilhado()), avT: 0, pfT: 0 });
     gravar();
     await sincronizarNuvem({ forcar: true });
     return { ok: true, trocar: !!r.trocar };
@@ -166,4 +167,15 @@ export function iniciarConta() {
   const ver = () => { if (document.visibilityState === 'visible' && temConta()) sincronizarNuvem(); };
   document.addEventListener('visibilitychange', ver);
   if (temConta()) setTimeout(() => sincronizarNuvem({ forcar: true }), 1500);
+}
+
+// ---------- confirmar o email e recuperar a palavra-passe (so quando o servidor tem o envio de emails configurado) ----------
+const via = async (corpo) => { try { const r = await post(corpo); return r.status === 200 ? { ok: true, ...r } : { ok: false, erro: r.erro || 'servidor', status: r.status }; } catch { return { ok: false, erro: 'rede' }; } };
+export const pedirConfirmacao = async () => { const r = await via({ a: 'verif_pedir', ...cred() }); if (r.ok && r.ja) { estado().conta.ev = true; gravar(); } return r; };
+export const confirmarEmail = async (codigo) => { const r = await via({ a: 'verif_confirmar', ...cred(), codigo: String(codigo).trim() }); if (r.ok) { estado().conta.ev = true; gravar(); } return r; };
+export const pedirRecuperacao = (email) => via({ a: 'rec_pedir', email: limparEmail(email) });
+export async function recuperarConta(email, codigo, nova) {
+  const r = await via({ a: 'rec_confirmar', email: limparEmail(email), codigo: String(codigo).trim(), nova });
+  if (!r.ok) return r;
+  return entrarConta(email, nova);
 }

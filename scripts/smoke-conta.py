@@ -52,8 +52,8 @@ with sync_playwright() as p:
     L.evaluate("""() => { const s = JSON.parse(localStorage.getItem('mat1.v2')); s.xp = 777; delete s.conta; delete s.perfil.teste; localStorage.setItem('mat1.v2', JSON.stringify(s)); }""")
     L.goto(BASE + '#/home'); L.reload(); L.wait_for_timeout(1500)
     sL = estado(L); ok(sL['xp'] == 777, 'estado antigo mantem os 777 pontos'); ok(not sL.get('conta', {}).get('email'), 'estado antigo sem email')
-    ok(L.locator('#cxTeste').count() == 1, 'aluno antigo e convidado a indicar o dia do teste')
-    L.fill('#cxData', '2026-12-15'); L.click('#cxGravar'); L.wait_for_timeout(500); ok(estado(L)['perfil']['teste'] == '2026-12-15', 'dia do teste gravado pelo cartao')
+    ok(L.locator('#pt-teste').count() == 1, 'aluno antigo nao avanca sem indicar o dia do teste')
+    ok(L.is_disabled('#pt-ok'), 'continuar bloqueado sem data'); L.fill('#pt-teste', '2026-12-15'); L.click('#pt-ok'); L.wait_for_timeout(600); ok(estado(L)['perfil']['teste'] == '2026-12-15' and L.locator('#pt-teste').count() == 0, 'dia do teste gravado e a app abre')
     ok(L.evaluate("!!localStorage.getItem('mat1.v2.bak')") is True or True, 'copia de seguranca (so criada ao criar conta)')
     criar_conta(L, 'rui@teste.pt', 'segredo1'); ok(estado(L)['xp'] == 777, 'criar conta nao perde pontos'); ok(L.evaluate("!!localStorage.getItem('mat1.v2.bak')"), 'copia de seguranca criada')
     # ---- 6. professor repoe o acesso de uma aluna

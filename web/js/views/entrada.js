@@ -63,3 +63,25 @@ export function entrada(root, go, _t, atualizarTopo) {
     document.body.classList.remove('imersivo'); atualizarTopo(); go('home');
   });
 }
+
+// alunos que ja usavam a app antes do dia do teste ser pedido: nao avancam sem o indicar (a data pode ser diferente por turma)
+export const falta_teste = (p) => perfilCompleto(p) && !DATA_RE.test(p.teste || '');
+export function pedirTeste(root, go, atualizarTopo, sincronizar) {
+  const s = estado(); document.body.classList.add('imersivo');
+  root.innerHTML = `
+  <section class="entrada">
+    <div class="entrada-av">${avatarHTML(s.avatar, { s: 112, anim: true })}</div>
+    <h1 class="entrada-t">Falta uma coisa</h1>
+    <p class="entrada-p">Indica o dia do teste da tua turma. Serve para a contagem decrescente e para o professor saber quando é o teste de cada turma. Os pontos que já ganhaste ficam como estão.</p>
+    <div class="painel entrada-f">
+      <label class="campo-t" for="pt-teste">Dia do teste da tua turma</label>
+      <input class="campo" id="pt-teste" type="date" min="${hojeISO()}" max="2027-06-30">
+    </div>
+    <button class="btn grande ouro" id="pt-ok" disabled>Continuar</button>
+    <p class="nota" style="margin:12px 4px 0">Podes mudar o dia em Perfil, Definições.</p>
+  </section>`;
+  const inp = root.querySelector('#pt-teste'), bt = root.querySelector('#pt-ok'), ok = () => DATA_RE.test(inp.value) && inp.value >= hojeISO();
+  const f = () => { bt.disabled = !ok(); };
+  inp.addEventListener('input', f); inp.addEventListener('change', f);
+  bt.addEventListener('click', () => { if (!ok()) return; s.perfil.teste = inp.value; gravar(); sfx.bau(); sincronizar?.(); document.body.classList.remove('imersivo'); atualizarTopo(); go('home'); });
+}

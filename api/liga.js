@@ -1,6 +1,6 @@
-// API da liga da Arena Mat I. Uma unica funcao: GET devolve o estado, POST executa uma acao (registar, conta, entrar, nuvem, senha, sync, ranking, apagar, professor, painel, ocultar, repor).
+// API da liga da Arena Mat I. Uma unica funcao: GET devolve o estado, POST executa uma acao (registar, conta, entrar, nuvem, senha, sync, ranking, apagar, professor, painel, ocultar, repor, verif_pedir, verif_confirmar, rec_pedir, rec_confirmar).
 // Os pontos so contam depois de o servidor regenerar cada exercicio a partir da semente e conferir a resposta.
-import { randomBytes, timingSafeEqual, createHash, scryptSync } from 'node:crypto';
+import { randomBytes, randomInt, timingSafeEqual, createHash, scryptSync } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { gerar, verificar, xpTreino, diaChave, TIPOS } from './_motor.js';
 import { pipe, cmd, obj, ligado } from './_redis.js';
@@ -180,7 +180,7 @@ async function apagar(b) {
   const dias = await tirarDoRanking(b.id, p), cmds = [];
   for (const d of dias) cmds.push(['DEL', `d:${b.id}:${d}`]);
   if (p.email) cmds.push(['DEL', 'u:' + hEmail(p.email)]);
-  cmds.push(['DEL', 'dias:' + b.id], ['DEL', 'v:' + b.id], ['DEL', 's:' + b.id], ['HDEL', 'cards', b.id], ['SREM', 'profs', b.id], ['DEL', 'p:' + b.id]);
+  cmds.push(['DEL', 'dias:' + b.id], ['DEL', 'ec:v:' + b.id], ['DEL', 'v:' + b.id], ['DEL', 's:' + b.id], ['HDEL', 'cards', b.id], ['SREM', 'profs', b.id], ['DEL', 'p:' + b.id]);
   await pipe(cmds);
   return [200, { ok: 1 }];
 }
@@ -214,7 +214,7 @@ async function painel(b) {
     const o = obj(rs[i]); if (!o.nome) return null;
     const ap = 1 + (Number(rs[n + 31 + i]) || 0);
     let c = {}; try { c = JSON.parse(cart[i] || '{}'); } catch { c = {}; }
-    return { id, nome: o.nome, alc: o.alc || '', regime: o.regime, local: o.local, xp: Number(o.xp) || 0, certas: Number(o.certas) || 0, criado: Number(o.criado) || 0, vis: Number(o.vis) || Number(o.criado) || 0, pl: o.pl || 'outro', fm: o.fm || '', email: o.email || '', teste: o.teste || '', ap, inst: o.inst === '1', oc: o.oc === '1', prof: o.prof === '1', v: c.v || {} };
+    return { id, nome: o.nome, alc: o.alc || '', regime: o.regime, local: o.local, xp: Number(o.xp) || 0, certas: Number(o.certas) || 0, criado: Number(o.criado) || 0, vis: Number(o.vis) || Number(o.criado) || 0, pl: o.pl || 'outro', fm: o.fm || '', email: o.email || '', ev: o.ev === '1', teste: o.teste || '', ap, inst: o.inst === '1', oc: o.oc === '1', prof: o.prof === '1', v: c.v || {} };
   }).filter(Boolean).sort((x, y) => y.xp - x.xp);
   const serie = dias.map((d, k) => ({ d, c: Number(obj(rs[n + 1 + 2 * k]).c) || 0, a: Number(rs[n + 2 + 2 * k]) || 0 }));
   const hh = obj(rs[n + 1 + 28]), horas = Array.from({ length: 24 }, (_, h) => Number(hh[h]) || 0);
@@ -269,7 +269,7 @@ async function entrar(b, req) {
   }
   cmds.push(['HSET', 'v:' + u.id, dev, JSON.stringify({ s: sal, k: chave, c: nn(b.c0, 1e6), t: Date.now() })], ['HSET', 'p:' + u.id, 'vis', Date.now(), 'pl', dp.pl, 'fm', dp.fm, 'inst', dp.inst], ['HGET', 'cards', u.id]);
   const rs = await pipe(cmds); let av = {}; try { av = JSON.parse(rs[rs.length - 1] || '{}').v || {}; } catch { av = {}; }
-  return [200, { ok: 1, id: u.id, chave, dev, perfil: { nome: p.nome, alc: p.alc || '', regime: p.regime, local: p.local, teste: p.teste || '' }, avatar: av, xp: Number(p.xp) || 0, trocar: p.pwtmp === '1', prof: ehProf(p) }];
+  return [200, { ok: 1, id: u.id, chave, dev, perfil: { nome: p.nome, alc: p.alc || '', regime: p.regime, local: p.local, teste: p.teste || '' }, avatar: av, xp: Number(p.xp) || 0, trocar: p.pwtmp === '1', prof: ehProf(p), ev: p.ev === '1' }];
 }
 
 // estado do aluno na nuvem (progresso, avatar, conquistas...). O cliente funde e devolve; o servidor so guarda e nunca apaga por conta propria.
@@ -306,7 +306,7 @@ async function nuvem(b) {
   const ler = async () => { const c = obj(await cmd('HGETALL', 's:' + b.id)); let est = null; try { est = c.est ? JSON.parse(c.est) : null; } catch { est = null; } return { ver: Number(c.ver) || 0, est }; };
   if (b.est === undefined) { // so ler
     const c = await ler();
-    return [200, Number(b.ver) === c.ver && c.ver > 0 ? { ok: 1, ver: c.ver, igual: 1 } : { ok: 1, ver: c.ver, est: c.est }];
+    return [200, Number(b.ver) === c.ver && c.ver > 0 ? { ok: 1, ver: c.ver, igual: 1, ev: p.ev === '1' } : { ok: 1, ver: c.ver, est: c.est, ev: p.ev === '1' }];
   }
   const est = limparEst(b.est); if (!est) return [400, { erro: 'est' }];
   const txt = JSON.stringify(est); if (txt.length > 24000) return [413, { erro: 'grande' }];
@@ -342,6 +342,71 @@ async function repor(b) {
   return [200, { ok: 1, temp, email: q.email }];
 }
 
+// ---------- confirmar o email e recuperar a palavra-passe (so ativo se o envio de emails estiver configurado) ----------
+const emailAtivo = () => !!(process.env.RESEND_API_KEY && process.env.EMAIL_FROM);
+async function enviarEmail(para, assunto, texto) {
+  try {
+    const r = await fetch('https://api.resend.com/emails', { method: 'POST', headers: { Authorization: 'Bearer ' + process.env.RESEND_API_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify({ from: process.env.EMAIL_FROM, to: [para], subject: assunto, text: texto }) });
+    return r.ok;
+  } catch { return false; }
+}
+const codigoHash = (chave, codigo) => createHash('sha256').update('mat1c|' + chave + '|' + codigo).digest('hex');
+const CODIGO_MS = 15 * 60000;
+// cria um codigo de 6 digitos para a chave dada e envia-o por email
+async function emitirCodigo(chave, tipo, email) {
+  const codigo = String(randomInt(0, 1000000)).padStart(6, '0');
+  await pipe([['DEL', 'ec:' + chave], ['HSET', 'ec:' + chave, 't', tipo, 'h', codigoHash(chave, codigo), 'exp', Date.now() + CODIGO_MS, 'n', 0], ['EXPIRE', 'ec:' + chave, 1800]]);
+  const o = tipo === 'v' ? 'Confirma o teu email na Arena Mat I' : 'Recuperar a palavra-passe da Arena Mat I';
+  const frase = tipo === 'v' ? 'Para confirmares o teu email, escreve este código na app:' : 'Para escolheres uma nova palavra-passe, escreve este código na app:';
+  return enviarEmail(email, o, `${frase}\n\n${codigo}\n\nO código vale 15 minutos. Se não pediste isto, ignora este email e a tua conta fica como está.\n\nArena Mat I, Matemática I, ESGHT, Universidade do Algarve`);
+}
+// confere o codigo (no maximo 5 tentativas); apaga-o quando certo ou esgotado
+async function conferirCodigo(chave, tipo, codigo) {
+  const c = obj(await cmd('HGETALL', 'ec:' + chave));
+  if (!c.h || c.t !== tipo) return false;
+  if (Number(c.exp) < Date.now() || Number(c.n) >= 5) { await cmd('DEL', 'ec:' + chave); return false; }
+  if (typeof codigo !== 'string' || !/^\d{6}$/.test(codigo)) return false;
+  if (!igual(codigoHash(chave, codigo), c.h)) { await cmd('HINCRBY', 'ec:' + chave, 'n', 1); return false; }
+  await cmd('DEL', 'ec:' + chave); return true;
+}
+async function verifPedir(b) {
+  if (!emailAtivo()) return [503, { erro: 'sem_email' }];
+  const p = await autenticar(b); if (!p) return [401, { erro: 'auth' }];
+  if (!p.email) return [403, { erro: 'sem_conta' }];
+  if (p.ev === '1') return [200, { ok: 1, ja: 1 }];
+  if (await excede(`rl:vp:${b.id}:${Math.floor(Date.now() / 3600000)}`, 5)) return [429, { erro: 'muitos_pedidos' }];
+  const ok = await emitirCodigo('v:' + b.id, 'v', p.email);
+  return ok ? [200, { ok: 1 }] : [502, { erro: 'envio' }];
+}
+async function verifConfirmar(b) {
+  const p = await autenticar(b); if (!p) return [401, { erro: 'auth' }];
+  if (!p.email) return [403, { erro: 'sem_conta' }];
+  if (await excede(`rl:vc:${b.id}:${Math.floor(Date.now() / 3600000)}`, 20)) return [429, { erro: 'muitos_pedidos' }];
+  if (!(await conferirCodigo('v:' + b.id, 'v', b.codigo))) return [403, { erro: 'codigo' }];
+  await cmd('HSET', 'p:' + b.id, 'ev', 1);
+  return [200, { ok: 1 }];
+}
+// recuperar: sem sessao. Responde sempre da mesma maneira, exista ou nao a conta (nao revela quem tem conta)
+async function recPedir(b, req) {
+  if (!emailAtivo()) return [503, { erro: 'sem_email' }];
+  const email = emailLimpo(b.email); if (!email) return [400, { erro: 'email' }];
+  const h = hEmail(email), hora = Math.floor(Date.now() / 3600000);
+  if ((await excede(`rl:ri:${ipDe(req)}:${hora}`, 20)) || (await excede(`rl:re:${h}:${hora}`, 4))) return [429, { erro: 'muitos_pedidos' }];
+  const u = obj(await cmd('HGETALL', 'u:' + h));
+  if (u.pw && idOk(u.id)) await emitirCodigo('r:' + h, 'r', email);
+  return [200, { ok: 1 }];
+}
+async function recConfirmar(b, req) {
+  const email = emailLimpo(b.email); if (!email) return [400, { erro: 'email' }];
+  if (!senhaValida(b.nova)) return [400, { erro: 'senha' }];
+  const h = hEmail(email), hora = Math.floor(Date.now() / 3600000);
+  if ((await excede(`rl:ci:${ipDe(req)}:${hora}`, 40)) || (await excede(`rl:ce:${h}:${hora}`, 12))) return [429, { erro: 'muitos_pedidos' }];
+  const u = obj(await cmd('HGETALL', 'u:' + h)); if (!u.pw || !idOk(u.id)) return [403, { erro: 'codigo' }];
+  if (!(await conferirCodigo('r:' + h, 'r', b.codigo))) return [403, { erro: 'codigo' }];
+  await pipe([['HSET', 'u:' + h, 'pw', hashSenha(b.nova)], ['HDEL', 'p:' + u.id, 'pwtmp'], ['HSET', 'p:' + u.id, 'ev', 1]]);
+  return [200, { ok: 1 }];
+}
+
 async function ocultar(b) {
   const p = await autenticarProf(b); if (!p) return [403, { erro: 'prof' }];
   if (!idOk(b.alvo)) return [400, { erro: 'alvo' }];
@@ -355,13 +420,13 @@ async function ocultar(b) {
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
-  if (req.method === 'GET') return res.status(200).json({ ligado: ligado(), v: { liga: sha('./liga.js'), motor: sha('./_motor.js'), redis: sha('./_redis.js') } });
+  if (req.method === 'GET') return res.status(200).json({ ligado: ligado(), email: emailAtivo(), v: { liga: sha('./liga.js'), motor: sha('./_motor.js'), redis: sha('./_redis.js') } });
   if (req.method !== 'POST') return res.status(405).json({ erro: 'metodo' });
   if (!ligado()) return res.status(503).json({ erro: 'sem_base' });
   let b = req.body; if (typeof b === 'string') { try { b = JSON.parse(b); } catch { b = null; } }
   if (!b || typeof b !== 'object') return res.status(400).json({ erro: 'corpo' });
   try {
-    const fn = { registar: (x) => registar(x, req), sync, ranking, apagar, professor: (x) => professor(x, req), painel, ocultar, conta: (x) => conta(x, req), entrar: (x) => entrar(x, req), nuvem, senha, repor }[b.a];
+    const fn = { registar: (x) => registar(x, req), sync, ranking, apagar, professor: (x) => professor(x, req), painel, ocultar, conta: (x) => conta(x, req), entrar: (x) => entrar(x, req), nuvem, senha, repor, verif_pedir: verifPedir, verif_confirmar: verifConfirmar, rec_pedir: (x) => recPedir(x, req), rec_confirmar: (x) => recConfirmar(x, req) }[b.a];
     if (!fn) return res.status(400).json({ erro: 'acao' });
     const [codigo, corpo] = await fn(b);
     return res.status(codigo).json(corpo);

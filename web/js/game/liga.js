@@ -4,9 +4,11 @@ const API = '/api/liga', CACHE = 'mat1.liga.ok';
 let disp = null, timer = null, aCorrer = null;
 try { disp = localStorage.getItem(CACHE) === '1' ? true : null; } catch { /* sem armazenamento */ }
 export const disponivelAgora = () => disp === true;
+let emailOk = false; try { emailOk = localStorage.getItem(CACHE + '.em') === '1'; } catch { /* ok */ }
+export const emailDisponivel = () => emailOk === true;
 export async function ligaDisponivel() {
-  try { const r = await fetch(API, { cache: 'no-store' }); disp = r.ok && (await r.json()).ligado === true; } catch { if (disp === null) disp = false; }
-  try { localStorage.setItem(CACHE, disp ? '1' : '0'); } catch { /* ok */ }
+  try { const r = await fetch(API, { cache: 'no-store' }); const j = r.ok ? await r.json() : {}; disp = j.ligado === true; emailOk = j.email === true; } catch { if (disp === null) disp = false; }
+  try { localStorage.setItem(CACHE, disp ? '1' : '0'); localStorage.setItem(CACHE + '.em', emailOk ? '1' : '0'); } catch { /* ok */ }
   return disp;
 }
 export const naLiga = () => !!estado().liga.chave;
@@ -68,9 +70,10 @@ export function sincronizar(forcar = false) {
   aCorrer = exec; exec.then(() => { if (aCorrer === exec) aCorrer = null; });
   return exec;
 }
+let profT = 0; // quando o professor foi reconhecido neste aparelho (uma resposta antiga da tabela nao o pode desfazer)
 export async function ranking(escopo, periodo) {
   await sincronizar();
-  try { const L = estado().liga; const r = await post({ a: 'ranking', id: estado().perfil.id, chave: L.chave, escopo, periodo }); if (r.status === 401) { L.chave = ''; gravar(); return { erro: 'auth' }; } if (r.status === 200) { const antes = L.prof; L.prof = r.prof ? 1 : 0; if (antes !== L.prof) gravar(); } return r.status === 200 ? r : { erro: r.erro || 'servidor' }; } catch { return { erro: 'rede' }; }
+  try { const L = estado().liga, t0 = Date.now(); const r = await post({ a: 'ranking', id: estado().perfil.id, chave: L.chave, escopo, periodo }); if (r.status === 401) { L.chave = ''; gravar(); return { erro: 'auth' }; } if (r.status === 200) { const antes = L.prof; if (r.prof || profT < t0) L.prof = r.prof ? 1 : 0; if (antes !== L.prof) gravar(); } return r.status === 200 ? r : { erro: r.erro || 'servidor' }; } catch { return { erro: 'rede' }; }
 }
 export async function sairDaLiga() {
   const L = estado().liga;
@@ -83,7 +86,7 @@ export async function tornarProfessor(codigo) {
   try {
     await sincronizar();
     const r = await post({ a: 'professor', id: estado().perfil.id, chave: L.chave, codigo });
-    if (r.status === 200) { L.prof = 1; gravar(); return { ok: true }; }
+    if (r.status === 200) { L.prof = 1; profT = Date.now(); gravar(); return { ok: true }; }
     return { ok: false, erro: r.status === 403 ? 'codigo' : r.status === 429 ? 'muitas' : r.status === 503 ? 'sem_codigo' : 'servidor' };
   } catch { return { ok: false, erro: 'rede' }; }
 }

@@ -7,9 +7,9 @@ import { home } from './views/home.js';
 import { treinar } from './views/treinar.js';
 import { perfil } from './views/perfil.js';
 import { registarSW } from './ui/instalar.js';
-import { entrada, perfilCompleto } from './views/entrada.js';
-import { ligaDisponivel, disponivelAgora, iniciarLiga } from './game/liga.js';
-import { iniciarConta, aoMudarConta } from './game/conta.js';
+import { entrada, perfilCompleto, falta_teste, pedirTeste } from './views/entrada.js';
+import { ligaDisponivel, disponivelAgora, iniciarLiga, agendar } from './game/liga.js';
+import { iniciarConta, aoMudarConta, sincronizarNuvem } from './game/conta.js';
 
 document.body.insertAdjacentHTML('afterbegin', defs);
 const root = document.getElementById('vista');
@@ -33,6 +33,7 @@ function render() {
   const [nome, resto] = (location.hash.replace(/^#\//, '') || 'home').split('/');
   const tipo = (resto || '').split('?')[0];
   if (!perfilCompleto(estado().perfil)) { document.querySelectorAll('.folha,.overlay').forEach((e) => e.remove()); scrollTo(0, 0); entrada(root, go, '', atualizarTopo); return; }
+  if (falta_teste(estado().perfil)) { document.querySelectorAll('.folha,.overlay').forEach((e) => e.remove()); scrollTo(0, 0); pedirTeste(root, go, atualizarTopo, () => { agendar(1500); sincronizarNuvem(); }); return; }
   const v = VISTAS[nome] || home;
   document.body.classList.remove('imersivo'); root.style.paddingBottom = '';
   document.querySelectorAll('.folha,.overlay').forEach((e) => e.remove());

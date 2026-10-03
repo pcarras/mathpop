@@ -28,10 +28,15 @@ const CMD = {
 };
 http.createServer((req, res) => { let d = ''; req.on('data', (c) => (d += c)); req.on('end', () => { const cmds = JSON.parse(d || '[]'); res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify(cmds.map((c) => { try { return { result: CMD[c[0].toUpperCase()](c.slice(1)) }; } catch (e) { return { error: String(e) }; } }))); }); }).listen(REDIS);
 process.env.UPSTASH_REDIS_REST_URL = `http://127.0.0.1:${REDIS}`; process.env.UPSTASH_REDIS_REST_TOKEN = 'teste'; process.env.TEACHER_KEY = 'codigo-de-teste';
+// envio de emails simulado (Resend): guarda as mensagens em memoria; GET /__mails devolve-as
+process.env.RESEND_API_KEY = 'teste'; process.env.EMAIL_FROM = 'Arena <arena@teste.pt>';
+const MAILS = []; const fetchReal = globalThis.fetch;
+globalThis.fetch = async (u, o) => { if (String(u).startsWith('https://api.resend.com/')) { MAILS.push(JSON.parse(o.body)); return { ok: true, status: 200 }; } return fetchReal(u, o); };
 const { default: handler } = await import(path.join(raiz, 'api/liga.js'));
 const TIPOS = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.woff2': 'font/woff2', '.png': 'image/png', '.svg': 'image/svg+xml', '.webmanifest': 'application/manifest+json' };
 http.createServer((req, res) => {
   const u = new URL(req.url, 'http://x');
+  if (u.pathname === '/__mails') { res.setHeader('Content-Type', 'application/json'); return res.end(JSON.stringify(MAILS)); }
   if (u.pathname === '/api/liga') { let d = ''; req.on('data', (c) => (d += c)); req.on('end', () => { try { req.body = d ? JSON.parse(d) : undefined; } catch { req.body = d; } res.status = (c) => { res.statusCode = c; return res; }; res.json = (o) => { res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify(o)); }; handler(req, res); }); return; }
   let f = path.join(raiz, 'web', u.pathname === '/' ? 'index.html' : decodeURIComponent(u.pathname));
   if (!f.startsWith(path.join(raiz, 'web')) || !fs.existsSync(f) || fs.statSync(f).isDirectory()) { res.statusCode = 404; return res.end('404'); }

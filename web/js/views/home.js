@@ -6,8 +6,9 @@ import { missoesDeHoje, estadoMissao, reclamar } from '../game/missions.js';
 import { festa, celebrar, contar } from '../ui/fx.js';
 import { sfx } from '../ui/sfx.js';
 import { deveSugerir, conteudo, ligar, aoMudar } from '../ui/instalar.js';
-import { disponivelAgora, agendar } from '../game/liga.js';
-import { temConta, sincronizarNuvem } from '../game/conta.js';
+import { disponivelAgora, agendar, emailDisponivel } from '../game/liga.js';
+import { temConta, sincronizarNuvem, emailConfirmado } from '../game/conta.js';
+import { confirmacaoHTML, ligarConfirmacao } from './conta.js';
 
 const CONVITE = 'mat1.convite';
 const conviteAtivo = () => { try { const t = Number(localStorage.getItem(CONVITE) || 0); return !t || Date.now() - t > 2 * 86400000; } catch { return true; } };
@@ -79,6 +80,7 @@ export function home(root, go, _a, atualizarTopo) {
   <div class="linha" style="margin:14px 0 0"><button class="btn grande" data-go="treinar">${icon('treinar')} Treinar agora</button></div>
   ${s.perfil.teste ? '' : `<section class="painel convite" id="cxTeste" style="margin-top:12px"><b>Qual é o dia do teste da tua turma?</b><p class="nota" style="margin:0">Serve para a contagem decrescente. Podes mudá-lo em Perfil, Definições.</p><div class="linha" style="gap:8px"><input class="campo" id="cxData" type="date" min="${hojeISO()}" max="2027-06-30" style="flex:1" aria-label="Dia do teste"><button class="btn ouro peq" id="cxGravar" disabled>Guardar</button></div></section>`}
   ${disponivelAgora() && !temConta() && conviteAtivo() ? `<section class="painel convite" id="cxConta" style="margin-top:12px"><b>Guarda o teu progresso</b><p class="nota" style="margin:0">Cria a tua conta com o email e usa a app no telemóvel, no tablet e no computador, sempre com os mesmos pontos.</p><div class="linha" style="gap:8px"><button class="btn ouro peq" id="cxCriar">Criar conta</button><button class="btn fantasma peq" id="cxMais">Agora não</button></div></section>` : ''}
+  ${temConta() && emailDisponivel() && !emailConfirmado() ? `<section class="painel convite" id="cxEmail" style="margin-top:12px">${confirmacaoHTML()}</section>` : ''}
   ${deveSugerir() ? `<section class="painel instalar" id="instalar">${conteudo()}</section>` : ''}
   <h2>Missões de hoje</h2>
   <section id="missoes">${miss.map((m) => { const e = estadoMissao(m); return `<div class="painel missao ${e.feita ? 'feita' : ''}" data-m="${m.id}">
@@ -89,6 +91,7 @@ export function home(root, go, _a, atualizarTopo) {
   <p class="giz" style="margin:-4px 0 6px">Cada tema tem um anel vermelho: quanto mais domínio, mais fechado.</p>
   <section class="painel mapa-cx">${mapa()}</section>`;
   requestAnimationFrame(() => { const p = root.querySelector('.anel .prog'); if (p) setTimeout(() => p.setAttribute('stroke-dashoffset', p.dataset.alvo), 60); });
+  ligarConfirmacao(root, () => home(root, go, _a, atualizarTopo));
   const cd = root.querySelector('#cxData'); if (cd) { const bg = root.querySelector('#cxGravar'); const ok = () => /^\d{4}-\d{2}-\d{2}$/.test(cd.value); cd.addEventListener('input', () => { bg.disabled = !ok(); }); cd.addEventListener('change', () => { bg.disabled = !ok(); }); bg.addEventListener('click', () => { if (!ok()) return; s.perfil.teste = cd.value; gravar(); sfx.xp(); agendar(1500); sincronizarNuvem(); atualizarTopo(); home(root, go, _a, atualizarTopo); }); }
   root.querySelector('#cxCriar')?.addEventListener('click', () => { sfx.clique(); go('liga'); });
   root.querySelector('#cxMais')?.addEventListener('click', () => { try { localStorage.setItem(CONVITE, String(Date.now())); } catch { /* ok */ } home(root, go, _a, atualizarTopo); });
