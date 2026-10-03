@@ -22,6 +22,9 @@ const CMD = {
   ZINCRBY: ([k, n, m]) => { const z = Z(k); const v = (z.get(m) || 0) + Number(n); z.set(m, v); return String(v); },
   ZADD: ([k, ...r]) => { const z = Z(k); const nx = r[0] === 'NX'; if (nx) r.shift(); let n = 0; for (let i = 0; i < r.length; i += 2) { if (nx && z.has(r[i + 1])) continue; z.set(r[i + 1], Number(r[i])); n++; } return n; },
   ZREM: ([k, m]) => (db.get(k)?.delete(m) ? 1 : 0), ZSCORE: ([k, m]) => (db.get(k)?.has(m) ? String(db.get(k).get(m)) : null),
+  LPUSH: ([k, ...v]) => { const l = Array.isArray(db.get(k)) ? db.get(k) : []; for (const x of v) l.unshift(x); db.set(k, l); return l.length; },
+  LTRIM: ([k, a, b]) => { const l = db.get(k); if (Array.isArray(l)) db.set(k, l.slice(Number(a), Number(b) + 1)); return 'OK'; },
+  LRANGE: ([k, a, b]) => (Array.isArray(db.get(k)) ? db.get(k).slice(Number(a), Number(b) + 1) : []),
   ZCARD: ([k]) => (db.get(k)?.size || 0),
   ZREVRANK: ([k, m]) => { const i = rank(k).findIndex((x) => x[0] === m); return i < 0 ? null : i; },
   ZREVRANGE: ([k, a, b, ws]) => { const l = rank(k).slice(Number(a), Number(b) + 1); return ws ? l.flatMap(([m, s]) => [m, String(s)]) : l.map((x) => x[0]); },
@@ -31,7 +34,7 @@ process.env.UPSTASH_REDIS_REST_URL = `http://127.0.0.1:${REDIS}`; process.env.UP
 // envio de emails simulado (Resend): guarda as mensagens em memoria; GET /__mails devolve-as
 process.env.RESEND_API_KEY = 'teste'; process.env.EMAIL_FROM = 'Arena <arena@teste.pt>';
 const MAILS = []; const fetchReal = globalThis.fetch;
-globalThis.fetch = async (u, o) => { if (String(u).startsWith('https://api.resend.com/')) { MAILS.push(JSON.parse(o.body)); return { ok: true, status: 200 }; } return fetchReal(u, o); };
+globalThis.fetch = async (u, o) => { if (String(u).startsWith('https://api.resend.com/')) { const j = JSON.parse(o.body); if (process.env.FALHA_LOTE && String(u).endsWith('/emails/batch')) return { ok: false, status: 422 }; for (const m of Array.isArray(j) ? j : [j]) MAILS.push(m); return { ok: true, status: 200 }; } return fetchReal(u, o); };
 const { default: handler } = await import(path.join(raiz, 'api/liga.js'));
 const TIPOS = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.woff2': 'font/woff2', '.png': 'image/png', '.svg': 'image/svg+xml', '.webmanifest': 'application/manifest+json' };
 http.createServer((req, res) => {

@@ -5,7 +5,7 @@ import { avatarHTML } from '../ui/avatar.js';
 import { sfx } from '../ui/sfx.js';
 import { toast } from '../ui/fx.js';
 import { nivelDe, NIVEIS, NOMES, diaChave, diasAteTeste } from '../rules.js';
-import { painelProf, ocultarAluno, reporAcesso } from '../game/liga.js';
+import { painelProf, ocultarAluno, reporAcesso, enviarAviso, emailDisponivel } from '../game/liga.js';
 import { nomeRegime, nomeLocal } from './entrada.js';
 
 const esc = (t) => String(t ?? '').replace(/[<>&"']/g, '');
@@ -57,7 +57,7 @@ export async function painelProfessor(root, voltar) {
   const ativos24 = alunos.filter((t) => agora - t.vis < 86400000).length, ativos7 = alunos.filter((t) => agora - t.vis < 7 * 86400000).length;
   const inst = alunos.filter((t) => t.inst).length, pts = soma(alunos.map((t) => t.xp)), certas = soma(alunos.map((t) => t.certas)), semTreino = alunos.filter((t) => !t.certas).length;
   const comConta = alunos.filter((t) => t.email).length;
-  let h = `<div class="kpis">${kpi(n, n === 1 ? 'jogador na liga' : 'jogadores na liga', n ? `${comConta} com conta de email (${pct(comConta, n)}%)` : '')}${kpi(ativos24, 'ativos nas últimas 24 h', `${ativos7} nos últimos 7 dias`)}${kpi(`${inst}`, 'com a app instalada', n ? `${pct(inst, n)}% dos jogadores` : '')}${kpi(certas, 'respostas certas', `${semTreino} ainda sem treinar`)}${kpi(pts, 'pontos de liga', n ? `média de ${Math.round(pts / n)} por jogador` : '')}${kpi(r.dias.reduce((m, x) => Math.max(m, x.c), 0), 'recorde diário de respostas', 'nos últimos 14 dias')}</div>`;
+  let h = `<div id="lembTopo"></div><div class="kpis">${kpi(n, n === 1 ? 'jogador na liga' : 'jogadores na liga', n ? `${comConta} com conta de email (${pct(comConta, n)}%)` : '')}${kpi(ativos24, 'ativos nas últimas 24 h', `${ativos7} nos últimos 7 dias`)}${kpi(`${inst}`, 'com a app instalada', n ? `${pct(inst, n)}% dos jogadores` : '')}${kpi(certas, 'respostas certas', `${semTreino} ainda sem treinar`)}${kpi(pts, 'pontos de liga', n ? `média de ${Math.round(pts / n)} por jogador` : '')}${kpi(r.dias.reduce((m, x) => Math.max(m, x.c), 0), 'recorde diário de respostas', 'nos últimos 14 dias')}</div>`;
   h += `<p class="nota" style="margin:8px 2px 0">Só entram aqui os alunos que aceitaram entrar na liga. Quem usa a app sem entrar na liga não é contado.</p>`;
 
   // atividade
@@ -92,9 +92,21 @@ export async function painelProfessor(root, voltar) {
   const dificeis = tipos.filter((x) => x.n >= 5).sort((a, b) => b.e100 + b.p100 - (a.e100 + a.p100));
   h += secao('Tipos de exercício', `${barrasH(tipos.map((x) => ({ r: NOMES[x.t] || x.t, v: x.n, txt: `${x.n} certas` })), 'var(--ciano)')}<div class="tabela-t">${tipos.filter((x) => x.n).map((x) => `<div><b>${esc(NOMES[x.t] || x.t)}</b><span>${x.e100}% erraram antes de acertar</span><span>${x.p100}% usaram pistas</span></div>`).join('')}</div>`, dificeis.length ? `O tipo que mais custa é ${esc(NOMES[dificeis[0].t] || dificeis[0].t)}, com ${dificeis[0].e100}% de acertos depois de um erro e ${dificeis[0].p100}% com pistas.` : 'Ainda poucos dados para comparar os tipos.');
 
+
+  // lembrete: dia de teste (hoje ou amanha, ou ontem) e a copia de seguranca ainda nao foi descarregada nas ultimas 12 horas
+  const ULT = 'mat1.painel.copia'; const lerCopia = () => { try { return Number(localStorage.getItem(ULT)) || 0; } catch { return 0; } };
+  const diasTeste = [...new Set(alunos.map((t) => t.teste).filter(Boolean))].filter((d) => { const k = diasAteTeste(new Date(), d); return k >= -1 && k <= 1; }).sort();
+  const lembrete = diasTeste.length && agora - lerCopia() > 12 * 3600000 ? `<section class="painel convite" id="lembCopia"><b>Dia de teste: ${diasTeste.map((d) => esc(fmtD(d))).join(' e ')}</b><p class="nota" style="margin:4px 0 0">Convém descarregar a cópia de segurança (JSON) antes e depois do teste. Está no fim da lista de jogadores.</p></section>` : '';
+
+  // avisos aos alunos (so quando o servidor consegue enviar emails)
+  const aceitam = alunos.filter((t) => t.ev && t.av).length, confirmados = alunos.filter((t) => t.ev).length;
+  const caixaAvisos = emailDisponivel() ? secao('Avisos aos alunos', `<p class="nota" style="margin:0 0 8px"><b id="avN">${aceitam}</b> ${aceitam === 1 ? 'aluno aceita' : 'alunos aceitam'} receber avisos (${confirmados} com email confirmado, ${comConta} com conta). Cada aluno recebe a sua mensagem, sem ver os outros.</p><label class="campo-t" for="avAssunto">Assunto</label><input id="avAssunto" class="campo" maxlength="90" autocomplete="off" placeholder="Novos exercícios de matrizes"><label class="campo-t" for="avTexto" style="margin-top:8px">Mensagem</label><textarea id="avTexto" class="campo" rows="6" maxlength="4000" placeholder="Escreve o aviso em texto simples."></textarea><div class="linha" style="gap:8px;flex-wrap:wrap;margin-top:10px"><button class="btn fantasma" id="avTeste">Enviar teste para mim</button><button class="btn ouro" id="avEnviar"${aceitam ? '' : ' disabled'}>Enviar aos alunos</button></div><p class="nota" id="avMsg" role="status" style="margin:8px 0 0"></p>${(r.avisos || []).length ? `<p class="nota" style="margin:10px 0 4px">Últimos avisos</p><div class="tabela-t">${r.avisos.map((x) => `<div><b>${esc(x.a)}</b><span>${esc(new Date(x.t).toLocaleDateString('pt-PT'))}: enviado a ${x.n}${x.f ? `, ${x.f} falharam` : ''}</span></div>`).join('')}</div>` : ''}`, 'Só recebem os alunos que confirmaram o email e ligaram os avisos no perfil. Texto simples, sem imagens.') : '';
+
+  h += caixaAvisos;
   // lista
   h += `<section class="painel grafico"><h3>Jogadores</h3><div class="filtros"><input id="busca" class="campo" type="search" placeholder="Procurar por nome ou alcunha" autocomplete="off"><select id="fTurma" class="campo"><option value="">Todas as turmas</option>${Object.keys(grupos).map((k) => `<option value="${esc(k)}">${esc(k)}</option>`).join('')}</select><select id="ordem" class="campo"><option value="xp">Ordenar por pontos</option><option value="nome">Ordenar por nome</option><option value="vis">Ordenar por atividade recente</option><option value="criado">Ordenar por inscrição</option></select></div><div id="reporMsg" class="painel convite" hidden></div><div id="lista"></div><div class="linha" style="gap:8px;flex-wrap:wrap;margin-top:10px"><button class="btn fantasma" id="baixaCsv">Descarregar lista em CSV</button><button class="btn fantasma" id="baixaJson">Cópia de segurança (JSON)</button></div><p class="nota" style="margin:6px 0 0">A cópia JSON leva todos os jogadores, sem palavras-passe. Guarda-a de vez em quando.</p></section>`;
   root.insertAdjacentHTML('beforeend', h);
+  const lt = root.querySelector('#lembTopo'); if (lt) lt.outerHTML = lembrete;
 
   const lista = root.querySelector('#lista');
   const linha = (t) => `<div class="jog" data-id="${esc(t.id)}">${av(t.v, 46)}<div class="jog-c"><b>${esc(t.nome)}${t.prof ? ' (professor)' : ''}</b><span class="nota">${t.alc ? `Alcunha: ${esc(t.alc)}${t.oc ? ' (escondida)' : ''}. ` : ''}${esc(turma(t))}</span><span class="nota">${esc(NIVEIS[nivelDe(t.xp).indice][1])}. ${esc(FORMA[t.fm] ? FORMA[t.fm] + ', ' : '')}${esc(PLAT[t.pl] || t.pl)}${t.inst ? ', app instalada' : ', no browser'}. Ativo ${ha(t.vis, agora)}.</span><span class="nota">${t.email ? esc(t.email) + (t.ev ? ' (confirmado)' : '') : 'Sem conta de email'}${t.ap > 1 ? `, ${t.ap} aparelhos` : ''}${t.teste ? `. Teste a ${esc(fmtD(t.teste))}` : ''}</span></div><div class="jog-d"><span class="chip ouro">${icon('raio')}${t.xp}</span><span class="nota">${t.certas} certas</span></div>${t.prof ? '' : `<button class="btn fantasma" data-oc="${t.oc ? 0 : 1}">${t.oc ? 'Mostrar alcunha' : 'Esconder alcunha'}</button>${t.email ? '<button class="btn fantasma" data-repor="1">Repor acesso</button>' : ''}`}</div>`;
@@ -113,7 +125,27 @@ export async function painelProfessor(root, voltar) {
     const dados = { exportado: new Date(agora).toISOString(), versao: 'arena-mat1', jogadores: todos.map(({ v, ...o }) => ({ ...o, avatar: v })), dias: r.dias, horas: r.horas, tipos: r.tipos };
     const blob = new Blob([JSON.stringify(dados, null, 1)], { type: 'application/json' });
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'arena-mat1-copia-' + new Date(agora).toISOString().slice(0, 10) + '.json'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    try { localStorage.setItem(ULT, String(Date.now())); } catch { /* ignorado */ }
+    const lb = root.querySelector('#lembCopia'); if (lb) lb.remove();
   });
+
+  const avT = root.querySelector('#avTeste'), avE = root.querySelector('#avEnviar'), avM = root.querySelector('#avMsg');
+  if (avT && avE) {
+    const campos = () => ({ a: root.querySelector('#avAssunto').value.trim(), t: root.querySelector('#avTexto').value.trim() });
+    const valida = () => { const c = campos(); if (c.a.length < 3) { avM.textContent = 'Escreve o assunto.'; return null; } if (c.t.length < 10) { avM.textContent = 'A mensagem é demasiado curta.'; return null; } return c; };
+    const TXT = { sem_email: 'O servidor ainda não tem o envio de emails configurado.', muitos_pedidos: 'Muitos envios nesta hora. Tenta mais tarde.', envio: 'O serviço de email recusou o envio. Tenta outra vez.', rede: 'Sem ligação ao servidor.', sem_email_prof: 'A tua conta não tem email.' };
+    avT.addEventListener('click', async () => {
+      sfx.clique(); avM.textContent = ''; const c = valida(); if (!c) return;
+      avT.disabled = true; avM.textContent = 'A enviar o teste...'; const x = await enviarAviso('teste', c.a, c.t); avT.disabled = false;
+      avM.textContent = x.ok ? 'Teste enviado para o teu email.' : TXT[x.erro] || 'Não foi possível enviar.';
+    });
+    avE.addEventListener('click', async () => {
+      sfx.clique(); const c = valida(); if (!c) return;
+      if (!avE.dataset.sim) { avE.dataset.sim = '1'; avE.textContent = `Toca outra vez para enviar a ${aceitam}`; setTimeout(() => { if (avE.isConnected) { delete avE.dataset.sim; avE.textContent = 'Enviar aos alunos'; } }, 5000); return; }
+      delete avE.dataset.sim; avE.disabled = true; avM.textContent = 'A enviar...'; const x = await enviarAviso('enviar', c.a, c.t); avE.disabled = false; avE.textContent = 'Enviar aos alunos';
+      if (x.ok) { sfx.bau(); avM.textContent = `Enviado a ${x.enviados} ${x.enviados === 1 ? 'aluno' : 'alunos'}${x.falhas ? `. Falharam ${x.falhas}, tenta outra vez` : ''}.`; if (!x.falhas) { root.querySelector('#avAssunto').value = ''; root.querySelector('#avTexto').value = ''; } } else avM.textContent = TXT[x.erro] || 'Não foi possível enviar.';
+    });
+  }
   lista.addEventListener('click', async (e) => {
     const rb = e.target.closest('[data-repor]');
     if (rb) {

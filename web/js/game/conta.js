@@ -14,6 +14,7 @@ const avisar = () => ouvintes.forEach((f) => { try { f(); } catch { /* ignorado 
 export const temConta = () => !!estado().conta.email && naLiga();
 export const emailDaConta = () => estado().conta.email;
 export const emailConfirmado = () => !!estado().conta.ev;
+export const avisosAtivos = () => !!estado().conta.av;
 
 // contadores ganhos NESTE aparelho (total menos o que veio dos outros)
 export function proprios() {
@@ -91,7 +92,7 @@ export function sincronizarNuvem({ forcar = false } = {}) {
           const r = await post({ a: 'nuvem', ...cred(), ver: c.ver });
           if (r.status === 401) return { ok: false, erro: 'auth' };
           if (r.status !== 200) return { ok: false, erro: r.erro || 'servidor' };
-          ultimaLeitura = Date.now(); if (r.ev === true && !c.ev) c.ev = true;
+          ultimaLeitura = Date.now(); if (r.ev === true && !c.ev) c.ev = true; if (typeof r.av === 'boolean') c.av = r.av;
           if (r.est) { mudou = fundir(r.est) || mudou; }
           c.ver = r.ver; gravar();
         }
@@ -150,7 +151,7 @@ export async function entrarConta(email, senha) {
     p.nome = r.perfil.nome; p.alcunha = r.perfil.alc || ''; p.regime = r.perfil.regime; p.local = r.perfil.local; if (r.perfil.teste) p.teste = r.perfil.teste;
     if (r.avatar && Object.keys(r.avatar).length) s.avatar = { ...AVATAR_PADRAO, ...r.avatar };
     Object.assign(L, { chave: r.chave, fila: [], xp: r.xp || 0, aceitou: Date.now(), prof: r.prof ? 1 : 0, visto: '' });
-    Object.assign(s.conta, { email: e, dev: r.dev, ev: r.ev === true, ver: 0, visto: '', rem: { xp: 0, st: {}, tipo: {} }, rd: {}, avSnap: jsonDe(s.avatar), pfSnap: jsonDe(perfilPartilhado()), avT: 0, pfT: 0 });
+    Object.assign(s.conta, { email: e, dev: r.dev, ev: r.ev === true, av: r.av === true, ver: 0, visto: '', rem: { xp: 0, st: {}, tipo: {} }, rd: {}, avSnap: jsonDe(s.avatar), pfSnap: jsonDe(perfilPartilhado()), avT: 0, pfT: 0 });
     gravar();
     await sincronizarNuvem({ forcar: true });
     return { ok: true, trocar: !!r.trocar };
@@ -179,3 +180,6 @@ export async function recuperarConta(email, codigo, nova) {
   if (!r.ok) return r;
   return entrarConta(email, nova);
 }
+
+// avisos de novos conteudos por email: o aluno liga ou desliga (so com o email confirmado)
+export async function definirAvisos(ativo) { const r = await via({ a: 'avisos', ...cred(), ativo: !!ativo }); if (r.ok) { estado().conta.av = r.av === true; gravar(); } return r; }

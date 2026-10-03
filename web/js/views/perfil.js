@@ -10,7 +10,7 @@ import { camposHTML, ligarCampos, valido } from './entrada.js';
 import { naLiga, sairDaLiga, agendar, disponivelAgora, eProfessor, tornarProfessor, emailDisponivel } from '../game/liga.js';
 import { conteudo as instConteudo, ligar as instLigar } from '../ui/instalar.js';
 import { temConta, emailDaConta, emailConfirmado, sincronizarNuvem } from '../game/conta.js';
-import { ecraCriar, ecraEntrar, ecraTrocar, confirmacaoHTML, ligarConfirmacao } from './conta.js';
+import { ecraCriar, ecraEntrar, ecraTrocar, confirmacaoHTML, ligarConfirmacao, avisosHTML, ligarAvisos } from './conta.js';
 
 let aba = 'avatar', passoId = 'quem';
 
@@ -114,6 +114,7 @@ function vConq(s) {
 function contaHTML() {
   if (temConta()) return `<p class="nota" style="margin:2px 0 10px">Conta: <b>${emailDaConta().replace(/[<>&"]/g, '')}</b>. O teu progresso é o mesmo em todos os aparelhos onde entrares com este email.${emailDisponivel() && emailConfirmado() ? ' Email confirmado.' : ''}</p>
     ${emailDisponivel() && !emailConfirmado() ? `<div style="margin:0 0 12px">${confirmacaoHTML()}</div>` : ''}
+    ${emailDisponivel() && emailConfirmado() ? avisosHTML() : ''}
     <div class="linha" style="gap:8px;flex-wrap:wrap"><button class="btn" id="sincNuvem">Sincronizar agora</button><button class="btn fantasma" id="mudaSenha">Mudar palavra-passe</button></div>
     <p class="nota" style="margin:12px 0 8px">Apagar remove do servidor a conta, o progresso guardado e os teus pontos de liga. O que está neste aparelho fica.</p>
     <button class="btn fantasma" id="sairLiga">Apagar a conta e os meus dados do servidor</button>`;
@@ -158,7 +159,7 @@ function ligarDef(root, s, go, redesenhar, atualizarTopo) {
   root.querySelector('#criaConta')?.addEventListener('click', () => { sfx.clique(); ecraCriar(root, { aoFim: volta, aoVoltar: volta }); });
   root.querySelector('#tenhoContaDef')?.addEventListener('click', () => { sfx.clique(); ecraEntrar(root, { aoFim: volta, aoCriar: () => ecraCriar(root, { aoFim: volta, aoVoltar: volta }), aoVoltar: volta }); });
   root.querySelector('#mudaSenha')?.addEventListener('click', () => { sfx.clique(); ecraTrocar(root, { aoFim: volta, aoVoltar: volta }); });
-  ligarConfirmacao(root, volta);
+  ligarConfirmacao(root, volta); ligarAvisos(root);
   root.querySelector('#sincNuvem')?.addEventListener('click', async (e) => {
     const b = e.currentTarget; b.disabled = true; b.textContent = 'A sincronizar...'; const r = await sincronizarNuvem({ forcar: true });
     toast(r.ok ? '<div><b>Tudo sincronizado</b><br><span class="nota">O progresso está igual em todos os aparelhos.</span></div>' : '<div><b>Sem ligação</b><br><span class="nota">Tenta outra vez quando houver rede.</span></div>'); volta();

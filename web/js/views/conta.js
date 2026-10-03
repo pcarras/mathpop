@@ -1,7 +1,7 @@
 // Ecrãs da conta: criar, entrar (outro aparelho) e mudar a palavra-passe.
 import { sfx } from '../ui/sfx.js';
 import { toast } from '../ui/fx.js';
-import { criarConta, entrarConta, mudarSenha, validarEmail, emailDaConta, pedirConfirmacao, confirmarEmail, pedirRecuperacao, recuperarConta } from '../game/conta.js';
+import { criarConta, entrarConta, mudarSenha, validarEmail, emailDaConta, pedirConfirmacao, confirmarEmail, pedirRecuperacao, recuperarConta, definirAvisos, avisosAtivos } from '../game/conta.js';
 import { estado } from '../store.js';
 import { emailDisponivel } from '../game/liga.js';
 import { nomeLocal, nomeRegime } from './entrada.js';
@@ -125,10 +125,20 @@ export function ecraTrocar(root, { obrigatoria = false, aoFim, aoVoltar }) {
 }
 
 // confirmar o email com um codigo enviado para a caixa do aluno (so aparece quando o servidor consegue enviar emails)
-export const confirmacaoHTML = () => `<div id="cfBox"><p class="nota" style="margin:0 0 8px"><b>Email por confirmar.</b> Com o email confirmado, podes recuperar a palavra-passe sozinho, sem falar com o professor.</p>
+export const confirmacaoHTML = () => `<div id="cfBox"><p class="nota" style="margin:0 0 8px"><b>Email por confirmar.</b> Confirma o email para poderes recuperar a palavra-passe sozinho e receber avisos quando houver novos conteúdos.</p>
+  <label style="display:flex;gap:12px;align-items:flex-start;margin:0 0 10px;cursor:pointer"><input type="checkbox" id="cfAv" style="width:24px;height:24px;margin-top:1px;flex:none;accent-color:var(--ciano)"><span class="nota" style="margin:0">Quero receber avisos de novos conteúdos por email. Posso desligar quando quiser.</span></label>
   <button class="btn" id="cfEnviar">Enviar código para o meu email</button>
   <div id="cfForm" hidden style="margin-top:10px"><label class="campo-t" for="cfCodigo">Código recebido (6 números)</label><div class="campo-senha"><input class="campo" id="cfCodigo" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000"><button class="btn ouro peq" id="cfOk">Confirmar</button></div></div>
   <p class="nota" id="cfMsg" role="status" style="margin:8px 0 0"></p></div>`;
+// opcao dos avisos para quem ja tem o email confirmado
+export const avisosHTML = () => `<label style="display:flex;gap:12px;align-items:flex-start;margin:0 0 12px;cursor:pointer"><input type="checkbox" id="avOpcao" style="width:24px;height:24px;margin-top:1px;flex:none;accent-color:var(--ciano)"${avisosAtivos() ? ' checked' : ''}><span class="nota" style="margin:0">Receber avisos de novos conteúdos por email. Só o professor envia e podes desligar quando quiseres.</span></label>`;
+export function ligarAvisos(root) {
+  const c = root.querySelector('#avOpcao'); if (!c) return;
+  c.addEventListener('change', async () => {
+    const quer = c.checked; c.disabled = true; const r = await definirAvisos(quer); c.disabled = false;
+    if (r.ok) toast(`<div><b>${quer ? 'Avisos ligados' : 'Avisos desligados'}</b></div>`); else { c.checked = !quer; toast('<div><b>Não foi possível alterar</b><br><span class="nota">Tenta outra vez.</span></div>'); }
+  });
+}
 export function ligarConfirmacao(root, aoFim) {
   const env = root.querySelector('#cfEnviar'), form = root.querySelector('#cfForm'), msg = root.querySelector('#cfMsg'), cod = root.querySelector('#cfCodigo'), ok = root.querySelector('#cfOk');
   if (!env) return;
@@ -141,7 +151,7 @@ export function ligarConfirmacao(root, aoFim) {
   ok.addEventListener('click', async () => {
     if (!/^\d{6}$/.test(cod.value.trim())) { msg.textContent = 'O código tem 6 números.'; return; }
     ok.disabled = true; const r = await confirmarEmail(cod.value); ok.disabled = false;
-    if (r.ok) { sfx.bau(); toast('<div><b>Email confirmado</b></div>'); aoFim(); return; }
+    if (r.ok) { sfx.bau(); const av = root.querySelector('#cfAv'); if (av && av.checked) await definirAvisos(true); toast(`<div><b>Email confirmado</b>${av && av.checked ? '<br><span class="nota">Avisos de novos conteúdos ligados.</span>' : ''}</div>`); aoFim(); return; }
     msg.textContent = textoErro(r.erro);
   });
 }

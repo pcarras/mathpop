@@ -98,6 +98,10 @@ export async function reporAcesso(alvo) {
   const L = estado().liga;
   try { const r = await post({ a: 'repor', id: estado().perfil.id, chave: L.chave, alvo }); return r.status === 200 ? r : { erro: r.erro || 'servidor' }; } catch { return { erro: 'rede' }; }
 }
+export async function enviarAviso(modo, assunto = '', texto = '') {
+  const L = estado().liga;
+  try { const r = await post({ a: 'aviso', id: estado().perfil.id, chave: L.chave, modo, assunto, texto }); return r.status === 200 ? r : { erro: r.erro || 'servidor' }; } catch { return { erro: 'rede' }; }
+}
 export async function ocultarAluno(alvo, oculto) {
   const L = estado().liga;
   try { const r = await post({ a: 'ocultar', id: estado().perfil.id, chave: L.chave, alvo, oculto }); return r.status === 200; } catch { return false; }
