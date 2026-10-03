@@ -35,6 +35,40 @@ process.env.UPSTASH_REDIS_REST_URL = `http://127.0.0.1:${REDIS}`; process.env.UP
 process.env.RESEND_API_KEY = 'teste'; process.env.EMAIL_FROM = 'Arena <arena@teste.pt>';
 const MAILS = []; const fetchReal = globalThis.fetch;
 globalThis.fetch = async (u, o) => { if (String(u).startsWith('https://api.resend.com/')) { const j = JSON.parse(o.body); if (process.env.FALHA_LOTE && String(u).endsWith('/emails/batch')) return { ok: false, status: 422 }; for (const m of Array.isArray(j) ? j : [j]) MAILS.push(m); return { ok: true, status: 200 }; } return fetchReal(u, o); };
+// modo Gmail (GMAIL_MODE=1): troca o Resend por um servidor SMTP falso que guarda as mensagens em MAILS (to = destinatarios aceites)
+if (process.env.GMAIL_MODE) {
+  delete process.env.RESEND_API_KEY; delete process.env.EMAIL_FROM;
+  Object.assign(process.env, { GMAIL_USER: 'manicmath@gmail.com', GMAIL_APP_PASSWORD: 'abcd efgh ijkl mnop', SMTP_HOST_TESTE: '127.0.0.1', SMTP_PORTA_TESTE: String(PORTA + 200) });
+  const { default: netMod } = await import('node:net');
+  const dec = (h) => h.replace(/=\?UTF-8\?B\?([^?]*)\?=/g, (_, b) => Buffer.from(b, 'base64').toString('utf8'));
+  netMod.createServer((sock) => {
+    sock.setEncoding('utf8'); sock.write('220 smtp falso\r\n');
+    let buf = '', modo = 'cmd', rcpt = [], dados = '', autenticado = false;
+    sock.on('data', (d) => {
+      buf += d; let i;
+      while ((i = buf.indexOf('\r\n')) >= 0) {
+        const l = buf.slice(0, i); buf = buf.slice(i + 2);
+        if (modo === 'dados') {
+          if (l === '.') {
+            const [cab, ...resto] = dados.split('\r\n\r\n'), h = {}; for (const x of cab.split('\r\n')) { const k = x.indexOf(':'); if (k > 0) h[x.slice(0, k).toLowerCase()] = dec(x.slice(k + 1).trim()); }
+            MAILS.push({ to: rcpt, subject: h.subject, text: Buffer.from(resto.join('\r\n\r\n').replace(/\r\n/g, ''), 'base64').toString('utf8'), from: h.from, toHeader: h.to, via: 'smtp' });
+            sock.write('250 ok\r\n'); modo = 'cmd'; rcpt = []; dados = '';
+          } else dados += (dados ? '\r\n' : '') + l;
+          continue;
+        }
+        const c = l.toUpperCase();
+        if (c.startsWith('EHLO')) sock.write('250-smtp falso\r\n250 AUTH PLAIN\r\n');
+        else if (c.startsWith('AUTH PLAIN')) { autenticado = Buffer.from(l.slice(11), 'base64').toString('utf8') === '\0manicmath@gmail.com\0abcdefghijklmnop'; sock.write(autenticado ? '235 ok\r\n' : '535 credenciais\r\n'); }
+        else if (c.startsWith('MAIL FROM')) sock.write(autenticado ? '250 ok\r\n' : '530 autentica primeiro\r\n');
+        else if (c.startsWith('RCPT TO')) { const a = l.slice(l.indexOf('<') + 1, l.indexOf('>')); if (a.includes('rejeitado')) sock.write('550 nao existe\r\n'); else { rcpt.push(a); sock.write('250 ok\r\n'); } }
+        else if (c === 'DATA') { modo = 'dados'; sock.write('354 envia\r\n'); }
+        else if (c === 'QUIT') { sock.write('221 adeus\r\n'); sock.end(); }
+        else sock.write('502 nao suportado\r\n');
+      }
+    });
+    sock.on('error', () => {});
+  }).listen(PORTA + 200);
+}
 const { default: handler } = await import(path.join(raiz, 'api/liga.js'));
 const TIPOS = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.woff2': 'font/woff2', '.png': 'image/png', '.svg': 'image/svg+xml', '.webmanifest': 'application/manifest+json' };
 http.createServer((req, res) => {
