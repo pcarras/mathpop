@@ -1,6 +1,6 @@
-// API da liga da Arena Mat I. Uma unica funcao: GET devolve o estado, POST executa uma acao (registar, sync, ranking, apagar, professor, painel, ocultar).
+// API da liga da Arena Mat I. Uma unica funcao: GET devolve o estado, POST executa uma acao (registar, conta, entrar, nuvem, senha, sync, ranking, apagar, professor, painel, ocultar, repor).
 // Os pontos so contam depois de o servidor regenerar cada exercicio a partir da semente e conferir a resposta.
-import { randomBytes, timingSafeEqual, createHash } from 'node:crypto';
+import { randomBytes, timingSafeEqual, createHash, scryptSync } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { gerar, verificar, xpTreino, diaChave, TIPOS } from './_motor.js';
 import { pipe, cmd, obj, ligado } from './_redis.js';
@@ -10,6 +10,19 @@ const REGIMES = ['diurno', 'noturno'], LOCAIS = ['portimao', 'faro'];
 const CHAVES_AV = ['genero', 'top', 'hairColor', 'hatColor', 'accessories', 'accessoriesColor', 'facialHair', 'facialHairColor', 'clothing', 'clothesColor', 'clothingGraphic', 'eyebrows', 'eyes', 'mouth', 'skinColor', 'fundo', 'moldura'];
 const MAX_POR_DIA = 80, MAX_EVENTOS = 50, JANELA_SEMENTES = 3000;
 const DIA_MS = 86400000;
+const MAX_APARELHOS = 12;
+const DATA_RE = /^\d{4}-\d{2}-\d{2}$/;
+const testeOk = (t) => (typeof t === 'string' && DATA_RE.test(t) && t >= '2026-10-01' && t <= '2027-06-30' && !Number.isNaN(Date.parse(t)) ? t : '');
+const EMAIL_RE = /^[^\s@<>"'`\\]{1,64}@[^\s@<>"'`\\]{1,200}\.[A-Za-z]{2,24}$/;
+const emailLimpo = (e) => { const t = String(e ?? '').normalize('NFC').trim().toLowerCase(); return t.length <= 90 && EMAIL_RE.test(t) ? t : null; };
+const hEmail = (e) => createHash('sha256').update('mat1|' + e).digest('hex').slice(0, 32);
+const hashSenha = (t) => { const sal = randomBytes(16).toString('hex'); return sal + ':' + scryptSync(String(t), sal, 32).toString('hex'); };
+const senhaOk = (t, h) => { const [sal, hx] = String(h || '').split(':'); return !!(sal && hx) && igual(scryptSync(String(t), sal, 32).toString('hex'), hx); };
+const SENHA_FALSA = hashSenha('falsa');
+const senhaValida = (t) => typeof t === 'string' && t.length >= 6 && t.length <= 64;
+const ipDe = (req) => String(req.headers['x-forwarded-for'] || 'x').split(',')[0].trim().slice(0, 45);
+// contador por hora; devolve true se passou do limite
+async function excede(chave, max) { const n = await cmd('INCR', chave); if (n === 1) await cmd('EXPIRE', chave, 7200); return n > max; }
 
 const limpa = (t, n) => String(t ?? '').normalize('NFC').replace(/[\u0000-\u001f\u007f<>&"'`\\]/g, '').replace(/\s+/g, ' ').trim().slice(0, n);
 const idOk = (id) => typeof id === 'string' && /^[0-9a-fA-F-]{20,40}$/.test(id);
@@ -25,11 +38,18 @@ const horaLx = (ts) => Number(new Intl.DateTimeFormat('en-GB', { hour: '2-digit'
 const chaveG = (per) => `rk:g:${per}`;
 const chaveT = (regime, local, per) => `rk:t:${regime}:${local}:${per}`;
 
+// cada aparelho tem a sua chave, a sua semente (sal) e o seu contador. O aparelho "0" e o original (campos do proprio perfil).
 async function autenticar(b) {
   if (!idOk(b.id) || typeof b.chave !== 'string') return null;
   const p = obj(await cmd('HGETALL', 'p:' + b.id));
-  return p.chave && igual(p.chave, b.chave) ? p : null;
+  if (!p.chave) return null;
+  const dev = typeof b.dev === 'string' && /^[0-9a-f]{12}$/.test(b.dev) ? b.dev : '0';
+  if (dev === '0') { if (!igual(p.chave, b.chave)) return null; p._d = { dev, sal: Number(p.sal), ctr: Number(p.ctr) || 0 }; return p; }
+  let d = null; try { d = JSON.parse((await cmd('HGET', 'v:' + b.id, dev)) || 'null'); } catch { d = null; }
+  if (!d || !igual(d.k, b.chave)) return null;
+  p._d = { dev, sal: Number(d.s), ctr: Number(d.c) || 0 }; return p;
 }
+const gravarCtr = (b, p, ctr) => (p._d.dev === '0' ? ['HSET', 'p:' + b.id, 'ctr', ctr] : ['HSET', 'v:' + b.id, p._d.dev, JSON.stringify({ s: p._d.sal, k: b.chave, c: ctr, t: Date.now() })]);
 const nomeCartao = (p) => (p.oc === '1' ? 'Aluno' : (p.alc || primeiro(p.nome) || 'Aluno'));
 const cartao = (p, av) => JSON.stringify({ a: nomeCartao(p), v: av, r: p.regime, l: p.local });
 const sha256 = (t) => createHash('sha256').update(String(t)).digest('hex');
@@ -52,13 +72,16 @@ async function registar(b, req) {
   if (n === 1) await cmd('EXPIRE', `rl:r:${ip}:${Math.floor(Date.now() / 3600000)}`, 7200);
   if (n > 300) return [429, { erro: 'muitos_pedidos' }];
   if (await cmd('EXISTS', 'p:' + b.id)) return [409, { erro: 'existe' }];
-  const chave = randomBytes(16).toString('hex'), av = avatarLimpo(b.avatar), dp = dispLimpo(b.disp);
-  const p = { nome, alc, regime, local };
-  await pipe([
-    ['HSET', 'p:' + b.id, 'nome', nome, 'alc', alc, 'regime', regime, 'local', local, 'sal', sal, 'chave', chave, 'xp', 0, 'certas', 0, 'ctr', 0, 'criado', Date.now(), 'vis', Date.now(), 'pl', dp.pl, 'fm', dp.fm, 'inst', dp.inst],
-    ['HSET', 'cards', b.id, cartao(p, av)],
-  ]);
+  const chave = await criarJogador(b.id, { nome, alc, regime, local, sal }, b.avatar, b.disp, testeOk(b.teste), '', b.c0);
   return [200, { ok: 1, chave }];
+}
+async function criarJogador(id, d, avatar, disp, teste, email, ctr0 = 0) {
+  const chave = randomBytes(16).toString('hex'), av = avatarLimpo(avatar), dp = dispLimpo(disp);
+  await pipe([
+    ['HSET', 'p:' + id, 'nome', d.nome, 'alc', d.alc, 'regime', d.regime, 'local', d.local, 'sal', d.sal, 'chave', chave, 'xp', 0, 'certas', 0, 'ctr', nn(ctr0, 1e6), 'criado', Date.now(), 'vis', Date.now(), 'pl', dp.pl, 'fm', dp.fm, 'inst', dp.inst, ...(teste ? ['teste', teste] : []), ...(email ? ['email', email] : [])],
+    ['HSET', 'cards', id, cartao(d, av)],
+  ]);
+  return chave;
 }
 
 async function sync(b) {
@@ -73,6 +96,7 @@ async function sync(b) {
     if (pf.nome !== undefined) { const v = limpa(pf.nome, 40); if (v.length >= 2 && v !== nome) { nome = v; mudouCartao = true; cmds.push(['HSET', 'p:' + b.id, 'nome', nome]); } }
     if (pf.alc !== undefined) { const v = limpa(pf.alc, 16); if (v !== alc) { alc = v; mudouCartao = true; cmds.push(['HSET', 'p:' + b.id, 'alc', alc]); } }
     if (pf.avatar !== undefined) { av = avatarLimpo(pf.avatar); mudouCartao = true; }
+    if (pf.teste !== undefined) { const t = testeOk(pf.teste); if (t) cmds.push(['HSET', 'p:' + b.id, 'teste', t]); }
     if (pf.disp) { const dp = dispLimpo(pf.disp); cmds.push(['HSET', 'p:' + b.id, 'pl', dp.pl, 'fm', dp.fm, 'inst', dp.inst]); }
     cmds.push(['HSET', 'p:' + b.id, 'vis', Date.now()]);
     if (ehProf(p)) cmds.push(['SADD', 'profs', b.id]);
@@ -91,10 +115,10 @@ async function sync(b) {
     }
 
     // eventos
-    const agora = Date.now(); let aceites = 0, rejeitados = 0, somaXP = 0, ctr = Number(p.ctr) || 0;
+    const agora = Date.now(); let aceites = 0, rejeitados = 0, somaXP = 0, ctr = p._d.ctr;
     const evs = (Array.isArray(b.ev) ? b.ev : []).slice(0, MAX_EVENTOS).filter((e) => e && typeof e === 'object').sort((x, y) => (Number(x.ts) || 0) - (Number(y.ts) || 0) || (Number(x.s) || 0) - (Number(y.s) || 0));
     if (evs.length) {
-      const sal = Number(p.sal), diasSet = new Set((await cmd('SMEMBERS', 'dias:' + b.id)) || []);
+      const sal = p._d.sal, diasSet = new Set((await cmd('SMEMBERS', 'dias:' + b.id)) || []);
       const contDia = {}; const porDiaTipo = {}; const porSemana = {}; const novosDias = new Set(); const est = { dias: {}, horas: {}, tipos: {} };
       for (const e of evs) {
         const ts = Number(e.ts), t = String(e.t), n = Number(e.n), pistas = Number(e.p), s = Number(e.s);
@@ -116,7 +140,7 @@ async function sync(b) {
         est.dias[dia] = (est.dias[dia] || 0) + 1; const hr = horaLx(ts); est.horas[hr] = (est.horas[hr] || 0) + 1;
         const te = (est.tipos[t] ||= { n: 0, e: 0, p: 0 }); te.n++; if (e.e) te.e++; if (pistas > 0) te.p++;
       }
-      if (ctr !== (Number(p.ctr) || 0)) cmds.push(['HSET', 'p:' + b.id, 'ctr', ctr]);
+      if (ctr !== p._d.ctr) cmds.push(gravarCtr(b, p, ctr));
       if (aceites) {
         cmds.push(['HINCRBY', 'p:' + b.id, 'certas', aceites]);
         for (const dia of Object.keys(porDiaTipo)) { for (const t of Object.keys(porDiaTipo[dia])) cmds.push(['HINCRBY', `d:${b.id}:${dia}`, t, porDiaTipo[dia][t]]); cmds.push(['EXPIRE', `d:${b.id}:${dia}`, 3456000]); }
@@ -155,7 +179,8 @@ async function apagar(b) {
   const p = await autenticar(b); if (!p) return [401, { erro: 'auth' }];
   const dias = await tirarDoRanking(b.id, p), cmds = [];
   for (const d of dias) cmds.push(['DEL', `d:${b.id}:${d}`]);
-  cmds.push(['DEL', 'dias:' + b.id], ['HDEL', 'cards', b.id], ['SREM', 'profs', b.id], ['DEL', 'p:' + b.id]);
+  if (p.email) cmds.push(['DEL', 'u:' + hEmail(p.email)]);
+  cmds.push(['DEL', 'dias:' + b.id], ['DEL', 'v:' + b.id], ['DEL', 's:' + b.id], ['HDEL', 'cards', b.id], ['SREM', 'profs', b.id], ['DEL', 'p:' + b.id]);
   await pipe(cmds);
   return [200, { ok: 1 }];
 }
@@ -183,18 +208,138 @@ async function painel(b) {
   const p = await autenticarProf(b); if (!p) return [403, { erro: 'prof' }];
   const ids = ((await cmd('HKEYS', 'cards')) || []).filter(idOk).slice(0, 400);
   const dias = Array.from({ length: 14 }, (_, k) => diaChave(new Date(Date.now() - (13 - k) * DIA_MS)));
-  const cmds = [...ids.map((id) => ['HGETALL', 'p:' + id]), ids.length ? ['HMGET', 'cards', ...ids] : ['PING'], ...dias.flatMap((d) => [['HGETALL', 'st:d:' + d], ['SCARD', 'st:a:' + d]]), ['HGETALL', 'st:h'], ['HGETALL', 'st:t']];
+  const cmds = [...ids.map((id) => ['HGETALL', 'p:' + id]), ids.length ? ['HMGET', 'cards', ...ids] : ['PING'], ...dias.flatMap((d) => [['HGETALL', 'st:d:' + d], ['SCARD', 'st:a:' + d]]), ['HGETALL', 'st:h'], ['HGETALL', 'st:t'], ...ids.map((id) => ['HLEN', 'v:' + id])];
   const rs = await pipe(cmds), n = ids.length, cart = ids.length ? rs[n] : [];
   const lista = ids.map((id, i) => {
     const o = obj(rs[i]); if (!o.nome) return null;
+    const ap = 1 + (Number(rs[n + 31 + i]) || 0);
     let c = {}; try { c = JSON.parse(cart[i] || '{}'); } catch { c = {}; }
-    return { id, nome: o.nome, alc: o.alc || '', regime: o.regime, local: o.local, xp: Number(o.xp) || 0, certas: Number(o.certas) || 0, criado: Number(o.criado) || 0, vis: Number(o.vis) || Number(o.criado) || 0, pl: o.pl || 'outro', fm: o.fm || '', inst: o.inst === '1', oc: o.oc === '1', prof: o.prof === '1', v: c.v || {} };
+    return { id, nome: o.nome, alc: o.alc || '', regime: o.regime, local: o.local, xp: Number(o.xp) || 0, certas: Number(o.certas) || 0, criado: Number(o.criado) || 0, vis: Number(o.vis) || Number(o.criado) || 0, pl: o.pl || 'outro', fm: o.fm || '', email: o.email || '', teste: o.teste || '', ap, inst: o.inst === '1', oc: o.oc === '1', prof: o.prof === '1', v: c.v || {} };
   }).filter(Boolean).sort((x, y) => y.xp - x.xp);
   const serie = dias.map((d, k) => ({ d, c: Number(obj(rs[n + 1 + 2 * k]).c) || 0, a: Number(rs[n + 2 + 2 * k]) || 0 }));
   const hh = obj(rs[n + 1 + 28]), horas = Array.from({ length: 24 }, (_, h) => Number(hh[h]) || 0);
   const tt = obj(rs[n + 2 + 28]), tipos = {};
   for (const t of TIPOS) tipos[t] = { n: Number(tt[t + ':n']) || 0, e: Number(tt[t + ':e']) || 0, p: Number(tt[t + ':p']) || 0 };
   return [200, { ok: 1, lista, dias: serie, horas, tipos, agora: Date.now() }];
+}
+
+// ---------- contas por email: o mesmo aluno em varios aparelhos ----------
+// criar conta: liga um email e uma palavra-passe a um jogador (novo, ou ja existente neste aparelho)
+async function conta(b, req) {
+  const email = emailLimpo(b.email);
+  if (!email) return [400, { erro: 'email' }];
+  if (!senhaValida(b.senha)) return [400, { erro: 'senha' }];
+  if (b.consentimento !== true) return [400, { erro: 'consentimento' }];
+  if (!idOk(b.id)) return [400, { erro: 'id' }];
+  if (await excede(`rl:r:${ipDe(req)}:${Math.floor(Date.now() / 3600000)}`, 300)) return [429, { erro: 'muitos_pedidos' }];
+  const h = hEmail(email), existe = obj(await cmd('HGETALL', 'p:' + b.id));
+  let novo = null;
+  if (existe.chave) {
+    const p = await autenticar(b); if (!p) return [401, { erro: 'auth' }];
+    if (p.email) return [409, { erro: 'ja_tem_conta' }];
+  } else {
+    const nome = limpa(b.nome, 40), alc = limpa(b.alc, 16), regime = String(b.regime), local = String(b.local), sal = Number(b.sal);
+    if (nome.length < 2 || !REGIMES.includes(regime) || !LOCAIS.includes(local) || !Number.isInteger(sal) || sal < 0 || sal > 4294967295) return [400, { erro: 'dados' }];
+    novo = { nome, alc, regime, local, sal };
+  }
+  if (!(await cmd('HSETNX', 'u:' + h, 'id', b.id))) return [409, { erro: 'email_existe' }];
+  try {
+    let chave = null;
+    if (novo) chave = await criarJogador(b.id, novo, b.avatar, b.disp, testeOk(b.teste), email, b.c0);
+    await pipe([['HSET', 'u:' + h, 'pw', hashSenha(b.senha), 'e', email, 'criado', Date.now()], ['HSET', 'p:' + b.id, 'email', email, ...(testeOk(b.teste) ? ['teste', testeOk(b.teste)] : [])]]);
+    return [200, { ok: 1, chave, dev: '0' }];
+  } catch (e) { await cmd('DEL', 'u:' + h).catch(() => {}); throw e; }
+}
+
+// entrar com email e palavra-passe num aparelho novo: recebe a sua propria chave e semente
+async function entrar(b, req) {
+  const email = emailLimpo(b.email), sal = Number(b.sal);
+  if (!email || typeof b.senha !== 'string' || b.senha.length > 64 || !Number.isInteger(sal) || sal < 0 || sal > 4294967295) return [400, { erro: 'dados' }];
+  const h = hEmail(email), hora = Math.floor(Date.now() / 3600000);
+  if ((await excede(`rl:li:${ipDe(req)}:${hora}`, 60)) || (await excede(`rl:le:${h}:${hora}`, 15))) return [429, { erro: 'muitas_tentativas' }];
+  const u = obj(await cmd('HGETALL', 'u:' + h));
+  const certa = senhaOk(b.senha, u.pw || SENHA_FALSA) && !!u.pw && idOk(u.id);
+  if (!certa) return [403, { erro: 'credenciais' }];
+  const p = obj(await cmd('HGETALL', 'p:' + u.id)); if (!p.nome) return [403, { erro: 'credenciais' }];
+  const dev = randomBytes(6).toString('hex'), chave = randomBytes(16).toString('hex'), dp = dispLimpo(b.disp), cmds = [];
+  const devs = obj(await cmd('HGETALL', 'v:' + u.id)), ids = Object.keys(devs);
+  if (ids.length >= MAX_APARELHOS - 1) { // tira o aparelho mais antigo
+    const ant = ids.map((k) => { let d = {}; try { d = JSON.parse(devs[k]); } catch { d = {}; } return [k, Number(d.t) || 0]; }).sort((x, y) => x[1] - y[1])[0];
+    cmds.push(['HDEL', 'v:' + u.id, ant[0]]);
+  }
+  cmds.push(['HSET', 'v:' + u.id, dev, JSON.stringify({ s: sal, k: chave, c: nn(b.c0, 1e6), t: Date.now() })], ['HSET', 'p:' + u.id, 'vis', Date.now(), 'pl', dp.pl, 'fm', dp.fm, 'inst', dp.inst], ['HGET', 'cards', u.id]);
+  const rs = await pipe(cmds); let av = {}; try { av = JSON.parse(rs[rs.length - 1] || '{}').v || {}; } catch { av = {}; }
+  return [200, { ok: 1, id: u.id, chave, dev, perfil: { nome: p.nome, alc: p.alc || '', regime: p.regime, local: p.local, teste: p.teste || '' }, avatar: av, xp: Number(p.xp) || 0, trocar: p.pwtmp === '1', prof: ehProf(p) }];
+}
+
+// estado do aluno na nuvem (progresso, avatar, conquistas...). O cliente funde e devolve; o servidor so guarda e nunca apaga por conta propria.
+const nn = (x, max = 1e9) => { const n = Number(x); return Number.isFinite(n) && n > 0 ? Math.min(Math.floor(n), max) : 0; };
+const ST = ['certas', 'erradas', 'semPistas', 'desafios', 'perfeitos'];
+function limparEst(e) {
+  if (!e || typeof e !== 'object') return null;
+  const o = { d: {}, dias: [], conq: {}, pt: {}, hoje: null, av: avatarLimpo(e.av), avT: nn(e.avT, 1e15), pf: null, pfT: nn(e.pfT, 1e15) };
+  for (const [k, v] of Object.entries(e.d && typeof e.d === 'object' ? e.d : {}).slice(0, 16)) {
+    if (!/^[0-9a-f]{1,12}$/.test(k) || !v || typeof v !== 'object') continue;
+    const st = v.st && typeof v.st === 'object' ? v.st : {}, x = { xp: nn(v.xp), st: {}, tipo: {} };
+    for (const c of ST) x.st[c] = nn(st[c]);
+    for (const t of TIPOS) x.tipo[t] = nn(v.tipo && v.tipo[t]);
+    o.d[k] = x;
+  }
+  o.dias = (Array.isArray(e.dias) ? e.dias : []).filter((x) => typeof x === 'string' && DATA_RE.test(x)).sort().slice(-400);
+  for (const [k, v] of Object.entries(e.conq && typeof e.conq === 'object' ? e.conq : {}).slice(0, 60)) if (/^[A-Za-z0-9]{1,16}$/.test(k) && typeof v === 'string' && DATA_RE.test(v)) o.conq[k] = v;
+  for (const t of TIPOS) { const n = nn(e.pt && e.pt[t]); if (n >= 1 && n <= 3) o.pt[t] = n; }
+  if (e.hoje && typeof e.hoje === 'object' && typeof e.hoje.dia === 'string' && DATA_RE.test(e.hoje.dia)) {
+    const h = { dia: e.hoje.dia, n: {}, certas: nn(e.hoje.certas), semPistas: nn(e.hoje.semPistas), desafios: nn(e.hoje.desafios), rec: [] };
+    for (const t of TIPOS) h.n[t] = nn(e.hoje.n && e.hoje.n[t]);
+    h.rec = (Array.isArray(e.hoje.rec) ? e.hoje.rec : []).filter((x) => typeof x === 'string' && /^[A-Za-z0-9:]{1,24}$/.test(x)).slice(0, 8);
+    o.hoje = h;
+  }
+  if (e.pf && typeof e.pf === 'object') {
+    const regime = REGIMES.includes(e.pf.regime) ? e.pf.regime : '', local = LOCAIS.includes(e.pf.local) ? e.pf.local : '';
+    o.pf = { nome: limpa(e.pf.nome, 40), alc: limpa(e.pf.alc, 16), regime, local, teste: testeOk(e.pf.teste) };
+  }
+  return o;
+}
+async function nuvem(b) {
+  const p = await autenticar(b); if (!p) return [401, { erro: 'auth' }];
+  if (!p.email) return [403, { erro: 'sem_conta' }];
+  const ler = async () => { const c = obj(await cmd('HGETALL', 's:' + b.id)); let est = null; try { est = c.est ? JSON.parse(c.est) : null; } catch { est = null; } return { ver: Number(c.ver) || 0, est }; };
+  if (b.est === undefined) { // so ler
+    const c = await ler();
+    return [200, Number(b.ver) === c.ver && c.ver > 0 ? { ok: 1, ver: c.ver, igual: 1 } : { ok: 1, ver: c.ver, est: c.est }];
+  }
+  const est = limparEst(b.est); if (!est) return [400, { erro: 'est' }];
+  const txt = JSON.stringify(est); if (txt.length > 24000) return [413, { erro: 'grande' }];
+  if (!(await cmd('SET', 'nl:' + b.id, '1', 'NX', 'EX', 10))) return [429, { erro: 'ocupado' }];
+  try {
+    const c = await ler();
+    if (Number(b.base) !== c.ver) return [409, { erro: 'versao', ver: c.ver, est: c.est }];
+    await cmd('HSET', 's:' + b.id, 'ver', c.ver + 1, 'est', txt);
+    return [200, { ok: 1, ver: c.ver + 1 }];
+  } finally { await cmd('DEL', 'nl:' + b.id).catch(() => {}); }
+}
+
+// mudar a palavra-passe (tambem serve para sair da palavra-passe temporaria que o professor define)
+async function senha(b) {
+  const p = await autenticar(b); if (!p) return [401, { erro: 'auth' }];
+  if (!p.email) return [403, { erro: 'sem_conta' }];
+  if (!senhaValida(b.nova)) return [400, { erro: 'senha' }];
+  if (await excede(`rl:s:${b.id}:${Math.floor(Date.now() / 3600000)}`, 8)) return [429, { erro: 'muitos_pedidos' }];
+  const h = hEmail(p.email), u = obj(await cmd('HGETALL', 'u:' + h));
+  if (typeof b.atual !== 'string' || !senhaOk(b.atual, u.pw)) return [403, { erro: 'atual' }];
+  await pipe([['HSET', 'u:' + h, 'pw', hashSenha(b.nova)], ['HDEL', 'p:' + b.id, 'pwtmp']]);
+  return [200, { ok: 1 }];
+}
+
+// o professor repoe o acesso de um aluno: palavra-passe temporaria que so ele ve (o aluno muda-a ao entrar)
+async function repor(b) {
+  const p = await autenticarProf(b); if (!p) return [403, { erro: 'prof' }];
+  if (!idOk(b.alvo)) return [400, { erro: 'alvo' }];
+  const q = obj(await cmd('HGETALL', 'p:' + b.alvo)); if (!q.email) return [404, { erro: 'sem_conta' }];
+  const A = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789', rb = randomBytes(8); let temp = ''; for (let i = 0; i < 8; i++) temp += A[rb[i] % A.length];
+  const h = hEmail(q.email);
+  await pipe([['HSET', 'u:' + h, 'pw', hashSenha(temp)], ['HSET', 'p:' + b.alvo, 'pwtmp', 1], ['DEL', `rl:le:${h}:${Math.floor(Date.now() / 3600000)}`]]);
+  return [200, { ok: 1, temp, email: q.email }];
 }
 
 async function ocultar(b) {
@@ -216,7 +361,7 @@ export default async function handler(req, res) {
   let b = req.body; if (typeof b === 'string') { try { b = JSON.parse(b); } catch { b = null; } }
   if (!b || typeof b !== 'object') return res.status(400).json({ erro: 'corpo' });
   try {
-    const fn = { registar: (x) => registar(x, req), sync, ranking, apagar, professor: (x) => professor(x, req), painel, ocultar }[b.a];
+    const fn = { registar: (x) => registar(x, req), sync, ranking, apagar, professor: (x) => professor(x, req), painel, ocultar, conta: (x) => conta(x, req), entrar: (x) => entrar(x, req), nuvem, senha, repor }[b.a];
     if (!fn) return res.status(400).json({ erro: 'acao' });
     const [codigo, corpo] = await fn(b);
     return res.status(codigo).json(corpo);
