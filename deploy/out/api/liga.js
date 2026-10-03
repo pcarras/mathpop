@@ -208,19 +208,20 @@ async function painel(b) {
   const p = await autenticarProf(b); if (!p) return [403, { erro: 'prof' }];
   const ids = ((await cmd('HKEYS', 'cards')) || []).filter(idOk).slice(0, 400);
   const dias = Array.from({ length: 14 }, (_, k) => diaChave(new Date(Date.now() - (13 - k) * DIA_MS)));
-  const cmds = [...ids.map((id) => ['HGETALL', 'p:' + id]), ids.length ? ['HMGET', 'cards', ...ids] : ['PING'], ...dias.flatMap((d) => [['HGETALL', 'st:d:' + d], ['SCARD', 'st:a:' + d]]), ['HGETALL', 'st:h'], ['HGETALL', 'st:t'], ...ids.map((id) => ['HLEN', 'v:' + id])];
+  const cmds = [...ids.map((id) => ['HGETALL', 'p:' + id]), ids.length ? ['HMGET', 'cards', ...ids] : ['PING'], ...dias.flatMap((d) => [['HGETALL', 'st:d:' + d], ['SCARD', 'st:a:' + d]]), ['HGETALL', 'st:h'], ['HGETALL', 'st:t'], ...ids.map((id) => ['HLEN', 'v:' + id]), ['LRANGE', 'avl', 0, 4]];
   const rs = await pipe(cmds), n = ids.length, cart = ids.length ? rs[n] : [];
   const lista = ids.map((id, i) => {
     const o = obj(rs[i]); if (!o.nome) return null;
     const ap = 1 + (Number(rs[n + 31 + i]) || 0);
     let c = {}; try { c = JSON.parse(cart[i] || '{}'); } catch { c = {}; }
-    return { id, nome: o.nome, alc: o.alc || '', regime: o.regime, local: o.local, xp: Number(o.xp) || 0, certas: Number(o.certas) || 0, criado: Number(o.criado) || 0, vis: Number(o.vis) || Number(o.criado) || 0, pl: o.pl || 'outro', fm: o.fm || '', email: o.email || '', ev: o.ev === '1', teste: o.teste || '', ap, inst: o.inst === '1', oc: o.oc === '1', prof: o.prof === '1', v: c.v || {} };
+    return { id, nome: o.nome, alc: o.alc || '', regime: o.regime, local: o.local, xp: Number(o.xp) || 0, certas: Number(o.certas) || 0, criado: Number(o.criado) || 0, vis: Number(o.vis) || Number(o.criado) || 0, pl: o.pl || 'outro', fm: o.fm || '', email: o.email || '', ev: o.ev === '1', av: o.av === '1', teste: o.teste || '', ap, inst: o.inst === '1', oc: o.oc === '1', prof: o.prof === '1', v: c.v || {} };
   }).filter(Boolean).sort((x, y) => y.xp - x.xp);
   const serie = dias.map((d, k) => ({ d, c: Number(obj(rs[n + 1 + 2 * k]).c) || 0, a: Number(rs[n + 2 + 2 * k]) || 0 }));
   const hh = obj(rs[n + 1 + 28]), horas = Array.from({ length: 24 }, (_, h) => Number(hh[h]) || 0);
   const tt = obj(rs[n + 2 + 28]), tipos = {};
   for (const t of TIPOS) tipos[t] = { n: Number(tt[t + ':n']) || 0, e: Number(tt[t + ':e']) || 0, p: Number(tt[t + ':p']) || 0 };
-  return [200, { ok: 1, lista, dias: serie, horas, tipos, agora: Date.now() }];
+  const avisos = (rs[2 * n + 31] || []).map((x) => { try { return JSON.parse(x); } catch { return null; } }).filter(Boolean);
+  return [200, { ok: 1, lista, dias: serie, horas, tipos, avisos, agora: Date.now() }];
 }
 
 // ---------- contas por email: o mesmo aluno em varios aparelhos ----------
@@ -269,7 +270,7 @@ async function entrar(b, req) {
   }
   cmds.push(['HSET', 'v:' + u.id, dev, JSON.stringify({ s: sal, k: chave, c: nn(b.c0, 1e6), t: Date.now() })], ['HSET', 'p:' + u.id, 'vis', Date.now(), 'pl', dp.pl, 'fm', dp.fm, 'inst', dp.inst], ['HGET', 'cards', u.id]);
   const rs = await pipe(cmds); let av = {}; try { av = JSON.parse(rs[rs.length - 1] || '{}').v || {}; } catch { av = {}; }
-  return [200, { ok: 1, id: u.id, chave, dev, perfil: { nome: p.nome, alc: p.alc || '', regime: p.regime, local: p.local, teste: p.teste || '' }, avatar: av, xp: Number(p.xp) || 0, trocar: p.pwtmp === '1', prof: ehProf(p), ev: p.ev === '1' }];
+  return [200, { ok: 1, id: u.id, chave, dev, perfil: { nome: p.nome, alc: p.alc || '', regime: p.regime, local: p.local, teste: p.teste || '' }, avatar: av, xp: Number(p.xp) || 0, trocar: p.pwtmp === '1', prof: ehProf(p), ev: p.ev === '1', av: p.av === '1' }];
 }
 
 // estado do aluno na nuvem (progresso, avatar, conquistas...). O cliente funde e devolve; o servidor so guarda e nunca apaga por conta propria.
@@ -306,7 +307,7 @@ async function nuvem(b) {
   const ler = async () => { const c = obj(await cmd('HGETALL', 's:' + b.id)); let est = null; try { est = c.est ? JSON.parse(c.est) : null; } catch { est = null; } return { ver: Number(c.ver) || 0, est }; };
   if (b.est === undefined) { // so ler
     const c = await ler();
-    return [200, Number(b.ver) === c.ver && c.ver > 0 ? { ok: 1, ver: c.ver, igual: 1, ev: p.ev === '1' } : { ok: 1, ver: c.ver, est: c.est, ev: p.ev === '1' }];
+    return [200, Number(b.ver) === c.ver && c.ver > 0 ? { ok: 1, ver: c.ver, igual: 1, ev: p.ev === '1', av: p.av === '1' } : { ok: 1, ver: c.ver, est: c.est, ev: p.ev === '1', av: p.av === '1' }];
   }
   const est = limparEst(b.est); if (!est) return [400, { erro: 'est' }];
   const txt = JSON.stringify(est); if (txt.length > 24000) return [413, { erro: 'grande' }];
@@ -407,6 +408,56 @@ async function recConfirmar(b, req) {
   return [200, { ok: 1 }];
 }
 
+// ---------- avisos de novos conteudos (so para quem confirmou o email e aceitou receber) ----------
+// o aluno liga ou desliga os avisos. Para ligar tem de ter o email confirmado.
+async function avisos(b) {
+  const p = await autenticar(b); if (!p) return [401, { erro: 'auth' }];
+  if (!p.email) return [403, { erro: 'sem_conta' }];
+  if (b.ativo === true) {
+    if (p.ev !== '1') return [403, { erro: 'sem_confirmacao' }];
+    await cmd('HSET', 'p:' + b.id, 'av', 1);
+    return [200, { ok: 1, av: true }];
+  }
+  await cmd('HDEL', 'p:' + b.id, 'av');
+  return [200, { ok: 1, av: false }];
+}
+// envio em lote (ate 100 mensagens por chamada); cada destinatario recebe a sua mensagem, sem ver os outros
+async function enviarLote(msgs) {
+  try {
+    const r = await fetch('https://api.resend.com/emails/batch', { method: 'POST', headers: { Authorization: 'Bearer ' + process.env.RESEND_API_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify(msgs) });
+    return r.ok;
+  } catch { return false; }
+}
+const textoAviso = (t) => String(t ?? '').normalize('NFC').replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, '').replace(/\r\n?/g, '\n').replace(/\n{4,}/g, '\n\n\n').trim();
+const RODAPE = '\n\n--\nArena Mat I, Matemática I, ESGHT, Universidade do Algarve.\nRecebes este email porque ativaste os avisos de novos conteúdos. Para deixares de os receber, abre a app, vai a Perfil, Definições, e desliga os avisos.';
+// o professor escreve um aviso. modo: contar (quantos recebem), teste (so para ele) ou enviar
+async function aviso(b) {
+  const p = await autenticarProf(b); if (!p) return [403, { erro: 'prof' }];
+  if (!emailAtivo()) return [503, { erro: 'sem_email' }];
+  const modo = ['contar', 'teste', 'enviar'].includes(b.modo) ? b.modo : null; if (!modo) return [400, { erro: 'modo' }];
+  const ids = ((await cmd('HKEYS', 'cards')) || []).filter(idOk).slice(0, 400);
+  const rs = ids.length ? await pipe(ids.map((id) => ['HMGET', 'p:' + id, 'email', 'ev', 'av', 'prof'])) : [];
+  const dest = ids.map((id, i) => ({ email: (rs[i] || [])[0], ev: (rs[i] || [])[1], av: (rs[i] || [])[2], prof: (rs[i] || [])[3] })).filter((x) => x.email && x.ev === '1' && x.av === '1' && x.prof !== '1').map((x) => x.email);
+  if (modo === 'contar') return [200, { ok: 1, n: dest.length }];
+  const assunto = limpa(b.assunto, 90), texto = textoAviso(b.texto).slice(0, 4000);
+  if (assunto.length < 3 || texto.length < 10) return [400, { erro: 'conteudo' }];
+  const hora = Math.floor(Date.now() / 3600000);
+  if (await excede(`rl:av:${hora}`, modo === 'teste' ? 20 : 5)) return [429, { erro: 'muitos_pedidos' }];
+  const msg = (para) => ({ from: process.env.EMAIL_FROM, to: [para], subject: '[Arena Mat I] ' + assunto, text: texto + RODAPE });
+  if (modo === 'teste') {
+    if (!p.email) return [400, { erro: 'sem_email_prof' }];
+    return (await enviarLote([msg(p.email)])) ? [200, { ok: 1, enviados: 1 }] : [502, { erro: 'envio' }];
+  }
+  if (!dest.length) return [400, { erro: 'sem_destinatarios' }];
+  let enviados = 0, falhas = 0;
+  for (let i = 0; i < dest.length; i += 100) {
+    const lote = dest.slice(i, i + 100);
+    if (await enviarLote(lote.map(msg))) enviados += lote.length; else falhas += lote.length;
+  }
+  await pipe([['LPUSH', 'avl', JSON.stringify({ t: Date.now(), a: assunto, n: enviados, f: falhas })], ['LTRIM', 'avl', 0, 19]]);
+  return [200, { ok: 1, enviados, falhas }];
+}
+
 async function ocultar(b) {
   const p = await autenticarProf(b); if (!p) return [403, { erro: 'prof' }];
   if (!idOk(b.alvo)) return [400, { erro: 'alvo' }];
@@ -426,7 +477,7 @@ export default async function handler(req, res) {
   let b = req.body; if (typeof b === 'string') { try { b = JSON.parse(b); } catch { b = null; } }
   if (!b || typeof b !== 'object') return res.status(400).json({ erro: 'corpo' });
   try {
-    const fn = { registar: (x) => registar(x, req), sync, ranking, apagar, professor: (x) => professor(x, req), painel, ocultar, conta: (x) => conta(x, req), entrar: (x) => entrar(x, req), nuvem, senha, repor, verif_pedir: verifPedir, verif_confirmar: verifConfirmar, rec_pedir: (x) => recPedir(x, req), rec_confirmar: (x) => recConfirmar(x, req) }[b.a];
+    const fn = { registar: (x) => registar(x, req), sync, ranking, apagar, professor: (x) => professor(x, req), painel, ocultar, conta: (x) => conta(x, req), entrar: (x) => entrar(x, req), nuvem, senha, repor, verif_pedir: verifPedir, verif_confirmar: verifConfirmar, rec_pedir: (x) => recPedir(x, req), rec_confirmar: (x) => recConfirmar(x, req), avisos, aviso }[b.a];
     if (!fn) return res.status(400).json({ erro: 'acao' });
     const [codigo, corpo] = await fn(b);
     return res.status(codigo).json(corpo);
