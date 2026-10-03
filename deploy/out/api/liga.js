@@ -168,7 +168,7 @@ async function ranking(b) {
   const p = await autenticar(b); if (!p) return [401, { erro: 'auth' }];
   const wk = segunda(diaChave()), per = b.periodo === 'semana' ? wk : 'tot';
   const geral = b.escopo === 'geral', key = geral ? chaveG(per) : chaveT(p.regime, p.local, per);
-  const [topo, pos, pts, total, ps] = await pipe([['ZREVRANGE', key, 0, 29, 'WITHSCORES'], ['ZREVRANK', key, b.id], ['ZSCORE', key, b.id], ['ZCARD', key], ['SMEMBERS', 'profs']]);
+  const [topo, pos, pts, total, ps] = await pipe([['ZREVRANGE', key, 0, 299, 'WITHSCORES'], ['ZREVRANK', key, b.id], ['ZSCORE', key, b.id], ['ZCARD', key], ['SMEMBERS', 'profs']]);
   const lista = []; for (let i = 0; i + 1 < topo.length; i += 2) lista.push([topo[i], Number(topo[i + 1])]);
   const ids = lista.map((x) => x[0]); const eu = lista.some((x) => x[0] === b.id), pids = (ps || []).slice(0, 5);
   const cartoes = ids.length || pids.length ? await cmd('HMGET', 'cards', ...ids, ...pids) : [];
