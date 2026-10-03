@@ -2,6 +2,8 @@
 // Os pontos so contam depois de o servidor regenerar cada exercicio a partir da semente e conferir a resposta.
 import { randomBytes, randomInt, timingSafeEqual, createHash, scryptSync } from 'node:crypto';
 import { readFileSync } from 'node:fs';
+import tls from 'node:tls';
+import net from 'node:net';
 import { gerar, verificar, xpTreino, diaChave, TIPOS } from './_motor.js';
 import { pipe, cmd, obj, ligado } from './_redis.js';
 
@@ -344,9 +346,49 @@ async function repor(b) {
 }
 
 // ---------- confirmar o email e recuperar a palavra-passe (so ativo se o envio de emails estiver configurado) ----------
-const emailAtivo = () => !!(process.env.RESEND_API_KEY && process.env.EMAIL_FROM);
+// envio de emails: Gmail (SMTP com palavra-passe de aplicacao) ou Resend. Sem nenhum configurado, as funcoes de email ficam desligadas.
+const usaGmail = () => !!(process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD);
+const usaResend = () => !!(process.env.RESEND_API_KEY && process.env.EMAIL_FROM);
+const emailAtivo = () => usaGmail() || usaResend();
+const b64 = (t) => Buffer.from(String(t), 'utf8').toString('base64');
+const cab64 = (t) => '=?UTF-8?B?' + b64(t) + '?=';
+// cliente SMTP minimo (ligacao segura na porta 465). Devolve quantos destinatarios o servidor aceitou.
+// oculto: a mensagem vai para o proprio remetente e os alunos entram em copia oculta (ninguem ve os outros)
+function smtpEnviar(destinos, assunto, texto, oculto) {
+  const user = String(process.env.GMAIL_USER).trim(), pass = String(process.env.GMAIL_APP_PASSWORD).replace(/\s+/g, '');
+  const teste = !!process.env.SMTP_HOST_TESTE, host = teste ? process.env.SMTP_HOST_TESTE : 'smtp.gmail.com', porta = teste ? Number(process.env.SMTP_PORTA_TESTE) : 465;
+  const nome = limpa(process.env.EMAIL_NOME || 'Arena Mat I', 40) || 'Arena Mat I';
+  return new Promise((resolve) => {
+    let fim = false, buf = '', esperando = null, aceites = 0; const respostas = [];
+    const s = teste ? net.connect(porta, host) : tls.connect({ host, port: porta, servername: host });
+    const acabar = (n) => { if (fim) return; fim = true; clearTimeout(tempo); try { s.destroy(); } catch { /* ja fechada */ } resolve(n); };
+    const tempo = setTimeout(() => acabar(0), 25000);
+    s.setEncoding('utf8');
+    s.on('error', () => acabar(0)); s.on('close', () => acabar(0));
+    s.on('data', (d) => {
+      buf += d; let m;
+      while ((m = buf.match(/^(?:\d{3}-[^\n]*\n)*\d{3}[ \r\n][^\n]*\n/))) { buf = buf.slice(m[0].length); const c = Number(m[0].slice(0, 3)); if (esperando) { const f = esperando; esperando = null; f(c); } else respostas.push(c); }
+    });
+    const ler = () => new Promise((res) => { if (respostas.length) res(respostas.shift()); else esperando = res; });
+    const passo = async (linha, ok) => { if (linha !== null) s.write(linha + '\r\n'); const c = await ler(); if (!ok.includes(c)) throw new Error('smtp ' + c); return c; };
+    (async () => {
+      await passo(null, [220]);
+      await passo('EHLO arena-mat1', [250]);
+      await passo('AUTH PLAIN ' + b64('\0' + user + '\0' + pass), [235]);
+      await passo(`MAIL FROM:<${user}>`, [250]);
+      for (const d of destinos) { s.write(`RCPT TO:<${d}>\r\n`); const c = await ler(); if (c === 250 || c === 251) aceites++; }
+      if (!aceites) throw new Error('smtp sem destinatarios');
+      await passo('DATA', [354]);
+      const de = `${cab64(nome)} <${user}>`;
+      const msg = [`From: ${de}`, `To: ${oculto ? de : destinos[0]}`, `Subject: ${cab64(assunto)}`, `Date: ${new Date().toUTCString()}`, `Message-ID: <${randomBytes(12).toString('hex')}@gmail.com>`, 'MIME-Version: 1.0', 'Content-Type: text/plain; charset=utf-8', 'Content-Transfer-Encoding: base64', '', b64(texto).replace(/.{1,76}/g, '$&\r\n')].join('\r\n');
+      await passo(msg + '\r\n.', [250]);
+      s.write('QUIT\r\n'); acabar(aceites);
+    })().catch(() => acabar(0));
+  });
+}
 async function enviarEmail(para, assunto, texto) {
   try {
+    if (usaGmail()) return (await smtpEnviar([para], assunto, texto, false)) > 0;
     const r = await fetch('https://api.resend.com/emails', { method: 'POST', headers: { Authorization: 'Bearer ' + process.env.RESEND_API_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify({ from: process.env.EMAIL_FROM, to: [para], subject: assunto, text: texto }) });
     return r.ok;
   } catch { return false; }
@@ -421,12 +463,19 @@ async function avisos(b) {
   await cmd('HDEL', 'p:' + b.id, 'av');
   return [200, { ok: 1, av: false }];
 }
-// envio em lote (ate 100 mensagens por chamada); cada destinatario recebe a sua mensagem, sem ver os outros
-async function enviarLote(msgs) {
-  try {
-    const r = await fetch('https://api.resend.com/emails/batch', { method: 'POST', headers: { Authorization: 'Bearer ' + process.env.RESEND_API_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify(msgs) });
-    return r.ok;
-  } catch { return false; }
+// envio de um aviso a muitos alunos: cada um recebe a sua mensagem e nao ve os outros. Devolve quantos foram enviados e quantos falharam.
+async function enviarMuitos(dest, assunto, texto) {
+  let enviados = 0, falhas = 0;
+  if (usaGmail()) { // lotes de 50 em copia oculta (o Gmail aceita ate 100 destinatarios por mensagem e 500 por dia)
+    for (let i = 0; i < dest.length; i += 50) { const lote = dest.slice(i, i + 50); const n = await smtpEnviar(lote, assunto, texto, true).catch(() => 0); enviados += n; falhas += lote.length - n; }
+    return { enviados, falhas };
+  }
+  for (let i = 0; i < dest.length; i += 100) { // Resend: uma mensagem por aluno, ate 100 por chamada
+    const lote = dest.slice(i, i + 100); let ok = false;
+    try { const r = await fetch('https://api.resend.com/emails/batch', { method: 'POST', headers: { Authorization: 'Bearer ' + process.env.RESEND_API_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify(lote.map((para) => ({ from: process.env.EMAIL_FROM, to: [para], subject: assunto, text: texto }))) }); ok = r.ok; } catch { ok = false; }
+    if (ok) enviados += lote.length; else falhas += lote.length;
+  }
+  return { enviados, falhas };
 }
 const textoAviso = (t) => String(t ?? '').normalize('NFC').replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, '').replace(/\r\n?/g, '\n').replace(/\n{4,}/g, '\n\n\n').trim();
 const RODAPE = '\n\n--\nArena Mat I, Matemática I, ESGHT, Universidade do Algarve.\nRecebes este email porque ativaste os avisos de novos conteúdos. Para deixares de os receber, abre a app, vai a Perfil, Definições, e desliga os avisos.';
@@ -443,17 +492,13 @@ async function aviso(b) {
   if (assunto.length < 3 || texto.length < 10) return [400, { erro: 'conteudo' }];
   const hora = Math.floor(Date.now() / 3600000);
   if (await excede(`rl:av:${hora}`, modo === 'teste' ? 20 : 5)) return [429, { erro: 'muitos_pedidos' }];
-  const msg = (para) => ({ from: process.env.EMAIL_FROM, to: [para], subject: '[Arena Mat I] ' + assunto, text: texto + RODAPE });
+  const assuntoFinal = '[Arena Mat I] ' + assunto, corpoFinal = texto + RODAPE;
   if (modo === 'teste') {
     if (!p.email) return [400, { erro: 'sem_email_prof' }];
-    return (await enviarLote([msg(p.email)])) ? [200, { ok: 1, enviados: 1 }] : [502, { erro: 'envio' }];
+    return (await enviarEmail(p.email, assuntoFinal, corpoFinal)) ? [200, { ok: 1, enviados: 1 }] : [502, { erro: 'envio' }];
   }
   if (!dest.length) return [400, { erro: 'sem_destinatarios' }];
-  let enviados = 0, falhas = 0;
-  for (let i = 0; i < dest.length; i += 100) {
-    const lote = dest.slice(i, i + 100);
-    if (await enviarLote(lote.map(msg))) enviados += lote.length; else falhas += lote.length;
-  }
+  const { enviados, falhas } = await enviarMuitos(dest, assuntoFinal, corpoFinal);
   await pipe([['LPUSH', 'avl', JSON.stringify({ t: Date.now(), a: assunto, n: enviados, f: falhas })], ['LTRIM', 'avl', 0, 19]]);
   return [200, { ok: 1, enviados, falhas }];
 }
@@ -471,7 +516,7 @@ async function ocultar(b) {
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
-  if (req.method === 'GET') return res.status(200).json({ ligado: ligado(), email: emailAtivo(), v: { liga: sha('./liga.js'), motor: sha('./_motor.js'), redis: sha('./_redis.js') } });
+  if (req.method === 'GET') return res.status(200).json({ ligado: ligado(), email: emailAtivo(), via: usaGmail() ? 'gmail' : usaResend() ? 'resend' : null, v: { liga: sha('./liga.js'), motor: sha('./_motor.js'), redis: sha('./_redis.js') } });
   if (req.method !== 'POST') return res.status(405).json({ erro: 'metodo' });
   if (!ligado()) return res.status(503).json({ erro: 'sem_base' });
   let b = req.body; if (typeof b === 'string') { try { b = JSON.parse(b); } catch { b = null; } }
