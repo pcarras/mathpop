@@ -226,6 +226,7 @@ function go(i,opts={}){
   stage.classList.toggle('dark',cur.tone==='dark');stage.classList.toggle('light',cur.tone!=='dark');
   if(cur.enter)try{cur.enter(cur.el,dir)}catch(e){console.error('enter',i,e)}
   BG.mode=cur.bg||'calm';
+  tmrSync(cur);
   // progresso
   $$('#prog .seg').forEach(sg=>{const b=sg.dataset.b;const idx=SL.map((o,k)=>o.bloco===b?k:-1).filter(k=>k>=0);
     const done=idx.filter(k=>k<=i).length;sg.firstChild.style.width=(100*done/idx.length)+'%'});
@@ -263,14 +264,103 @@ function bindKeys(){
     else if(k==='Home')go(0);else if(k==='End')go(SL.length-1);
     else if(k==='ArrowDown'||k==='ArrowUp'){const o=SL[ST.i];if(o.onKeyV){e.preventDefault();o.onKeyV(k==='ArrowDown'?1:-1)}}
     else if(k==='f'||k==='F')fs();
+    else if((k==='t'||k==='T')&&SL[ST.i].exs)tmrOpen(!TMR.open);
+    else if((k==='p'||k==='P')&&SL[ST.i].exs&&TMR.open)tmrToggle();
     else if(k==='o'||k==='O'||k==='Escape')toggleOV();
-    else if(k==='?'||k==='h'||k==='H')hint('→ avançar · ← recuar · O índice · F ecrã inteiro · clique nos cartões dos exercícios para ver a solução');
+    else if(k==='?'||k==='h'||k==='H')hint('→ avançar · ← recuar · O índice · F ecrã inteiro · clique nos cartões dos exercícios para ver a solução · T cronómetro nos exercícios');
   });
   $('.zone.l').onclick=prev;$('.zone.r').onclick=next;
   let tx=null;
   addEventListener('touchstart',e=>{tx=e.touches[0].clientX},{passive:true});
   addEventListener('touchend',e=>{if(tx===null)return;const dx=e.changedTouches[0].clientX-tx;if(Math.abs(dx)>60){dx<0?next():prev()}tx=null});
   addEventListener('wheel',e=>{if(e.target.closest('.scroll'))return;},{passive:true});
+}
+/* ---------- cronómetro dos exercícios recomendados ---------- */
+const TMR={dur:600,left:600,run:false,end:0,open:false,iv:null,ctx:null,el:null};
+try{const s=JSON.parse(localStorage.getItem('m1t1_tmr')||'{}');if(s.dur>=60&&s.dur<=3600){TMR.dur=TMR.left=s.dur|0}TMR.open=!!s.open}catch(e){}
+const tmrSave=()=>{try{localStorage.setItem('m1t1_tmr',JSON.stringify({dur:TMR.dur,open:TMR.open}))}catch(e){}};
+const tmrFmt=s=>{s=Math.max(0,Math.ceil(s-1e-6));return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')};
+const TMR_ICON='<svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13.5" r="7.5"/><path d="M12 9.5v4.2l2.6 1.6M9.5 2.8h5M12 2.8v3.2M18.6 6.4l1.4-1.4"/></svg>';
+const TMR_PLAY='<svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor"><path d="M8 5.2v13.6a1 1 0 0 0 1.5.9l11-6.8a1 1 0 0 0 0-1.8l-11-6.8A1 1 0 0 0 8 5.2z"/></svg>';
+const TMR_PAUSE='<svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor"><rect x="6" y="5" width="4.4" height="14" rx="1.4"/><rect x="13.6" y="5" width="4.4" height="14" rx="1.4"/></svg>';
+const TMR_RESET='<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 1 0 2.6-5.9"/><path d="M4 4.5v4.6h4.6"/></svg>';
+const TMR_X='<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+function buildTimer(){
+  const d=document.createElement('div');d.id='tmr';d.className='off';
+  d.innerHTML='<button class="tg" data-t="tog" title="Abrir o cronómetro (T)" aria-label="Abrir o cronómetro">'+TMR_ICON+'<span class="tgt">10:00</span></button>'+
+   '<div class="pn" role="group" aria-label="Cronómetro do exercício">'+
+   '<button class="rb" data-t="minus" title="Menos 1 minuto" aria-label="Menos 1 minuto">−</button>'+
+   '<button class="dg" data-t="edit" title="Clique para escrever o tempo" aria-live="off">10:00</button>'+
+   '<input class="ed" type="text" inputmode="decimal" maxlength="6" aria-label="Tempo em minutos" hidden>'+
+   '<button class="rb" data-t="plus" title="Mais 1 minuto" aria-label="Mais 1 minuto">+</button>'+
+   '<button class="rb pl" data-t="play" title="Iniciar ou pausar (P)" aria-label="Iniciar">'+TMR_PLAY+'</button>'+
+   '<button class="rb" data-t="reset" title="Reiniciar" aria-label="Reiniciar">'+TMR_RESET+'</button>'+
+   '<button class="rb cl" data-t="close" title="Fechar (T)" aria-label="Fechar o cronómetro">'+TMR_X+'</button>'+
+   '<div class="bar"><i></i></div></div>';
+  stage.insertBefore(d,$('#chrome'));TMR.el=d;
+  const rep={t:null,iv:null};
+  const stopRep=()=>{clearTimeout(rep.t);clearInterval(rep.iv)};
+  d.addEventListener('pointerdown',e=>{const b=e.target.closest('[data-t=plus],[data-t=minus]');if(!b)return;
+    const k=b.dataset.t==='plus'?1:-1;tmrAdj(k*60);stopRep();rep.t=setTimeout(()=>{rep.iv=setInterval(()=>tmrAdj(k*60),130)},450)});
+  ['pointerup','pointerleave','pointercancel'].forEach(ev=>d.addEventListener(ev,stopRep));
+  d.addEventListener('click',e=>{const b=e.target.closest('[data-t]');if(!b)return;e.stopPropagation();
+    const a=b.dataset.t;
+    if(a==='tog')tmrOpen(true);else if(a==='close')tmrOpen(false);
+    else if(a==='play')tmrToggle();else if(a==='reset')tmrReset();else if(a==='edit')tmrEdit();});
+  const ed=$('.ed',d);
+  ed.addEventListener('keydown',e=>{e.stopPropagation();if(e.key==='Enter'){tmrCommit(ed.value);tmrEditEnd()}else if(e.key==='Escape')tmrEditEnd()});
+  ed.addEventListener('blur',()=>{if(!ed.hidden){tmrCommit(ed.value);tmrEditEnd()}});
+  ['touchstart','touchend'].forEach(ev=>d.addEventListener(ev,e=>e.stopPropagation(),{passive:true}));
+  tmrRender();
+}
+function tmrSync(cur){if(!TMR.el)return;TMR.el.classList.toggle('off',!(cur&&cur.exs))}
+function tmrOpen(v){TMR.open=v;tmrSave();tmrRender()}
+function tmrAudio(){try{if(!TMR.ctx)TMR.ctx=new(window.AudioContext||window.webkitAudioContext)();if(TMR.ctx.state==='suspended')TMR.ctx.resume()}catch(e){}}
+function tmrBeep(){tmrAudio();const c=TMR.ctx;if(!c)return;
+  [0,.34,.68].forEach((t,i)=>{const o=c.createOscillator(),g=c.createGain();o.type='sine';o.frequency.value=i===2?1175:880;
+    const t0=c.currentTime+t;g.gain.setValueAtTime(0,t0);g.gain.linearRampToValueAtTime(.22,t0+.03);g.gain.exponentialRampToValueAtTime(.001,t0+.28);
+    o.connect(g);g.connect(c.destination);o.start(t0);o.stop(t0+.3)})}
+function tmrTick(){
+  if(!TMR.run)return;
+  TMR.left=(TMR.end-Date.now())/1000;
+  if(TMR.left<=0){TMR.left=0;TMR.run=false;clearInterval(TMR.iv);TMR.iv=null;TMR.done=true;tmrBeep()}
+  tmrRender();
+}
+function tmrToggle(){
+  tmrAudio();
+  if(TMR.run){TMR.run=false;clearInterval(TMR.iv);TMR.iv=null;tmrRender();return}
+  if(TMR.left<=0)TMR.left=TMR.dur;
+  TMR.done=false;TMR.run=true;TMR.end=Date.now()+TMR.left*1000;
+  clearInterval(TMR.iv);TMR.iv=setInterval(tmrTick,200);tmrRender();
+}
+function tmrReset(){TMR.run=false;TMR.done=false;clearInterval(TMR.iv);TMR.iv=null;TMR.left=TMR.dur;tmrRender()}
+function tmrAdj(delta){
+  const nd=Math.max(60,Math.min(3600,TMR.dur+delta));const real=nd-TMR.dur;if(!real)return;
+  TMR.dur=nd;
+  if(TMR.run){TMR.end+=real*1000;TMR.left=Math.max(5,(TMR.end-Date.now())/1000);TMR.end=Date.now()+TMR.left*1000}
+  else{TMR.left=TMR.dur;TMR.done=false}
+  tmrSave();tmrRender();
+}
+function tmrCommit(txt){
+  const t=String(txt).trim().replace(',','.');let s=NaN,m;
+  if((m=/^(\d{1,3}):([0-5]?\d)$/.exec(t)))s=+m[1]*60+ +m[2];
+  else if(/^\d{1,3}(\.\d{1,2})?$/.test(t))s=Math.round(parseFloat(t)*60);
+  if(!(s>=60))s=NaN;
+  if(isNaN(s)){hint('Escreva o tempo em minutos, por exemplo 12 ou 7:30 (mínimo 1 minuto)');return}
+  s=Math.min(3600,s);TMR.dur=s;
+  if(TMR.run){TMR.end=Date.now()+s*1000;TMR.left=s}else{TMR.left=s;TMR.done=false}
+  tmrSave();tmrRender();
+}
+function tmrEdit(){const ed=$('.ed',TMR.el),dg=$('.dg',TMR.el);ed.value=tmrFmt(TMR.dur).replace(/^0/,'').replace(/:00$/,'');dg.hidden=true;ed.hidden=false;ed.focus();ed.select()}
+function tmrEditEnd(){const ed=$('.ed',TMR.el);if(ed.hidden)return;ed.hidden=true;$('.dg',TMR.el).hidden=false}
+function tmrRender(){
+  const d=TMR.el;if(!d)return;
+  d.classList.toggle('open',TMR.open);d.classList.toggle('run',TMR.run);
+  d.classList.toggle('warn',TMR.left<=120&&TMR.left>60);d.classList.toggle('crit',TMR.left<=60&&TMR.left>0);d.classList.toggle('end',!!TMR.done&&TMR.left<=0);
+  const txt=tmrFmt(TMR.left);
+  $('.dg',d).textContent=txt;$('.tgt',d).textContent=tmrFmt(TMR.run||TMR.left<TMR.dur?TMR.left:TMR.dur);
+  const p=$('.pl',d);const want=TMR.run?'p':'s';if(p.dataset.k!==want){p.dataset.k=want;p.innerHTML=TMR.run?TMR_PAUSE:TMR_PLAY;p.setAttribute('aria-label',TMR.run?'Pausar':'Iniciar')}
+  $('.bar i',d).style.width=(TMR.dur?100*Math.max(0,Math.min(1,TMR.left/TMR.dur)):0)+'%';
 }
 /* ---------- fundo animado: superfície em fio (eco da capa) ---------- */
 const BG={mode:'calm',t:0,mx:0,my:0,nums:[]};
@@ -346,9 +436,9 @@ const EXLABEL={1:'Construir matrizes por regra',3:'Submatrizes e matriz ampliada
  68:'Mistura de rações',70:'Investimento em três fundos',72:'Equilíbrio com imposto',73:'Fluxos numa rotunda'};
 function exSlide(nav,title,bloco,ids){
   const o=slide({tone:'light',bloco,nav,title:nav,exs:ids,
-   html:()=>hd(title,bloco)+'<div class="bd tight"><div class="mdl"><div class="exl">'+ids.map(n=>{const e=EXN(n);return '<div class="exr" data-n="'+n+'"><b>'+n+'</b><span>'+esc(EXLABEL[n]||('Exercício '+n))+'</span>'+starsHTML(e.lv)+'<div class="ck" title="Marcar como feito">'+CK+'</div></div>'}).join('')+'<div class="note" style="margin-top:12px;font-size:22px">Clique num exercício. Setas para cima e para baixo também servem.</div></div>'+
+   html:()=>hd(title,bloco)+'<div class="bd tight"><div class="mdl"><div class="exl">'+ids.map(n=>{const e=EXN(n);return '<div class="exr" data-n="'+n+'"><b>'+n+'</b><span>'+esc(EXLABEL[n]||('Exercício '+n))+'</span>'+starsHTML(e.lv)+'<div class="ck" title="Marcar como feito">'+CK+'</div></div>'}).join('')+'<div class="note" style="margin-top:12px;font-size:22px">Clique num exercício. Setas para cima e para baixo também servem. Tecla T abre o cronómetro.</div></div>'+
    '<div class="exd"><div class="exh"></div><div class="exq"></div><div class="exa"><div class="row" style="gap:20px"><button class="btn fill" data-a="sol">Ver solução</button><span class="note exp"></span></div><div class="exs"></div></div></div></div></div>',
-   init(el){
+   init(el,so){
     let cur=ids[0];
     const rows=()=>$$('.exr',el);
     function paint(){rows().forEach(r=>{r.classList.toggle('sel',+r.dataset.n===cur);r.classList.toggle('done',!!DONE[r.dataset.n])})}
@@ -362,10 +452,10 @@ function exSlide(nav,title,bloco,ids){
     el.addEventListener('click',ev=>{
       const ck=ev.target.closest('.ck');const r=ev.target.closest('.exr');
       if(ck&&r){const n=r.dataset.n;DONE[n]=!DONE[n];saveDone();paint();return}
-      if(r){show(+r.dataset.n);return}
+      if(r){if(+r.dataset.n!==cur)tmrReset();show(+r.dataset.n);return}
       if(ev.target.closest('[data-a=sol]')){const s=$('.exs',el);s.classList.toggle('shown');if(s.classList.contains('shown'))setTimeout(()=>{const d=$('.exd',el);d.scrollTo({top:d.scrollHeight,behavior:'smooth'})},250);$('[data-a=sol]',el).textContent=s.classList.contains('shown')?'Esconder solução':'Ver solução'}});
-    o.onKeyV=d=>{const k=ids.indexOf(cur)+d;if(k>=0&&k<ids.length)show(ids[k])};
-    o.onEnter2=paint;show(cur);}});
+    so.onKeyV=d=>{const k=ids.indexOf(cur)+d;if(k>=0&&k<ids.length){tmrReset();show(ids[k])}};
+    so.onEnter2=paint;show(cur);}});
   return o}
 /* ---------- matrizes estáticas em HTML (KaTeX) ---------- */
 const pm=(rows,br)=>{br=br||'bmatrix';return '\\begin{'+br+'}'+rows.map(r=>r.join('&')).join('\\\\')+'\\end{'+br+'}'};
@@ -899,7 +989,7 @@ slide({tone:'dark',bloco:'F',bg:'cover',nav:'Fecho',title:'Fecho',
  '<div class="fadein" style="--d:3;position:absolute;right:160px;top:290px;width:400px;text-align:center"><div class="qrb" style="background:#fff;border-radius:22px;padding:22px">'+QR_SVG+'</div><div style="font:700 26px var(--sans);color:#D7E6F5;margin-top:22px">Applets interativos</div><div style="font:400 21px var(--sans);color:#8FA6BF;margin-top:4px">matematica1-carrasco-esght.netlify.app</div></div>'});
 /* ---- arranque ---- */
 function boot(){
-  stage=$('#stage');buildDOM();buildOverview();bindKeys();startBG();fitStage();addEventListener('resize',fitStage);
+  stage=$('#stage');buildDOM();buildTimer();buildOverview();bindKeys();startBG();fitStage();addEventListener('resize',fitStage);
   const h=parseInt(location.hash.slice(1),10);go(Number.isFinite(h)&&h>0?h-1:0);
   setTimeout(()=>hint('→ avançar · ← recuar · O índice · F ecrã inteiro'),1200);
 }
