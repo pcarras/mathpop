@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="pt-PT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Equilíbrio de mercado · Matemática I</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+input[type=range],input[type=checkbox]{accent-color:var(--teal)}
+canvas{border:0;box-shadow:0 0 0 1px var(--line);display:block}
+.cw{width:100%}
+.btns{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+.par{display:grid;grid-template-columns:auto 5em 1fr;gap:6px 10px;align-items:center}
+.par .n{font-style:italic;text-align:right}
+.par input[type=text]{width:100%;text-align:center}
+.par input[type=range]{width:100%;min-width:60px}
+.eq{margin:6px 0;line-height:1.9}
+.warn{background:#FFF4E0;color:#7a4f0d;border-left:4px solid var(--amber);padding:6px 10px;border-radius:5px;margin:8px 0}
+.err{background:#FDECEC;color:#8f1d1d;border-left:4px solid var(--red);padding:6px 10px;border-radius:5px;margin:8px 0}
+.good{background:#E8F5EE;color:#1f5c42;border-left:4px solid var(--green);padding:6px 10px;border-radius:5px;margin:8px 0}
+@media (prefers-color-scheme:dark){.warn{background:#3a2e14;color:#f0d9a8}.err{background:#3a1c1c;color:#f3b4b4}.good{background:#16302a;color:#a8e0c6}}
+.leg{display:flex;flex-wrap:wrap;gap:4px 14px;margin:8px 0 0;font-size:13px;color:var(--gray)}
+.leg i{display:inline-block;width:16px;height:0;border-top:3px solid;vertical-align:middle;margin-right:4px}
+.leg i.d{border-top-style:dashed}
+.mono{white-space:nowrap}
+button{white-space:nowrap}
+@media(max-width:480px){.mat{margin:0 1px;padding:2px 7px}.mat table{border-spacing:5px 2px}.math{font-size:17px}}
+</style></head>
+<body><div class="wrap">
+<div id="hd"></div>
+<div class="grid2">
+ <div>
+  <div class="card"><h2>1. Procura e oferta</h2>
+   <div class="par" id="par"></div>
+   <div class="math eq" id="eqs"></div>
+   <div class="btns" id="pre"></div>
+  </div>
+  <div class="card"><h2>2. Gráfico</h2>
+   <div class="cw" id="cw"><canvas id="cv" role="img" aria-label="Gráfico com a reta da procura, a reta da oferta e o ponto de equilíbrio"></canvas></div>
+   <div class="leg" id="leg"></div>
+   <div id="warn"></div>
+  </div>
+ </div>
+ <div>
+  <div class="card"><h2>3. O sistema em forma matricial</h2>
+   <div class="math eq" id="sys"></div>
+   <div class="math eq" id="sol"></div>
+  </div>
+  <div class="card plain"><h2>4. Choque</h2>
+   <div class="row">
+    <select id="sk" aria-label="Tipo de choque">
+     <option value="a">Procura: a passa a a + Δ</option>
+     <option value="tax">Imposto por unidade (vendedores)</option>
+     <option value="max">Preço máximo fixado</option>
+     <option value="min">Preço mínimo fixado</option>
+    </select>
+    <label id="skl">Δ <input type="text" id="skv" size="5" value="20"></label>
+    <button id="skb">Aplicar choque</button>
+   </div>
+   <p class="note" id="skn" style="margin:6px 0"></p>
+   <div id="shk"></div>
+  </div>
+ </div>
+</div>
+<div id="ft"></div></div>
+<script src="../assets/common.js"></script>
+<script>
+el('hd').innerHTML=header('Capítulo 10 · Aplicação: equilíbrio de mercado','Equilíbrio de mercado','Procura q = a − b·p e oferta q = c + d·p: um sistema linear 2×2 cuja solução é o preço e a quantidade de equilíbrio.');
+el('ft').innerHTML=footer();
+const cv=el('cv'),cw=el('cw');let W=400,H=300;
+const $=x=>new Fr(x);
+let a=$(100),b=$(8),c=$(-20),d=$(12);
+const par={a,b,c,d};
+const SL={a:[0,200,1],b:[-20,20,.5],c:[-100,100,1],d:[-20,20,.5]};
+const DESC={a:'procura em p = 0',b:'sensibilidade da procura',c:'oferta em p = 0',d:'sensibilidade da oferta'};
+const PRE=[['Exemplo do livro',[100,8,-20,12]],['Sem sentido económico',[20,2,30,1]],['Retas paralelas (b + d = 0)',[100,8,20,-8]],['Procura elevada',[180,4,10,6]]];
+let shock={type:'a',applied:false};
+const DEF={a:'20',tax:'2',max:'4',min:'8'};
+/* formatação */
+const fx=x=>String(x).replace('-','−');
+function terminating(f){let q=f.d;while(q%2===0)q/=2;while(q%5===0)q/=5;return q===1}
+function decStr(v,nd){return fx((Math.round(v*Math.pow(10,nd))/Math.pow(10,nd)).toString()).replace('.',',')}
+const frText=f=>f.d===1?String(f.n):terminating(f)?decStr(f.val(),6).replace('−','-'):f.str().replace('−','-');
+const dec=f=>(f.d===1||terminating(f))?decStr(f.val(),6):f.html();
+const H2=f=>(Math.abs(f.n)<=99999&&f.d<=9999)?f.html():decStr(f.val(),3);
+const cf=f=>f.d===1||terminating(f)?decStr(f.val(),6):'('+f.str()+')';
+const par2=f=>(f.n<0)?'('+dec(f)+')':dec(f);
+function poly(terms){ /* terms: [Fr, suffix] */
+  let s='';
+  terms.forEach(([k,suf])=>{if(k.isZero())return;const neg=k.n<0,ab=neg?k.neg():k;
+    let body=(suf&&ab.isOne())?suf:cf(ab)+suf;
+    if(s==='')s=(neg?'−':'')+body;else s+=(neg?' − ':' + ')+body});
+  return s||'0'}
+const demandEq=(A,B)=>'q = '+poly([[A,''],[B.neg(),'p']]);
+const supplyEq=(C,D)=>'q = '+poly([[D,'p'],[C,'']]);
+const col=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function al(hex,k){hex=hex.replace('#','');if(hex.length===3)hex=hex.split('').map(c=>c+c).join('');const n=parseInt(hex,16);return 'rgba('+(n>>16&255)+','+(n>>8&255)+','+(n&255)+','+k+')'}
+/* álgebra */
+function sol(A,B,C,D){
+  const s=B.add(D);
+  if(s.isZero())return{kind:A.eq(C)?'coinc':'par',det:s.neg()};
+  const det=M.det([[Fr.ONE,B],[Fr.ONE,D.neg()]]);
+  const q=M.det([[A,B],[C,D.neg()]]).div(det),p=M.det([[Fr.ONE,A],[Fr.ONE,C]]).div(det);
+  return{kind:'unique',p,q,det};
+}
+function shockVal(){return parseFr(el('skv').value)}
+function compute(){
+  const S={a,b,c,d,base:sol(a,b,c,d),sh:null};
+  if(shock.applied){const v=shockVal();
+    if(v){
+      if(shock.type==='a'){S.sh={type:'a',v,a2:a.add(v),c2:c};S.sh.sol=sol(S.sh.a2,b,c,d)}
+      else if(shock.type==='tax'){S.sh={type:'tax',v,a2:a,c2:c.sub(d.mul(v))};S.sh.sol=sol(a,b,S.sh.c2,d)}
+      else{const Qd=a.sub(b.mul(v)),Qs=c.add(d.mul(v));const gap=Qd.sub(Qs);
+        const bind=shock.type==='max'?gap.n>0:gap.n<0;
+        S.sh={type:shock.type,v,Qd,Qs,gap,bind,traded:Qd.val()<Qs.val()?Qd:Qs}}
+    }}
+  return S;
+}
+/* vista */
+function niceStep(r){const raw=r/5,mag=Math.pow(10,Math.floor(Math.log10(raw))),m=raw/mag;return(m<1.5?1:m<3.5?2:m<7.5?5:10)*mag}
+function view(S){
+  const ps=[1],qs=[1];
+  const add=(A,C,so)=>{
+    if(b.val()>0&&A.val()>0)ps.push(A.val()/b.val());
+    if(d.val()>0&&C.val()<0)ps.push(-C.val()/d.val());
+    if(A.val()>0)qs.push(A.val());
+    if(so&&so.kind==='unique'){if(so.p.val()>0)ps.push(so.p.val()*1.5);if(so.q.val()>0)qs.push(so.q.val()*1.5)}};
+  add(a,c,S.base);
+  if(S.sh&&S.sh.sol)add(S.sh.a2,S.sh.c2,S.sh.sol);
+  if(S.sh&&S.sh.Qd){ps.push(S.sh.v.val()*1.3)}
+  let p1=Math.max(...ps),q1=Math.max(...qs);
+  let p0=0,q0=0;
+  const negs=[S.base,S.sh&&S.sh.sol].filter(x=>x&&x.kind==='unique');
+  negs.forEach(so=>{if(so.p.val()<0)p0=Math.min(p0,so.p.val()*1.4);if(so.q.val()<0)q0=Math.min(q0,so.q.val()*1.4)});
+  const sp=niceStep(p1-p0),sq=niceStep(q1-q0);
+  p1=Math.ceil(p1/sp-1e-9)*sp;q1=Math.ceil(q1/sq-1e-9)*sq;p0=Math.floor(p0/sp+1e-9)*sp;q0=Math.floor(q0/sq+1e-9)*sq;
+  return{p0,p1,q0,q1,sp,sq};
+}
+function fit(){W=Math.max(260,Math.min(640,Math.floor(cw.clientWidth)));H=Math.round(Math.max(250,W*.75));
+  const dpr=window.devicePixelRatio||1;cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);cv.style.width=W+'px';cv.style.height=H+'px';cv.getContext('2d').setTransform(dpr,0,0,dpr,0,0);draw()}
+function draw(){
+  const g=cv.getContext('2d'),S=compute(),V=view(S);
+  const ink=col('--ink'),bg=col('--bg'),line=col('--line'),gray=col('--gray'),navy=col('--navy'),teal=col('--teal'),amber=col('--amber'),red=col('--red'),vio=col('--violet');
+  const ml=48,mr=16,mt=14,mb=36,pw=W-ml-mr,ph=H-mt-mb;
+  const X=p=>ml+(p-V.p0)/(V.p1-V.p0)*pw,Y=q=>mt+ph-(q-V.q0)/(V.q1-V.q0)*ph;
+  g.clearRect(0,0,W,H);g.fillStyle=bg;g.fillRect(0,0,W,H);
+  /* zonas sem sentido económico */
+  g.fillStyle=al(gray,.12);
+  if(V.p0<0)g.fillRect(ml,mt,X(0)-ml,ph);
+  if(V.q0<0)g.fillRect(ml,Y(0),pw,mt+ph-Y(0));
+  /* grelha e rótulos */
+  g.font='11px Lato,system-ui,sans-serif';g.lineWidth=1;
+  for(let p=Math.ceil(V.p0/V.sp-1e-9)*V.sp;p<=V.p1+1e-9;p+=V.sp){g.strokeStyle=al(line,.7);g.beginPath();g.moveTo(Math.round(X(p))+.5,mt);g.lineTo(Math.round(X(p))+.5,mt+ph);g.stroke();g.fillStyle=gray;g.textAlign='center';g.textBaseline='top';g.fillText(decStr(p,2),X(p),mt+ph+4)}
+  for(let q=Math.ceil(V.q0/V.sq-1e-9)*V.sq;q<=V.q1+1e-9;q+=V.sq){g.strokeStyle=al(line,.7);g.beginPath();g.moveTo(ml,Math.round(Y(q))+.5);g.lineTo(ml+pw,Math.round(Y(q))+.5);g.stroke();g.fillStyle=gray;g.textAlign='right';g.textBaseline='middle';g.fillText(decStr(q,2),ml-6,Y(q))}
+  g.strokeStyle=gray;g.lineWidth=1.6;g.beginPath();g.moveTo(ml,Y(0));g.lineTo(ml+pw,Y(0));g.moveTo(X(0),mt);g.lineTo(X(0),mt+ph);g.stroke();
+  g.fillStyle=ink;g.font='italic 14px "Libertinus Serif","Times New Roman",serif';g.textAlign='right';g.textBaseline='bottom';g.fillText('p (preço)',ml+pw,H-2);
+  g.textAlign='left';g.textBaseline='top';g.fillText('q (quantidade)',ml+4,2);
+  /* retas */
+  const line_=(A,B,sg,color,w,dash,lbl)=>{ /* q = A + sg*B*p */
+    const f=p=>A.val()+sg*B.val()*p;
+    g.save();g.beginPath();g.rect(ml,mt,pw,ph);g.clip();
+    g.setLineDash(dash||[]);g.strokeStyle=color;g.lineWidth=w;g.beginPath();g.moveTo(X(V.p0),Y(f(V.p0)));g.lineTo(X(V.p1),Y(f(V.p1)));g.stroke();g.setLineDash([]);g.restore();
+    if(lbl){for(const fr of [.94,.85,.7,.55,.4,.25,.1]){const p=V.p0+fr*(V.p1-V.p0),q=f(p);if(q>V.q0+.06*(V.q1-V.q0)&&q<V.q1-.06*(V.q1-V.q0)){g.fillStyle=color;g.font='bold 15px "Libertinus Serif","Times New Roman",serif';g.textAlign='left';g.textBaseline='bottom';g.fillText(lbl,X(p)+4,Y(q)-4);break}}}
+  };
+  const sh=S.sh&&(S.sh.type==='a'||S.sh.type==='tax')?S.sh:null;
+  if(sh){line_(a,b,-1,al(teal,.55),1.8,[6,5]);line_(c,d,1,al(amber,.7),1.8,[6,5]);line_(sh.a2,b,-1,teal,2.8,null,'D′');line_(sh.c2,d,1,amber,2.8,null,'S′')}
+  else{line_(a,b,-1,teal,2.8,null,'D');line_(c,d,1,amber,2.8,null,'S')}
+  if(sh&&S.base.kind==='unique')line_(a,b,-1,'rgba(0,0,0,0)',0,null,'D'),line_(c,d,1,'rgba(0,0,0,0)',0,null,'S');
+  /* ponto de equilíbrio */
+  const mark=(so,color,name,dashed)=>{
+    const p=so.p.val(),q=so.q.val();
+    g.save();g.beginPath();g.rect(ml,mt,pw,ph);g.clip();
+    g.setLineDash([4,4]);g.strokeStyle=color;g.lineWidth=1.3;g.beginPath();g.moveTo(X(p),Y(q));g.lineTo(X(p),Y(0));g.moveTo(X(p),Y(q));g.lineTo(X(0),Y(q));g.stroke();g.setLineDash([]);g.restore();
+    g.beginPath();g.arc(X(p),Y(q),6,0,7);g.fillStyle=color;g.fill();g.strokeStyle=bg;g.lineWidth=2;g.stroke();
+    g.font='bold 13px Lato,system-ui,sans-serif';g.fillStyle=color;
+    const right=X(p)<ml+pw*.65;g.textAlign=right?'left':'right';g.textBaseline='bottom';
+    g.fillText(name+' ('+decStr(p,2)+'; '+decStr(q,2)+')',X(p)+(right?10:-10),Y(q)-8);
+    if(p<=0||q<=0)return;
+    g.textAlign='center';g.textBaseline=q>=0?'bottom':'top';g.fillText(name==='E'?'p*':'p′*',X(p),Y(0)+(q>=0?-4:4));
+    g.textAlign=p>=0?'left':'right';g.textBaseline='bottom';g.fillText(name==='E'?'q*':'q′*',X(0)+(p>=0?5:-5),Y(q)-3);
+  };
+  if(S.base.kind==='unique')mark(S.base,sh?al(navy,.75):navy,'E');
+  if(sh&&sh.sol.kind==='unique')mark(sh.sol,vio,'E′');
+  /* controlo de preço */
+  if(S.sh&&S.sh.Qd){const v=S.sh.v.val();
+    g.save();g.beginPath();g.rect(ml,mt,pw,ph);g.clip();
+    g.setLineDash([6,4]);g.strokeStyle=red;g.lineWidth=1.8;g.beginPath();g.moveTo(X(v),mt);g.lineTo(X(v),mt+ph);g.stroke();g.setLineDash([]);
+    const qd=S.sh.Qd.val(),qs=S.sh.Qs.val();
+    g.lineWidth=5;g.strokeStyle=S.sh.bind?red:al(gray,.6);g.beginPath();g.moveTo(X(v),Y(qd));g.lineTo(X(v),Y(qs));g.stroke();g.restore();
+    [[qd,teal],[qs,amber]].forEach(([q,cc])=>{g.beginPath();g.arc(X(v),Y(q),5,0,7);g.fillStyle=cc;g.fill();g.strokeStyle=bg;g.lineWidth=1.5;g.stroke()});
+    g.fillStyle=red;g.font='bold 13px Lato,system-ui,sans-serif';g.textAlign=X(v)<ml+pw*.6?'left':'right';g.textBaseline='top';
+    g.fillText((S.sh.type==='max'?'p̄ máx = ':'p̄ mín = ')+decStr(v,2),X(v)+(X(v)<ml+pw*.6?6:-6),mt+4);
+    if(S.sh.bind){const my=Y((qd+qs)/2);const lf=S.base.kind==='unique'?X(v)>X(S.base.p.val()):X(v)<ml+pw*.6;g.textAlign=lf?'left':'right';g.textBaseline='middle';g.fillText((S.sh.type==='max'?'escassez ':'excesso ')+decStr(Math.abs(qd-qs),2),X(v)+(lf?10:-10),Math.max(mt+30,Math.min(mt+ph-8,my)))}
+  }
+}
+/* texto */
+function panels(){
+  const S=compute();
+  el('eqs').innerHTML='Procura: '+demandEq(a,b)+'<br>Oferta: '+supplyEq(c,d);
+  /* sistema */
+  const ng=x=>x.n<0?'('+dec(x)+')':dec(x);
+  let h='<div>Procura: q + b·p = a<br>Oferta: q − d·p = c</div>';
+  h+='<div>'+matHTML([[Fr.ONE,b],[Fr.ONE,d.neg()]].map(r=>r.map(dec)))+matHTML([['q'],['p']])+' = '+matHTML([[a],[c]].map(r=>r.map(dec)))+'</div>';
+  h+='<div>det(A) = 1·(−d) − b·1 = −(b + d) = −('+dec(b)+' + '+ng(d)+') = <b>'+dec(S.base.det)+'</b></div>';
+  el('sys').innerHTML=h;
+  let s='',w='';
+  const B=S.base;
+  if(B.kind==='unique'){
+    const bd=b.add(d);
+    s+='<div>det(A) ≠ 0: sistema possível e determinado.</div>';
+    s+='<div>p* = <span class="frac"><span>a − c</span><span>b + d</span></span> = <span class="frac"><span>'+dec(a)+' − '+ng(c)+'</span><span>'+dec(b)+' + '+ng(d)+'</span></span> = <b>'+H2(B.p)+'</b>'+(B.p.d===1?'':' <span class="note">≈ '+decStr(B.p.val(),3)+'</span>')+'</div>';
+    s+='<div>q* = <span class="frac"><span>a·d + b·c</span><span>b + d</span></span> = <span class="frac"><span>'+ng(a)+'·'+ng(d)+' + '+ng(b)+'·'+ng(c)+'</span><span>'+dec(b)+' + '+ng(d)+'</span></span> = <b>'+H2(B.q)+'</b>'+(B.q.d===1?'':' <span class="note">≈ '+decStr(B.q.val(),3)+'</span>')+'</div>';
+    const qd=a.sub(b.mul(B.p)),qs=c.add(d.mul(B.p));
+    s+='<div class="note">Verificação: '+dec(a)+' − '+ng(b)+'·'+ng(B.p)+' = '+dec(qd)+' e '+dec(c)+' + '+ng(d)+'·'+ng(B.p)+' = '+dec(qs)+' '+(qd.eq(qs)&&qd.eq(B.q)?'<span class="ok">✓</span>':'<span class="bad">✗</span>')+'</div>';
+    const bad=[];if(B.p.val()<=0)bad.push('p* ≤ 0');if(B.q.val()<=0)bad.push('q* ≤ 0');
+    if(bad.length)w+='<div class="err"><b>Sem equilíbrio com sentido económico</b> ('+bad.join(' e ')+'). O ponto de interseção existe, mas cai fora do primeiro quadrante (zona sombreada): não há preço positivo a que se transacione uma quantidade positiva.</div>';
+    else w+='<div class="good"><b>Equilíbrio com sentido económico:</b> p* > 0 e q* > 0.</div>';
+    if(b.n<0||d.n<0)w+='<div class="warn">Atenção: normalmente b ≥ 0 (a procura desce com o preço) e d ≥ 0 (a oferta sobe com o preço). Com b ou d negativos o modelo perde a interpretação habitual.</div>';
+  }else if(B.kind==='par'){
+    s+='<div class="bad">det(A) = 0: sistema impossível.</div>';
+    w+='<div class="err"><b>b + d = 0: as retas são paralelas</b> (o declive de D, −b, é igual ao de S, d) e a ordenada na origem é diferente. Não há equilíbrio.</div>';
+  }else{
+    s+='<div class="bad">det(A) = 0 e a = c: sistema possível e indeterminado.</div>';
+    w+='<div class="warn"><b>b + d = 0 e a = c: as retas coincidem.</b> Todos os pares (p, q) da reta são soluções, logo o equilíbrio não fica definido.</div>';
+  }
+  el('sol').innerHTML=s;el('warn').innerHTML=w;
+  /* legenda */
+  const sh=S.sh&&(S.sh.type==='a'||S.sh.type==='tax');
+  el('leg').innerHTML='<span><i style="border-color:var(--teal)"></i>Procura (D)</span><span><i style="border-color:var(--amber)"></i>Oferta (S)</span>'+(sh?'<span><i class="d" style="border-color:var(--gray)"></i>situação inicial</span><span><i style="border-color:var(--violet)"></i>novo equilíbrio E′</span>':'')+(S.sh&&S.sh.Qd?'<span><i class="d" style="border-color:var(--red)"></i>preço fixado</span>':'');
+  /* choque */
+  let k='';
+  if(shock.applied&&!S.sh)k='<div class="err">Valor do choque inválido.</div>';
+  else if(S.sh){
+    const T=S.sh;
+    if(T.type==='a'||T.type==='tax'){
+      const so=T.sol;
+      if(T.type==='a')k+='<div>Nova procura: '+demandEq(T.a2,b)+' <span class="note">(a passa de '+dec(a)+' a '+dec(T.a2)+')</span></div>';
+      else k+='<div>Com imposto t = '+dec(T.v)+' por unidade, os vendedores só recebem p − t: nova oferta '+supplyEq(T.c2,d)+' <span class="note">(c′ = c − d·t = '+dec(c)+' − '+ng(d)+'·'+ng(T.v)+' = '+dec(T.c2)+')</span></div>';
+      if(so.kind!=='unique')k+='<div class="err">Com estes parâmetros b + d = 0: continua a não haver equilíbrio.</div>';
+      else{
+        k+='<div>Novo equilíbrio: p′* = <b>'+H2(so.p)+'</b>, q′* = <b>'+H2(so.q)+'</b></div>';
+        if(B.kind==='unique'){const dp=so.p.sub(B.p),dq=so.q.sub(B.q);
+          k+='<div>Variação: Δp = '+H2(dp)+', Δq = '+H2(dq)+'</div>'}
+        if(T.type==='tax'){k+='<div>Preço recebido pelos vendedores: p′* − t = '+H2(so.p.sub(T.v))+'. Receita fiscal: t·q′* = '+H2(T.v.mul(so.q))+'.</div>'}
+        if(so.p.val()<=0||so.q.val()<=0)k+='<div class="err">O novo equilíbrio não tem sentido económico (p′* ≤ 0 ou q′* ≤ 0).</div>';
+      }
+    }else{
+      const lab=T.type==='max'?'máximo':'mínimo';
+      k+='<div>Preço '+lab+' p̄ = '+dec(T.v)+': procura q<sub>D</sub> = '+dec(a)+' − '+ng(b)+'·'+ng(T.v)+' = <b>'+H2(T.Qd)+'</b>, oferta q<sub>S</sub> = '+dec(c)+' + '+ng(d)+'·'+ng(T.v)+' = <b>'+H2(T.Qs)+'</b></div>';
+      if(T.bind){
+        const ab=T.gap.n<0?T.gap.neg():T.gap;
+        k+='<div class="'+(T.type==='max'?'err':'warn')+'"><b>'+(T.type==='max'?'Escassez':'Excesso de oferta')+' de '+H2(ab)+' unidades.</b> '+(T.type==='max'?'A esse preço os consumidores querem mais do que os produtores oferecem.':'A esse preço os produtores oferecem mais do que os consumidores querem.')+' Quantidade transacionada: '+H2(T.traded)+'.</div>';
+      }else k+='<div class="good">O preço '+lab+' <b>não é vinculativo</b>: '+(T.type==='max'?'está acima':'está abaixo')+' do preço de equilíbrio, por isso o mercado mantém-se em equilíbrio.</div>';
+    }
+  }
+  el('shk').innerHTML=k;
+  const t=el('sk').value;
+  el('skl').firstChild.textContent={a:'Δ = ',tax:'t = ',max:'p̄ = ',min:'p̄ = '}[t];
+  el('skn').textContent={a:'Desloca a reta da procura para cima (Δ > 0) ou para baixo (Δ < 0).',tax:'O imposto desloca a oferta para cima: q = c + d·(p − t). Mostra o novo equilíbrio e a receita fiscal.',max:'Preço tabelado abaixo do equilíbrio gera escassez; se estiver acima, não tem efeito.',min:'Preço mínimo acima do equilíbrio gera excesso de oferta; se estiver abaixo, não tem efeito.'}[t];
+  el('skb').textContent=shock.applied?'Remover choque':'Aplicar choque';
+}
+function refresh(){panels();draw()}
+/* parâmetros */
+const rows={};
+['a','b','c','d'].forEach(k=>{
+  const n=document.createElement('label');n.className='n math';n.textContent=k;n.title=DESC[k];
+  const inp=document.createElement('input');inp.type='text';inp.inputMode='decimal';inp.setAttribute('aria-label',k+' ('+DESC[k]+')');
+  const sl=document.createElement('input');sl.type='range';sl.min=SL[k][0];sl.max=SL[k][1];sl.step=SL[k][2];sl.setAttribute('aria-label','slider '+k);
+  el('par').append(n,inp,sl);rows[k]={inp,sl};
+  inp.addEventListener('input',()=>{const f=parseFr(inp.value);if(!f){inp.style.borderColor='var(--red)';return}inp.style.borderColor='';set(k,f,false)});
+  sl.addEventListener('input',()=>{set(k,parseFr(sl.value),true)});
+});
+function set(k,f,fromSl){
+  if(k==='a')a=f;else if(k==='b')b=f;else if(k==='c')c=f;else d=f;
+  if(fromSl)rows[k].inp.value=frText(f);else rows[k].sl.value=Math.max(SL[k][0],Math.min(SL[k][1],f.val()));
+  rows[k].inp.style.borderColor='';refresh()}
+function sync(){[['a',a],['b',b],['c',c],['d',d]].forEach(([k,f])=>{rows[k].inp.value=frText(f);rows[k].sl.value=Math.max(SL[k][0],Math.min(SL[k][1],f.val()));rows[k].inp.style.borderColor=''})}
+PRE.forEach(([nm,v])=>{const bt=document.createElement('button');bt.className='sec';bt.textContent=nm;bt.onclick=()=>{[a,b,c,d]=v.map($);sync();refresh()};el('pre').appendChild(bt)});
+/* choque */
+el('sk').onchange=()=>{el('skv').value=DEF[el('sk').value];refresh()};
+el('skv').addEventListener('input',()=>{const f=parseFr(el('skv').value);el('skv').style.borderColor=f?'':'var(--red)';refresh()});
+el('skb').onclick=()=>{shock.applied=!shock.applied;shock.type=el('sk').value;refresh()};
+el('sk').addEventListener('change',()=>{shock.type=el('sk').value;refresh()});
+window.addEventListener('resize',fit);
+if(window.matchMedia)matchMedia('(prefers-color-scheme:dark)').addEventListener('change',draw);
+sync();el('skv').value=DEF.a;fit();panels();
+</script></body></html>

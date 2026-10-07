@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="pt-PT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Classificador de matrizes · Matemática I</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+.scroll{overflow-x:auto;padding-bottom:2px}
+.grid-in input{width:3.4em;padding:5px 2px}
+@media(max-width:480px){.grid-in input{width:2.7em;font-size:15px;margin:1px}.math{font-size:17px}}
+.tg{display:inline-block;min-width:150px;text-align:center;border-radius:5px;padding:2px 9px;font-weight:700;font-size:14px}
+.tg.yes{background:#E8F5EE;color:#2E7D5B}
+.tg.no{background:#EEF0F2;color:#5F6B7A}
+@media(prefers-color-scheme:dark){.tg.yes{background:#1d3b2f;color:#5cc796}.tg.no{background:#262c36;color:#9aa6b6}}
+.cl{display:grid;grid-template-columns:repeat(auto-fit,minmax(310px,1fr));gap:6px 14px;margin:0;padding:0;list-style:none}
+.cl li{display:flex;gap:10px;align-items:baseline;padding:4px 0;border-bottom:1px solid var(--line)}
+.cl li .def{font-size:14px}
+.cl li.off .def{color:var(--gray)}
+@media(max-width:480px){.cl{grid-template-columns:1fr}.cl li{flex-direction:column;gap:2px}.tg{min-width:0}}
+.two{display:flex;flex-wrap:wrap;gap:8px 30px;align-items:center}
+.two>div{overflow-x:auto;max-width:100%}
+.sumr{margin:0 0 10px;font-weight:700;color:var(--navy)}
+</style></head>
+<body><div class="wrap">
+<div id="hd"></div>
+<div class="card"><h2>1. A matriz</h2>
+ <div class="row"><label>Linhas <select id="m"></select></label><label>Colunas <select id="n"></select></label></div>
+ <p class="note">Aceita inteiros, decimais (0,5) e frações (1/3). Ou escolhe um exemplo:</p>
+ <div class="row" id="exs" style="margin-bottom:8px"></div>
+ <div class="scroll"><div id="grid"></div></div></div>
+<div class="card plain"><h2>2. Classificação</h2>
+ <p class="sumr" id="sum"></p>
+ <ul class="cl" id="list"></ul>
+ <p class="note" id="nota"></p></div>
+<div class="card"><h2>3. Transposta e traço</h2>
+ <div class="two"><div class="math" id="tr"></div><div class="math" id="trace"></div></div>
+ <p class="note" id="trn"></p></div>
+<div id="ft"></div></div>
+<script src="../assets/common.js"></script>
+<script>
+el('hd').innerHTML=header('Capítulo 1 · Tipos de matrizes','Classificador de matrizes','Escreve uma matriz e vê todas as classificações que se lhe aplicam (uma matriz pode ter várias).');
+el('ft').innerHTML=footer();
+rangeSel('m',1,5,3);rangeSel('n',1,5,3);
+const S=(i,j)=>'a<sub>'+i+j+'</sub>';
+const TYPES=[
+ ['quad','Quadrada','m = n'],
+ ['lin','Matriz linha','m = 1'],
+ ['col','Matriz coluna','n = 1'],
+ ['nula','Nula','a<sub>ij</sub> = 0 para todos os i, j'],
+ ['diag','Diagonal','quadrada e a<sub>ij</sub> = 0 para i ≠ j'],
+ ['esc','Escalar','diagonal com a<sub>11</sub> = a<sub>22</sub> = … = a<sub>nn</sub>'],
+ ['id','Identidade','escalar com a<sub>ii</sub> = 1 (escreve-se I<sub>n</sub>)'],
+ ['sup','Triangular superior','quadrada e a<sub>ij</sub> = 0 para i > j'],
+ ['inf','Triangular inferior','quadrada e a<sub>ij</sub> = 0 para i < j'],
+ ['sim','Simétrica','A<sup>T</sup> = A, isto é, a<sub>ij</sub> = a<sub>ji</sub>'],
+ ['anti','Antissimétrica','A<sup>T</sup> = −A, isto é, a<sub>ij</sub> = −a<sub>ji</sub> (diagonal nula)']];
+function props(A){
+  const m=A.length,n=A[0].length,sq=m===n;const all=f=>A.every((r,i)=>r.every((x,j)=>f(x,i,j)));
+  const diag=sq&&all((x,i,j)=>i===j||x.isZero());
+  const esc=diag&&A.every((r,i)=>r[i].eq(A[0][0]));
+  return{quad:sq,lin:m===1,col:n===1,nula:all(x=>x.isZero()),diag,esc,id:esc&&A[0][0].isOne(),
+    sup:sq&&all((x,i,j)=>i<=j||x.isZero()),inf:sq&&all((x,i,j)=>i>=j||x.isZero()),
+    sim:sq&&all((x,i,j)=>x.eq(A[j][i])),anti:sq&&all((x,i,j)=>x.eq(A[j][i].neg()))};
+}
+let grid=null;
+function build(init){
+  const m=+el('m').value,n=+el('n').value;const old=init?null:(grid&&grid.get());
+  const ini=init||Array.from({length:m},(_,i)=>Array.from({length:n},(_,j)=>old&&old[i]&&old[i][j]?old[i][j]:0));
+  grid=makeGrid(el('grid'),m,n,ini,update);update();
+}
+function load(A){el('m').value=A.length;el('n').value=A[0].length;build(M.fromInts(A))}
+const EX=[['Identidade',[[1,0,0],[0,1,0],[0,0,1]]],['Escalar',[[4,0,0],[0,4,0],[0,0,4]]],['Diagonal',[[2,0,0],[0,5,0],[0,0,-3]]],
+ ['Triangular superior',[[1,2,3],[0,4,5],[0,0,6]]],['Triangular inferior',[[1,0,0],[2,3,0],[4,5,6]]],['Simétrica',[[1,2,3],[2,4,5],[3,5,6]]],
+ ['Antissimétrica',[[0,2,-1],[-2,0,4],[1,-4,0]]],['Nula 2×3',[[0,0,0],[0,0,0]]],['Matriz linha',[[3,-1,0,2]]],['Matriz coluna',[[5],[0],[-2]]],
+ ['Geral 2×3',[[1,2,3],[4,5,6]]]];
+EX.forEach(([nm,A])=>{const b=document.createElement('button');b.className='sec';b.textContent=nm;b.onclick=()=>load(A);el('exs').appendChild(b)});
+function update(){
+  const A=grid.get();
+  if(!A){el('sum').innerHTML='<span class="bad">Há um elemento inválido. Usa números como 3, −2, 0,5 ou 1/2.</span>';el('list').innerHTML='';el('tr').innerHTML='';el('trace').innerHTML='';el('trn').textContent='';el('nota').textContent='';return}
+  const m=A.length,n=A[0].length,P=props(A);
+  let cnt=0;el('list').innerHTML=TYPES.map(([k,nm,def])=>{if(P[k])cnt++;return '<li class="'+(P[k]?'on':'off')+'"><span class="tg '+(P[k]?'yes':'no')+'">'+nm+'</span><span class="def">'+def+'</span></li>'}).join('');
+  const names=TYPES.filter(t=>P[t[0]]).map(t=>t[1].toLowerCase());
+  el('sum').textContent=names.length?'Classificação: '+(names.length>1?names.slice(0,-1).join(', ')+' e '+names[names.length-1]:names[0])+'.':'A matriz não pertence a nenhum destes tipos particulares (é uma matriz geral).';
+  el('nota').innerHTML=(P.quad?'':'Como m ≠ n, os tipos que exigem uma matriz quadrada (diagonal, escalar, identidade, triangulares, simétrica e antissimétrica) não se aplicam. ')+'Etiqueta verde: a propriedade verifica-se; cinzenta: não se verifica.';
+  el('tr').innerHTML='A = '+matHTML(A)+' &nbsp;⇒&nbsp; A<sup>T</sup> = '+matHTML(M.transpose(A));
+  el('trn').textContent='A transposta troca as linhas pelas colunas: a linha i de A passa a ser a coluna i de A^T. A ordem passa de '+m+'×'+n+' para '+n+'×'+m+'.';
+  el('trn').innerHTML=el('trn').textContent.replace('A^T','A<sup>T</sup>');
+  if(P.quad){let s=Fr.ZERO;A.forEach((r,i)=>{s=s.add(r[i])});
+    el('trace').innerHTML='tr(A) = '+A.map((_,i)=>S(i+1,i+1)).join(' + ')+(n>1?' = '+A.map((r,i)=>r[i].val()<0&&i>0?'('+r[i].str()+')':r[i].str()).join(' + '):'')+' = <b>'+s.html()+'</b>';
+  }else el('trace').innerHTML='<span class="note">O traço só se define para matrizes quadradas.</span>';
+}
+el('m').onchange=()=>build();el('n').onchange=()=>build();
+load([[1,2,3],[2,4,5],[3,5,6]]);
+</script></body></html>

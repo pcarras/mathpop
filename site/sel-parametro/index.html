@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="pt-PT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Discussão com parâmetro · Matemática I</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+.scroll{overflow-x:auto;padding-bottom:2px}
+.scroll .mat{margin:0}
+.gridwrap{overflow-x:auto}
+.pg{display:grid;grid-template-columns:repeat(3,4.4em) 4.4em;gap:4px;align-items:center}
+.pg.hdr span{text-align:center;color:var(--gray);font-size:16px}
+.pg input{width:100%;text-align:center;font-size:16px}
+.pg input.sepb{margin-left:0}
+.pgw{display:inline-block;position:relative}
+.pgw .sepline{position:absolute;top:0;bottom:0;left:calc(3 * 4.4em + 3 * 4px + 1px);border-left:2px dashed var(--gray);pointer-events:none}
+.pg .b{margin-left:8px}
+.sl{width:min(360px,100%);accent-color:var(--teal)}
+.chips{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.chips button{padding:5px 10px}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;align-items:baseline}
+.kv dt{color:var(--gray);font-size:14px}.kv dd{margin:0;font-size:19px}
+.res{font-size:17px}
+.strip{width:100%;height:auto;display:block;cursor:pointer;touch-action:manipulation}
+.strip text{fill:var(--ink);font-family:inherit}
+.strip .spd{fill:var(--green)}.strip .spi{fill:var(--amber)}.strip .si{fill:var(--red)}
+.strip .axis{stroke:var(--gray);stroke-width:1}
+.strip .crit{stroke:var(--ink);stroke-width:2;stroke-dasharray:5 4}
+.strip .cur{fill:var(--navy);stroke:var(--bg);stroke-width:2}
+.strip .curl{stroke:var(--navy);stroke-width:3}
+.leg{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px;color:var(--gray);margin-top:6px}
+.leg i{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-1px;margin-right:4px}
+.crbox{border-radius:8px;padding:8px 12px;margin-top:8px;background:var(--bg);border:1px solid var(--line)}
+.crbox.crit{border-color:var(--amber)}
+.card h2 i{text-transform:none}
+.poly{font-size:19px;margin:4px 0}
+.bad{color:var(--red)}
+@media(max-width:480px){.mat table{border-spacing:4px 3px}.math{font-size:16px}.pg{grid-template-columns:repeat(3,3.6em) 3.6em}.pgw .sepline{left:calc(3 * 3.6em + 3 * 4px + 1px)}}
+</style></head>
+<body><div class="wrap">
+<div id="hd"></div>
+<div class="card"><h2>1. O sistema com parâmetro <i>a</i></h2>
+ <div class="row"><span class="note">Exemplos:</span>
+ <button class="sec" id="p1">(a) clássico</button><button class="sec" id="p2">(b) simétrico</button><button class="sec" id="p3">(c) triangular</button></div>
+ <p class="note">Cada célula é uma expressão linear em <i>a</i>: por exemplo <b>a</b>, <b>2a</b>, <b>a-1</b>, <b>1-a</b>, <b>-a+2</b>, <b>a/2</b>, <b>3</b>. A última coluna é o termo independente.</p>
+ <div class="gridwrap"><div class="pgw"><div class="pg hdr"><span><i>x</i></span><span><i>y</i></span><span><i>z</i></span><span class="b">termo</span></div><div id="pgrid"></div><div class="sepline"></div></div></div>
+ <p id="perr" class="bad" style="margin:6px 0 0"></p>
+ <div id="symsys" class="scroll math" style="margin-top:8px"></div></div>
+<div class="card"><h2>2. Determinante e valores críticos</h2>
+ <div id="detp"></div></div>
+<div class="card"><h2>3. Escolhe o valor de <i>a</i></h2>
+ <div class="row"><input class="sl" type="range" id="sl" min="-4" max="4" step="0.25" value="1" aria-label="valor de a">
+ <label><i>a</i> = <input type="text" id="av" size="6" value="1" aria-label="valor de a (aceita frações)"></label></div>
+ <div class="chips" style="margin-top:8px"><span class="note">Saltar para valor crítico:</span><span id="chips" class="chips"></span></div>
+ <div class="crbox" id="crbox"></div></div>
+<div class="grid2">
+ <div class="card"><h2>Matriz ampliada com <i>a</i></h2><div class="scroll math" id="symm"></div>
+  <h2 style="margin-top:12px">Com <i>a</i> substituído</h2><div class="scroll math" id="numm"></div></div>
+ <div class="card"><h2>Classificação</h2>
+  <dl class="kv"><dt>R(A)</dt><dd class="math" id="rA"></dd><dt>R(A | B)</dt><dd class="math" id="rAB"></dd><dt>n</dt><dd class="math">3</dd><dt>det A(<i>a</i>)</dt><dd class="math" id="dv"></dd></dl>
+  <p style="margin:10px 0 4px"><span id="tag"></span> &nbsp;<b id="kind"></b></p>
+  <p class="math" id="phrase" style="margin:4px 0"></p>
+  <h2 style="margin-top:12px">Solução</h2><div class="math res" id="sol"></div></div>
+</div>
+<div class="card"><h2>4. Classificação ao longo de <i>a</i> ∈ [−4, 4]</h2>
+ <div id="stripw"></div>
+ <div class="leg"><span><i style="background:var(--green)"></i>SPD</span><span><i style="background:var(--amber)"></i>SPI</span><span><i style="background:var(--red)"></i>SI (com riscas)</span><span>Traço tracejado: valor crítico. Toca na faixa para escolher <i>a</i>.</span></div></div>
+<div id="ft"></div></div>
+<script src="../assets/common.js"></script>
+<script>
+el('hd').innerHTML=header('Capítulo 9 · Discussão de sistemas','Discussão com parâmetro','Um sistema 3×3 cujos coeficientes dependem de a: vê como muda a classificação e encontra os valores críticos.');
+el('ft').innerHTML=footer();
+const NM=['x','y','z'];
+const Z=Fr.ZERO;
+/* expressão linear em a -> {p,q} (p + q·a), ou null */
+function parseLin(s){
+  s=String(s).replace(/\s+/g,'').replace(/[−–—]/g,'-').replace(/,/g,'.').replace(/[·×]/g,'*').replace(/A/g,'a');
+  if(s==='')return null;
+  /* separar em termos com sinal */
+  const parts=[];let i=0;
+  while(i<s.length){
+    let sg=1;
+    if(s[i]==='+'||s[i]==='-'){let c=0;while(i<s.length&&(s[i]==='+'||s[i]==='-')){if(s[i]==='-')c++;i++}sg=c%2?-1:1}
+    let j=i;while(j<s.length&&s[j]!=='+'&&s[j]!=='-')j++;
+    const t=s.slice(i,j);if(t==='')return null;
+    parts.push([sg,t]);i=j}
+  let p=Z,q=Z;
+  for(const [sg,t] of parts){
+    const m=t.match(/^(\d+(?:\.\d+)?(?:\/\d+)?)?\*?(a)?(?:\/(\d+))?$/);
+    if(!m||(m[1]===undefined&&!m[2]))return null;
+    if(m[3]!==undefined&&!m[2])return null;
+    let v=m[1]!==undefined?parseFr(m[1]):new Fr(1);if(!v)return null;
+    if(m[3]!==undefined){const d=parseInt(m[3],10);if(d===0)return null;v=v.div(new Fr(d))}
+    if(sg<0)v=v.neg();
+    if(m[2])q=q.add(v);else p=p.add(v)}
+  return{p,q}}
+function fmtLin(l){
+  let h='';const {p,q}=l;
+  if(!q.isZero()){const neg=q.n<0,ab=neg?q.neg():q;h+=(neg?'−':'')+(ab.isOne()?'':ab.html())+'<i>a</i>'}
+  if(!p.isZero()){const neg=p.n<0,ab=neg?p.neg():p;
+    if(q.isZero())h+=p.html();else h+=(neg?' − ':' + ')+ab.html()}
+  return h===''?'0':h}
+const evalLin=(l,a)=>l.p.add(l.q.mul(a));
+/* polinómios: array de Fr, índice = grau */
+function polyTrim(p){p=p.slice();while(p.length>1&&p[p.length-1].isZero())p.pop();return p}
+function polyEval(p,x){let s=Z;for(let i=p.length-1;i>=0;i--)s=s.mul(x).add(p[i]);return s}
+function polyMul(p,q){const r=Array(p.length+q.length-1).fill(Z);p.forEach((a,i)=>q.forEach((b,j)=>{r[i+j]=r[i+j].add(a.mul(b))}));return r}
+function polyDivRoot(p,r){ /* divide por (x − r), divisão sintética */
+  const n=p.length-1;const out=Array(n).fill(Z);let c=Z;
+  for(let i=n;i>=1;i--){c=p[i].add(c.mul(r));out[i-1]=c}
+  return out}
+function detPoly(L){ /* L: matriz 3×3 de {p,q}; interpola em a=0..3 */
+  const xs=[0,1,2,3].map(t=>new Fr(t));
+  const ys=xs.map(a=>M.det(L.map(r=>r.map(l=>evalLin(l,a)))));
+  let res=[Z,Z,Z,Z];
+  for(let i=0;i<4;i++){
+    let b=[Fr.ONE],den=Fr.ONE;
+    for(let j=0;j<4;j++)if(j!==i){b=polyMul(b,[xs[j].neg(),Fr.ONE]);den=den.mul(xs[i].sub(xs[j]))}
+    const f=ys[i].div(den);b.forEach((c,k)=>{res[k]=res[k].add(c.mul(f))})}
+  return polyTrim(res)}
+function polyHTML(p){
+  if(p.length===1&&p[0].isZero())return '0';
+  let h='',first=true;
+  for(let k=p.length-1;k>=0;k--){const c=p[k];if(c.isZero())continue;
+    const neg=c.n<0,ab=neg?c.neg():c;
+    h+=first?(neg?'−':''):(neg?' − ':' + ');
+    const showC=!(ab.isOne()&&k>0);
+    h+=(showC?ab.html():'')+(k>0?'<i>a</i>'+(k>1?'<sup>'+k+'</sup>':''):'');first=false}
+  return h}
+/* raízes racionais p/q, |a| ≤ 10, q ≤ 6; devolve [{r,mult}] e o polinómio residual */
+function rationalRoots(poly){
+  const cand=[];
+  for(let q=1;q<=6;q++)for(let p=-10*q;p<=10*q;p++){if(gcd(p,q)!==1)continue;cand.push(new Fr(p,q))}
+  cand.sort((a,b)=>a.val()-b.val());
+  const roots=[];let cur=poly;
+  for(const r of cand){let m=0;
+    while(cur.length>1&&polyEval(cur,r).isZero()){cur=polyDivRoot(cur,r);m++}
+    if(m)roots.push({r,m})}
+  return{roots,rest:cur}}
+function factorHTML(poly,rr){
+  let h='';const {roots,rest}=rr;
+  const lead=rest.length===1?rest[0]:null;
+  if(lead){if(lead.eq(new Fr(-1)))h+='−';else if(!lead.isOne())h+=lead.html()+'·'}
+  roots.forEach(({r,m})=>{
+    if(r.isZero())h+='<i>a</i>';
+    else{const neg=r.n<0,ab=neg?r.neg():r;h+='(<i>a</i> '+(neg?'+ ':'− ')+ab.html()+')'}
+    if(m>1)h+='<sup>'+m+'</sup>'});
+  if(!lead)h+='('+polyHTML(rest)+')';
+  return h}
+
+/* grelha de texto */
+const inputs=[];
+function buildGrid(vals){
+  const g=el('pgrid');g.innerHTML='';g.className='pg';inputs.length=0;
+  for(let i=0;i<3;i++){inputs.push([]);for(let j=0;j<4;j++){
+    const inp=document.createElement('input');inp.type='text';inp.value=vals[i][j];inp.autocomplete='off';inp.spellcheck=false;
+    inp.setAttribute('aria-label',(j<3?'coeficiente de '+NM[j]:'termo independente')+' na equação '+(i+1));
+    if(j===3)inp.classList.add('b');
+    inp.addEventListener('input',()=>refresh());g.appendChild(inp);inputs[i].push(inp)}}}
+let L=null,polyD=null,rr=null,crit=[],aVal=Fr.ONE;
+const KOLS={SPD:'spd',SPI:'spi',SI:'si'};
+function readL(){
+  const out=[];let bad=[];
+  for(let i=0;i<3;i++){out.push([]);for(let j=0;j<4;j++){const l=parseLin(inputs[i][j].value);inputs[i][j].style.borderColor=l?'':'var(--red)';if(!l)bad.push('('+(i+1)+','+(j+1)+')');out[i].push(l)}}
+  return{out,bad}}
+const augAt=a=>L.map(r=>r.map(l=>evalLin(l,a)));
+function refresh(){
+  const {out,bad}=readL();
+  if(bad.length){L=null;el('perr').textContent='Expressão inválida na(s) célula(s) '+bad.join(', ')+'. Usa números, frações e a, por exemplo 2a-1.';return}
+  el('perr').textContent='';L=out;
+  el('symsys').innerHTML=sysSym();
+  /* polinómio */
+  const A=L.map(r=>r.slice(0,3));
+  polyD=detPoly(A);
+  const isZero=polyD.length===1&&polyD[0].isZero();
+  let h='<div class="poly math">det <i>A</i>(<i>a</i>) = '+polyHTML(polyD)+'</div>';
+  crit=[];
+  if(isZero){h+='<p>O determinante é nulo para todo o <i>a</i>: a matriz dos coeficientes nunca é invertível, por isso é preciso discutir o sistema com as características, para cada valor de <i>a</i>.</p>';rr=null}
+  else if(polyD.length===1){h+='<p>O determinante é uma constante não nula: o sistema é possível e determinado (SPD) para todo o <i>a</i>. Não há valores críticos.</p>';rr={roots:[],rest:polyD}}
+  else{
+    rr=rationalRoots(polyD);crit=rr.roots.map(x=>x.r);
+    h+='<div class="poly math">= '+factorHTML(polyD,rr)+'</div>';
+    if(crit.length)h+='<p>Valores críticos (raízes racionais de det <i>A</i>(<i>a</i>) em [−10, 10]): <b class="math">'+crit.map(r=>'<i>a</i> = '+r.html()).join(', &nbsp;')+'</b>. Para estes valores det <i>A</i> = 0, e o sistema tem de ser estudado à parte (SPI ou SI). Para os outros valores é SPD.</p>';
+    else h+='<p>Não há raízes racionais simples (denominador até 6, |<i>a</i>| ≤ 10).</p>';
+    if(rr.rest.length>1)h+='<p class="note">O fator <span class="math">('+polyHTML(rr.rest)+')</span> não tem raízes racionais simples nesse intervalo; se tiver raízes reais, também são valores críticos, mas não aparecem na lista.</p>'}
+  el('detp').innerHTML=h;
+  el('chips').innerHTML=crit.length?'':'<span class="note">nenhum</span>';
+  crit.forEach(r=>{const b=document.createElement('button');b.className='sec';b.type='button';
+    const c=classify(augAt(r));b.innerHTML='<span class="math"><i>a</i> = '+r.html()+'</span> · '+c.kind;
+    b.onclick=()=>setA(r);el('chips').appendChild(b)});
+  render()}
+function sysSym(){
+  let h='<table class="sys" style="border-collapse:collapse">';
+  L.forEach(r=>{h+='<tr>';let first=true;
+    for(let j=0;j<3;j++){const l=r[j];
+      if(l.p.isZero()&&l.q.isZero()){h+='<td style="padding:2px 4px"></td>';continue}
+      const single=(l.p.isZero()||l.q.isZero());
+      let ch=single?fmtLin(l):'('+fmtLin(l)+')';
+      let neg=false;
+      if(single){const v=l.q.isZero()?l.p:l.q;if(v.n<0){neg=true;ch=ch.replace(/^−/,'')}}
+      /* coeficiente 1 ou −1 num termo só de constante */
+      if(single&&l.q.isZero()&&(l.p.isOne()||l.p.eq(new Fr(-1))))ch='';
+      h+='<td style="padding:2px 4px;white-space:nowrap;text-align:right">'+(first?(neg?'−':''):(neg?'− ':'+ '))+ch+'<i>'+NM[j]+'</i></td>';first=false}
+    if(first)h+='<td style="padding:2px 4px">0</td>';
+    h+='<td style="padding:2px 6px">=</td><td style="padding:2px 4px;text-align:left">'+fmtLin(r[3])+'</td></tr>'});
+  return h+'</table>'}
+/* faixa de classificação */
+const N=33;
+function stripSVG(){
+  const cells=[];for(let i=0;i<N;i++){const a=new Fr(-16+i,4);cells.push(classify(augAt(a)).kind)}
+  const W=660,H=96,x=a=>(a+4)*80+10;
+  let s='<svg class="strip" id="strip" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Classificação do sistema para a entre −4 e 4"><defs><pattern id="hat" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="8" height="8" fill="var(--red)"/><rect width="3" height="8" fill="var(--bg)" opacity=".55"/></pattern></defs>';
+  cells.forEach((k,i)=>{const a=-4+i/4;s+='<rect class="'+(k==='SPD'?'spd':k==='SPI'?'spi':'si')+'" x="'+(i*20)+'" y="26" width="20" height="30"'+(k==='SI'?' fill="url(#hat)" style="fill:url(#hat)"':'')+'><title>a = '+String(a).replace('-','−').replace('.',',')+': '+k+'</title></rect>'});
+  s+='<line class="axis" x1="0" x2="'+W+'" y1="58" y2="58"/>';
+  for(let t=-4;t<=4;t++){s+='<line class="axis" x1="'+x(t)+'" x2="'+x(t)+'" y1="58" y2="64"/><text x="'+x(t)+'" y="84" text-anchor="middle" font-size="20">'+String(t).replace('-','−')+'</text>'}
+  crit.forEach(r=>{const v=r.val();if(v<-4.125||v>4.125)return;s+='<line class="crit" x1="'+x(v)+'" x2="'+x(v)+'" y1="20" y2="62"/>'});
+  const cv=Math.max(-4,Math.min(4,aVal.val()));
+  s+='<line class="curl" x1="'+x(cv)+'" x2="'+x(cv)+'" y1="14" y2="58"/><polygon class="cur" points="'+(x(cv)-9)+',2 '+(x(cv)+9)+',2 '+x(cv)+',16"/>';
+  return s+'</svg>'}
+function setA(a){aVal=a;const t=a.str().replace('−','-');el('av').value=t;el('sl').value=Math.max(-4,Math.min(4,Math.round(a.val()*4)/4));render()}
+function render(){
+  if(!L)return;
+  const Aug=augAt(aVal);const c=classify(Aug);
+  el('symm').innerHTML=matHTML(L.map(r=>r.map(l=>fmtLin(l))),{aug:3});
+  el('numm').innerHTML=matHTML(Aug,{aug:3});
+  el('rA').textContent=c.rA;el('rAB').textContent=c.rAB;
+  const d=M.det(Aug.map(r=>r.slice(0,3)));
+  el('dv').innerHTML=d.html();
+  el('tag').innerHTML=tag(c.kind);el('kind').textContent=KIND_TXT[c.kind];
+  const av='<i>a</i> = '+aVal.html();
+  let ph;
+  if(c.kind==='SPD')ph='R(A) = R(A | B) = 3 = n, logo SPD.';
+  else if(c.kind==='SPI')ph='R(A) = R(A | B) = '+c.rA+' &lt; 3, logo SPI (grau de indeterminação '+c.grau+').';
+  else ph='R(A) = '+c.rA+' ≠ '+c.rAB+' = R(A | B), logo SI.';
+  el('phrase').innerHTML=ph;
+  el('sol').innerHTML=c.kind==='SI'?'<b>Sem solução.</b>':(c.rA===0?'Qualquer (x, y, z) ∈ ℝ³.':solutionHTML(Aug,NM));
+  const isCrit=d.isZero();
+  el('crbox').className='crbox'+(isCrit?' crit':'');
+  el('crbox').innerHTML='<span class="math">'+av+'</span>: '+(isCrit?'<b>valor crítico</b>, det <i>A</i> = 0. O sistema não pode ser SPD; a matriz reduzida decide entre SPI e SI.':'det <i>A</i> ≠ 0, por isso o sistema é SPD.')+(Math.abs(aVal.val())>4?' <span class="note">(fora do intervalo do cursor)</span>':'');
+  el('stripw').innerHTML=stripSVG();
+  el('strip').onclick=ev=>{const r=ev.currentTarget.getBoundingClientRect();const px=(ev.clientX-r.left)/r.width*660;let i=Math.max(0,Math.min(N-1,Math.floor(px/20)));setA(new Fr(-16+i,4))}}
+el('sl').addEventListener('input',()=>{const v=Math.round(parseFloat(el('sl').value)*4);aVal=new Fr(v,4);el('av').value=aVal.str().replace('−','-');render()});
+el('av').addEventListener('input',()=>{const v=parseFr(el('av').value);el('av').style.borderColor=v?'':'var(--red)';if(!v)return;aVal=v;el('sl').value=Math.max(-4,Math.min(4,Math.round(v.val()*4)/4));render()});
+const PRE={
+ p1:[['1','1','1','1'],['1','a','1','1'],['1','1','a','a']],
+ p2:[['a','1','1','1'],['1','a','1','1'],['1','1','a','1']],
+ p3:[['1','1','1','1'],['0','a-1','1','2'],['0','0','a+2','a+2']]};
+function preset(k,a){const P=PRE[k];P.forEach((r,i)=>r.forEach((v,j)=>{inputs[i][j].value=v}));refresh();if(a!==undefined)setA(a)}
+buildGrid(PRE.p1);
+el('p1').onclick=()=>preset('p1');el('p2').onclick=()=>preset('p2');el('p3').onclick=()=>preset('p3');
+refresh();setA(new Fr(2));
+</script></body></html>

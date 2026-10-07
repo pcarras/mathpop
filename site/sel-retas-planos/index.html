@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="pt-PT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Retas e planos · Matemática I</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+[hidden]{display:none!important}
+.tabs{display:flex;gap:8px;margin:6px 0 2px}
+.tabs button{background:transparent;color:var(--navy);border:1px solid var(--navy);padding:8px 16px;font-weight:700}
+.tabs button[aria-selected=true]{background:var(--navy);color:#fff}
+@media (prefers-color-scheme:dark){.tabs button[aria-selected=true]{color:#0d1117}}
+.lay{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-areas:"inp cv" "res cv";column-gap:14px;align-items:start}
+.lay .inp{grid-area:inp}.lay .cv{grid-area:cv}.lay .res{grid-area:res}
+@media(max-width:760px){.lay{grid-template-columns:minmax(0,1fr);grid-template-areas:"inp" "cv" "res"}}
+.eqrow{margin:10px 0 12px}
+.eq{display:flex;flex-wrap:wrap;gap:4px 6px;align-items:center}
+.eq .sw{width:14px;height:14px;border-radius:3px;flex:none}
+.eq input.num{width:3.3em;text-align:center;padding:5px 3px}
+.eq .op{font-size:19px;white-space:nowrap}
+.sl{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:4px 0 0 20px}
+.sl label{font-size:12px;color:var(--gray);display:block}
+.sl input[type=range]{width:100%;accent-color:var(--teal);margin:0}
+.presets{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}
+.presets button{padding:5px 9px;font-size:13px}
+.res p{margin:6px 0}
+.geo{font-weight:700;color:var(--navy)}
+canvas{display:block;width:100%}
+.cvw{width:100%}
+.legend{font-size:12px;color:var(--gray);margin:6px 0 0}
+@media(max-width:420px){.eq input.num{width:2.9em;font-size:15px}.eq .op{font-size:17px}}
+</style></head>
+<body><div class="wrap">
+<div id="hd"></div>
+<div class="tabs" role="tablist" aria-label="Dimensão">
+ <button id="t2" role="tab" aria-selected="true" aria-controls="p2">2D · retas</button>
+ <button id="t3" role="tab" aria-selected="false" aria-controls="p3">3D · planos</button>
+</div>
+
+<section id="p2" role="tabpanel" aria-labelledby="t2">
+ <div class="lay">
+  <div class="card inp"><h2>1. Duas retas</h2>
+   <div class="presets" id="pre2"></div>
+   <div class="eqrow" id="e1"></div><div class="eqrow" id="e2"></div>
+   <p class="note">Escreve inteiros, decimais (0,5) ou frações (1/3), ou usa os cursores (inteiros de −9 a 9).</p>
+  </div>
+  <div class="card cv"><h2>Plano cartesiano</h2><div class="cvw"><canvas id="c2" role="img" aria-label="Duas retas no plano cartesiano"></canvas></div>
+   <p class="legend">As retas têm as cores das equações. O ponto de interseção só existe quando o sistema é possível e determinado.</p></div>
+  <div class="card res"><h2>2. Classificação</h2><div id="info2"></div></div>
+ </div>
+</section>
+
+<section id="p3" role="tabpanel" aria-labelledby="t3" hidden>
+ <div class="lay">
+  <div class="card inp"><h2>1. Três planos</h2>
+   <div class="presets" id="pre3"></div>
+   <div class="eqrow" id="f1"></div><div class="eqrow" id="f2"></div><div class="eqrow" id="f3"></div>
+   <div class="row" style="margin-top:8px">
+    <button id="auto" class="sec" aria-pressed="false">Rotação automática</button>
+    <button id="rst" class="sec">Repor vista</button>
+    <label>Projeção <select id="proj"><option value="o">ortográfica</option><option value="p">em perspetiva</option></select></label>
+   </div>
+   <p class="note">Cada plano é ax + by + cz = d. Os retalhos são recortados ao cubo [−5, 5]³.</p>
+  </div>
+  <div class="card cv"><h2>Espaço</h2><div class="cvw"><canvas id="c3" tabindex="0" role="img" aria-label="Três planos no espaço, rodáveis com o rato, o toque ou as setas"></canvas></div>
+   <p class="legend">Arrasta para rodar (ou usa as setas do teclado). Ponto e reta a vermelho: solução do sistema. Linhas tracejadas: interseções dois a dois.</p></div>
+  <div class="card res"><h2>2. Classificação</h2><div id="info3"></div></div>
+ </div>
+</section>
+<div id="ft"></div></div>
+<script src="../assets/common.js"></script>
+<script>
+el('hd').innerHTML=header('Capítulo 8 · Sistemas de equações lineares','Retas e planos','Cada equação é uma reta (2D) ou um plano (3D). A solução do sistema é o que todas têm em comum.');
+el('ft').innerHTML=footer();
+
+/* ---------- utilitários ---------- */
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function hexA(h,a){h=h.replace('#','');if(h.length===3)h=h.split('').map(c=>c+c).join('');const n=parseInt(h,16);return 'rgba('+(n>>16&255)+','+(n>>8&255)+','+(n&255)+','+a+')'}
+function pal(){return{ink:css('--ink'),bg:css('--bg'),line:css('--line'),gray:css('--gray'),navy:css('--navy'),red:css('--red'),c:[css('--teal'),css('--amber'),css('--violet')]}}
+const SERIF='"Libertinus Serif","Latin Modern Roman","STIX Two Text","Times New Roman",serif';
+const ff=x=>x.str();
+function fit(cv,hf){const w=Math.max(220,Math.floor(cv.parentElement.clientWidth));const h=hf(w);const d=window.devicePixelRatio||1;
+  cv.style.height=h+'px';cv.width=Math.round(w*d);cv.height=Math.round(h*d);const g=cv.getContext('2d');g.setTransform(d,0,0,d,0,0);return{g,w,h}}
+function pill(g,txt,x,y,P,col,font){g.font=font||('italic 14px '+SERIF);const w=g.measureText(txt).width+10;
+  g.fillStyle=hexA(P.bg,.85);g.strokeStyle=col;g.lineWidth=1;g.beginPath();g.roundRect?g.roundRect(x,y-11,w,22,5):g.rect(x,y-11,w,22);g.fill();g.stroke();
+  g.fillStyle=P.ink;g.textBaseline='middle';g.textAlign='left';g.fillText(txt,x+5,y+.5)}
+
+/* constrói uma linha de equação: [in]x + [in]y = [in]; devolve {get,set} */
+function makeEq(box,vars,color,names,init,onchange,sliders){
+  box.innerHTML='';const top=document.createElement('div');top.className='eq';
+  const sw=document.createElement('span');sw.className='sw';sw.style.background='var('+color+')';top.appendChild(sw);
+  const n=vars.length,ins=[],rng=[];
+  const mk=k=>{const i=document.createElement('input');i.type='text';i.className='num';i.setAttribute('aria-label','coeficiente '+names[k]);i.value=String(init[k]);
+    i.addEventListener('input',()=>{const v=parseFr(i.value);i.style.borderColor=v?'':'var(--red)';if(v&&rng[k])rng[k].value=Math.round(v.val());onchange()});ins.push(i);top.appendChild(i);return i};
+  for(let k=0;k<n;k++){mk(k);const s=document.createElement('span');s.className='math op';s.innerHTML='<i>'+vars[k]+'</i> '+(k<n-1?'+':'=');top.appendChild(s)}
+  mk(n);box.appendChild(top);
+  if(sliders){const sl=document.createElement('div');sl.className='sl';
+    for(let k=0;k<=n;k++){const l=document.createElement('label');const r=document.createElement('input');r.type='range';r.min=-9;r.max=9;r.step=1;r.value=Math.round(+init[k]||0);
+      r.setAttribute('aria-label','cursor '+names[k]);
+      r.addEventListener('input',()=>{ins[k].value=r.value;ins[k].style.borderColor='';onchange()});rng[k]=r;
+      l.append(names[k]+' ',r);sl.appendChild(l)}
+    box.appendChild(sl)}
+  return{get(){let ok=true;const v=ins.map(i=>{const x=parseFr(i.value);i.style.borderColor=x?'':'var(--red)';if(!x)ok=false;return x});return ok?v:null},
+    set(vals){vals.forEach((x,k)=>{ins[k].value=String(x);ins[k].style.borderColor='';if(rng[k])rng[k].value=Math.round(+x)})}}
+}
+/* solução única (n incógnitas) */
+function solveUnique(Aug){const n=Aug[0].length-1;const st=gaussSteps(Aug,'rref',n);const L=st[st.length-1];const x=Array(n).fill(Fr.ZERO);L.pivs.forEach(([r,c])=>{x[c]=L.A[r][n]});return x}
+const ptHTML=v=>'('+v.map(x=>x.html()).join(', ')+')';
+const rankLine=c=>'<p class="math">R(A) = '+c.rA+', &nbsp;R(A|B) = '+c.rAB+', &nbsp;n = '+c.n+'</p>';
+function rouche(c){return c.kind==='SPD'?'R(A) = R(A|B) = n':c.kind==='SPI'?'R(A) = R(A|B) &lt; n &nbsp;(grau de indeterminação '+c.grau+')':'R(A) &lt; R(A|B)'}
+
+/* =========================  2D  ========================= */
+const eq2=[
+ makeEq(el('e1'),['x','y'],'--teal',['a₁','b₁','c₁'],[1,1,3],()=>update2(),true),
+ makeEq(el('e2'),['x','y'],'--amber',['a₂','b₂','c₂'],[1,-1,1],()=>update2(),true)];
+const PRE2=[['Concorrentes (SPD)',[1,1,3,1,-1,1]],['Coincidentes (SPI)',[1,2,4,2,4,8]],['Paralelas (SI)',[1,2,4,2,4,3]],['Uma equação 0 = 0 (SPI)',[1,-1,2,0,0,0]]];
+PRE2.forEach(([t,v])=>{const b=document.createElement('button');b.className='sec';b.textContent=t;b.onclick=()=>{eq2[0].set(v.slice(0,3));eq2[1].set(v.slice(3));update2()};el('pre2').appendChild(b)});
+let m2=null;
+function analyse2(rows){
+  const c=classify(rows);const z=rows.map(r=>r[0].isZero()&&r[1].isZero());
+  let geo,pt=null;const bad=rows.findIndex((r,i)=>z[i]&&!r[2].isZero());
+  if(bad>=0)geo='A equação '+(bad+1)+' é 0 = '+rows[bad][2].str()+', que é impossível. O sistema não tem solução.';
+  else if(c.kind==='SPD'){pt=solveUnique(rows);geo='Retas concorrentes: cruzam-se num só ponto.'}
+  else if(c.kind==='SPI'){geo=c.rA===0?'As duas equações são 0 = 0: todo o plano é solução.':(z[0]||z[1])?'Uma das equações é 0 = 0, por isso o sistema reduz-se a uma única reta.':'Retas coincidentes: todos os pontos da reta são solução.'}
+  else geo='Retas paralelas distintas: não têm nenhum ponto comum.';
+  return{rows,c,pt,geo,z}
+}
+function update2(){
+  const rows=eq2.map(e=>e.get());
+  if(rows.some(r=>!r)){el('info2').innerHTML='<p class="bad">Há um valor inválido. Usa inteiros, decimais (0,5) ou frações (1/3).</p>';return}
+  m2=analyse2(rows);const c=m2.c;
+  let h='<p>'+tag(c.kind)+' &nbsp;'+KIND_TXT[c.kind]+'</p>'+rankLine(c)+'<p class="note">'+rouche(c)+'</p>'+
+   '<div class="math">'+matHTML(rows,{aug:2})+'</div><p class="geo">'+m2.geo+'</p>';
+  if(m2.pt)h+='<p class="math">P = '+ptHTML(m2.pt)+'</p>';
+  else if(c.kind==='SPI')h+='<p class="math">'+solutionHTML(rows,['x','y'])+'</p>';
+  el('info2').innerHTML=h;draw2();
+}
+function clip2(a,b,c,R){const pts=[];
+  if(Math.abs(b)>1e-12)for(const x of [-R,R]){const y=(c-a*x)/b;if(Math.abs(y)<=R+1e-9)pts.push([x,y])}
+  if(Math.abs(a)>1e-12)for(const y of [-R,R]){const x=(c-b*y)/a;if(Math.abs(x)<=R+1e-9)pts.push([x,y])}
+  let best=null,bd=1e-9;for(let i=0;i<pts.length;i++)for(let j=i+1;j<pts.length;j++){const d=Math.hypot(pts[i][0]-pts[j][0],pts[i][1]-pts[j][1]);if(d>bd){bd=d;best=[pts[i],pts[j]]}}
+  return best}
+function niceStep(raw){const p=Math.pow(10,Math.floor(Math.log10(raw)));for(const m of [1,2,5,10])if(m*p>=raw-1e-12)return m*p;return 10*p}
+function draw2(){
+  if(!m2)return;const P=pal();const{g,w,h}=fit(el('c2'),w=>Math.min(Math.round(w),520));
+  let R=6;if(m2.pt){const m=Math.max(Math.abs(m2.pt[0].val()),Math.abs(m2.pt[1].val()));if(m>4.5)R=Math.ceil(m*1.3)}
+  const mg=26,sc=(Math.min(w,h)-2*mg)/(2*R),ox=w/2,oy=h/2;const X=x=>ox+x*sc,Y=y=>oy-y*sc;
+  const step=niceStep(R/6);
+  g.clearRect(0,0,w,h);
+  g.lineWidth=1;g.strokeStyle=hexA(P.line,.9);
+  for(let t=-Math.floor(R/step)*step;t<=R+1e-9;t+=step){g.beginPath();g.moveTo(X(t),Y(-R));g.lineTo(X(t),Y(R));g.stroke();g.beginPath();g.moveTo(X(-R),Y(t));g.lineTo(X(R),Y(t));g.stroke()}
+  /* eixos */
+  g.strokeStyle=P.ink;g.fillStyle=P.ink;g.lineWidth=1.6;
+  const arrow=(x1,y1,x2,y2)=>{g.beginPath();g.moveTo(x1,y1);g.lineTo(x2,y2);g.stroke();const a=Math.atan2(y2-y1,x2-x1);g.beginPath();g.moveTo(x2,y2);g.lineTo(x2-9*Math.cos(a-.4),y2-9*Math.sin(a-.4));g.lineTo(x2-9*Math.cos(a+.4),y2-9*Math.sin(a+.4));g.closePath();g.fill()};
+  arrow(X(-R)-8,Y(0),X(R)+mg-6,Y(0));arrow(X(0),Y(-R)+8,X(0),Y(R)-mg+6);
+  g.font='italic 15px '+SERIF;g.textAlign='left';g.textBaseline='middle';g.fillText('x',X(R)+mg-16,Y(0)+13);g.fillText('y',X(0)+9,Y(R)-mg+12);
+  g.font='11px '+SERIF;g.fillStyle=P.gray;
+  const fmt=v=>String(Math.round(v*1e6)/1e6).replace('-','−');
+  for(let t=-Math.floor(R/step)*step;t<=R+1e-9;t+=step){if(Math.abs(t)<1e-9)continue;
+    g.beginPath();g.strokeStyle=P.ink;g.lineWidth=1;g.moveTo(X(t),Y(0)-3);g.lineTo(X(t),Y(0)+3);g.moveTo(X(0)-3,Y(t));g.lineTo(X(0)+3,Y(t));g.stroke();
+    g.textAlign='center';g.textBaseline='top';g.fillText(fmt(t),X(t),Y(0)+5);g.textAlign='right';g.textBaseline='middle';g.fillText(fmt(t),X(0)-6,Y(t))}
+  g.textAlign='right';g.textBaseline='top';g.fillText('0',X(0)-5,Y(0)+4);
+  /* retas */
+  m2.rows.forEach((r,i)=>{const a=r[0].val(),b=r[1].val(),c=r[2].val();if(m2.z[i])return;const s=clip2(a,b,c,R);if(!s)return;
+    g.strokeStyle=P.c[i];g.lineWidth=3;g.lineCap='round';g.setLineDash(i===1&&m2.c.kind==='SPI'?[9,7]:[]);
+    g.beginPath();g.moveTo(X(s[0][0]),Y(s[0][1]));g.lineTo(X(s[1][0]),Y(s[1][1]));g.stroke();g.setLineDash([]);
+    let e=s[0],f=s[1];if(e[0]<f[0]||(e[0]===f[0]&&e[1]<f[1])){const t=e;e=f;f=t}
+    const lx=X(e[0]+(f[0]-e[0])*.07),ly=Y(e[1]+(f[1]-e[1])*.07);
+    g.font='italic 700 15px '+SERIF;g.fillStyle=P.c[i];g.textAlign='center';g.textBaseline='middle';g.fillText('r'+(i?'₂':'₁'),Math.min(w-14,Math.max(14,lx)),Math.min(h-12,Math.max(12,ly-13)))});
+  /* ponto */
+  if(m2.pt){const px=X(m2.pt[0].val()),py=Y(m2.pt[1].val());
+    g.fillStyle=P.red;g.strokeStyle=P.bg;g.lineWidth=2;g.beginPath();g.arc(px,py,6,0,7);g.fill();g.stroke();
+    const txt='('+ff(m2.pt[0])+', '+ff(m2.pt[1])+')';g.font='italic 14px '+SERIF;const tw=g.measureText(txt).width+10;
+    let lx=px+10,ly=py-20;if(lx+tw>w-4)lx=px-10-tw;if(ly<14)ly=py+22;pill(g,txt,lx,ly,P,P.red)}
+}
+
+/* =========================  3D  ========================= */
+const PRE3=[
+ ['Planos coordenados (SPD)',[[1,0,0,0],[0,1,0,0],[0,0,1,0]]],
+ ['Concorrentes (SPD)',[[2,1,-1,5],[1,-1,1,-2],[1,2,1,4]]],
+ ['Reta comum (SPI)',[[1,1,1,3],[1,-1,1,1],[2,0,2,4]]],
+ ['Coincidentes (SPI)',[[1,1,1,2],[2,2,2,4],[-1,-1,-1,-2]]],
+ ['Prisma triangular (SI)',[[1,0,0,2],[0,1,0,2],[1,1,0,-1]]],
+ ['Paralelos (SI)',[[1,1,1,-3],[2,2,2,2],[1,1,1,3]]],
+ ['Dois paralelos e um secante (SI)',[[0,0,1,-2],[0,0,1,2],[1,1,0,1]]]];
+const nm3=i=>['a','b','c','d'].map(l=>l+['₁','₂','₃'][i]);
+const eq3=[0,1,2].map(i=>makeEq(el('f'+(i+1)),['x','y','z'],'--'+['teal','amber','violet'][i],nm3(i),PRE3[1][1][i],()=>update3(),false));
+PRE3.forEach(([t,v])=>{const b=document.createElement('button');b.className='sec';b.textContent=t;b.onclick=()=>{v.forEach((r,i)=>eq3[i].set(r));update3()};el('pre3').appendChild(b)});
+let yaw=0.75,pit=0.5;const Y0=[0.75,0.5];
+let m3=null,auto=false,raf=0,tab='2d';
+const dot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
+const crs=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
+const nrm=a=>Math.hypot(a[0],a[1],a[2]);
+const CORN=Array.from({length:8},(_,i)=>[(i&1)?5:-5,(i&2)?5:-5,(i&4)?5:-5]);
+const EDG=[];for(let i=0;i<8;i++)for(let k=0;k<3;k++){const j=i^(1<<k);if(i<j)EDG.push([i,j])}
+function planePoly(n0,d0){const L=nrm(n0);if(L<1e-12)return null;const n=n0.map(x=>x/L),d=d0/L;const pts=[];
+  const add=p=>{if(!pts.some(q=>Math.hypot(q[0]-p[0],q[1]-p[1],q[2]-p[2])<1e-7))pts.push(p)};
+  for(const[i,j]of EDG){const a=CORN[i],b=CORN[j],fa=dot(n,a)-d,fb=dot(n,b)-d;
+    if(Math.abs(fa)<1e-9)add(a);if(Math.abs(fb)<1e-9)add(b);
+    if(fa*fb<0){const t=fa/(fa-fb);add([a[0]+t*(b[0]-a[0]),a[1]+t*(b[1]-a[1]),a[2]+t*(b[2]-a[2])])}}
+  if(pts.length<3)return null;
+  const c=[0,1,2].map(k=>pts.reduce((s,p)=>s+p[k],0)/pts.length);
+  const ax=[[1,0,0],[0,1,0],[0,0,1]].sort((p,q)=>Math.abs(dot(n,p))-Math.abs(dot(n,q)))[0];
+  let u=crs(n,ax);const ul=nrm(u);u=u.map(x=>x/ul);const v=crs(n,u);
+  pts.sort((p,q)=>Math.atan2(dot([p[0]-c[0],p[1]-c[1],p[2]-c[2]],v),dot([p[0]-c[0],p[1]-c[1],p[2]-c[2]],u))-Math.atan2(dot([q[0]-c[0],q[1]-c[1],q[2]-c[2]],v),dot([q[0]-c[0],q[1]-c[1],q[2]-c[2]],u)));
+  return pts}
+function lineOf(n1,d1,n2,d2){const w=crs(n1,n2),w2=dot(w,w);if(w2<1e-12)return null;
+  const a=crs(n2,w),b=crs(w,n1);return{p:[0,1,2].map(k=>(d1*a[k]+d2*b[k])/w2),dir:w.map(x=>x/Math.sqrt(w2))}}
+function clipLine(L){let t0=-1e9,t1=1e9;for(let k=0;k<3;k++){const p=L.p[k],d=L.dir[k];
+  if(Math.abs(d)<1e-12){if(Math.abs(p)>5+1e-9)return null}else{let a=(-5-p)/d,b=(5-p)/d;if(a>b){const t=a;a=b;b=t}t0=Math.max(t0,a);t1=Math.min(t1,b)}}
+  if(t0>=t1-1e-9)return null;return[0,1,2].map(i=>[0,1,2].map(k=>L.p[k]+(i?t1:t0)*L.dir[k])).slice(0,2)}
+/* posição relativa de duas equações */
+function rel(r,s){const nz=x=>!(x[0].isZero()&&x[1].isZero()&&x[2].isZero());if(!nz(r)||!nz(s))return'x';
+  if(rankOf([r,s],3)===2)return'sec';return rankOf([r,s],4)===1?'coin':'par'}
+function analyse3(rows){
+  const c=classify(rows);const nz=rows.map(r=>!(r[0].isZero()&&r[1].isZero()&&r[2].isZero()));
+  const P=[0,1,2].filter(i=>nz[i]);const pairs=[[0,1],[0,2],[1,2]].map(([i,j])=>({i,j,r:rel(rows[i],rows[j])}));
+  const bad=rows.findIndex((r,i)=>!nz[i]&&!r[3].isZero());
+  let geo,pt=null,lines=[],common=null,note='';
+  const fl=r=>[r[0].val(),r[1].val(),r[2].val()];
+  const nCoin=pairs.filter(p=>p.r==='coin').length,nPar=pairs.filter(p=>p.r==='par').length;
+  if(bad>=0)geo='A equação '+(bad+1)+' é 0 = '+rows[bad][3].str()+', que é impossível. Nenhum ponto a satisfaz.';
+  else if(c.kind==='SPD'){pt=solveUnique(rows);geo='Os três planos intersetam-se num só ponto.';
+    if(pt.some(x=>Math.abs(x.val())>5+1e-9))note='O ponto está fora do cubo [−5, 5]³, por isso não aparece desenhado.'}
+  else if(c.kind==='SPI'){
+    if(c.grau===1){const pr=pairs.find(p=>p.r==='sec');const L=lineOf(fl(rows[pr.i]),rows[pr.i][3].val(),fl(rows[pr.j]),rows[pr.j][3].val());common=L;
+      geo=P.length<3?'Há uma equação 0 = 0 (redundante). Os outros dois planos cortam-se segundo uma reta.':nCoin>0?'Dois planos coincidem e o terceiro corta-os segundo uma reta.':'Os três planos distintos têm uma reta em comum (como as folhas de um livro abertas em torno da lombada).';
+      geo='Sistema com uma reta de soluções. '+geo;
+      if(L&&!clipLine(L))note='A reta passa fora do cubo [−5, 5]³, por isso não aparece desenhada.'}
+    else if(c.grau===2)geo=P.length<3?'Há equações 0 = 0 e os planos restantes coincidem: a solução é um plano.':'Os três planos coincidem: a solução é um plano inteiro.';
+    else geo='As três equações são 0 = 0: qualquer ponto do espaço é solução.'}
+  else{
+    if(c.rA===1){geo=P.length===2?'Dois planos paralelos distintos (a outra equação é 0 = 0): não têm pontos comuns.':nCoin>0?'Dois planos coincidentes e um terceiro paralelo a eles: não há ponto comum aos três.':'Três planos paralelos distintos: não há nenhum ponto comum.'}
+    else if(nPar>0){geo='Dois planos paralelos distintos e um terceiro que corta ambos: não há nenhum ponto comum aos três.'}
+    else geo='Prisma triangular: os planos cortam-se dois a dois em retas paralelas, mas não há nenhum ponto comum aos três.';
+    pairs.filter(p=>p.r==='sec').forEach(p=>{const L=lineOf(fl(rows[p.i]),rows[p.i][3].val(),fl(rows[p.j]),rows[p.j][3].val());if(L)lines.push(L)})}
+  const polys=rows.map((r,i)=>nz[i]?planePoly(fl(r),r[3].val()):null);
+  return{rows,c,pt,geo,note,lines,common,polys,nz}
+}
+function update3(){
+  const rows=eq3.map(e=>e.get());
+  if(rows.some(r=>!r)){el('info3').innerHTML='<p class="bad">Há um valor inválido. Usa inteiros, decimais (0,5) ou frações (1/3).</p>';return}
+  m3=analyse3(rows);const c=m3.c;
+  let h='<p>'+tag(c.kind)+' &nbsp;'+KIND_TXT[c.kind]+'</p>'+rankLine(c)+'<p class="note">'+rouche(c)+'</p>'+
+   '<div class="math">'+matHTML(rows,{aug:3})+'</div><p class="geo">'+m3.geo+'</p>';
+  if(m3.pt)h+='<p class="math">P = '+ptHTML(m3.pt)+'</p>';
+  else if(c.kind==='SPI'&&c.grau===1)h+='<p class="math">Reta: '+solutionHTML(rows,['x','y','z'])+'</p>';
+  else if(c.kind==='SPI')h+='<p class="math">'+solutionHTML(rows,['x','y','z'])+'</p>';
+  if(m3.note)h+='<p class="note">'+m3.note+'</p>';
+  el('info3').innerHTML=h;draw3();
+}
+function draw3(){
+  if(!m3)return;const P=pal();const persp=el('proj').value==='p';
+  const{g,w,h}=fit(el('c3'),w=>Math.round(Math.min(Math.max(w*.9,300),560)));
+  const cy=Math.cos(yaw),sy=Math.sin(yaw),cp=Math.cos(pit),sp=Math.sin(pit);
+  const sc=.5*Math.min(w,h)/(9.4*(persp?1.32:1)),D=32;
+  const proj=p=>{const x1=cy*p[0]-sy*p[1],y1=sy*p[0]+cy*p[1];const u=y1*sp+p[2]*cp,d=y1*cp-p[2]*sp;const s=persp?D/(D+d):1;return{x:w/2+x1*s*sc,y:h/2-u*s*sc,d}};
+  g.clearRect(0,0,w,h);
+  /* eixos */
+  const ax=[[1,0,0,'x'],[0,1,0,'y'],[0,0,1,'z']];
+  g.lineWidth=1.3;g.strokeStyle=hexA(P.ink,.75);
+  ax.forEach(a=>{const p=proj(a.slice(0,3).map(v=>-6.2*v)),q=proj(a.slice(0,3).map(v=>6.2*v));g.beginPath();g.moveTo(p.x,p.y);g.lineTo(q.x,q.y);g.stroke();
+    const an=Math.atan2(q.y-p.y,q.x-p.x);g.fillStyle=P.ink;g.beginPath();g.moveTo(q.x,q.y);g.lineTo(q.x-8*Math.cos(an-.4),q.y-8*Math.sin(an-.4));g.lineTo(q.x-8*Math.cos(an+.4),q.y-8*Math.sin(an+.4));g.closePath();g.fill()});
+  /* retalhos */
+  const items=[];
+  m3.polys.forEach((poly,i)=>{if(!poly)return;const pp=poly.map(proj);items.push({i,pp,d:pp.reduce((s,q)=>s+q.d,0)/pp.length})});
+  items.sort((a,b)=>b.d-a.d);
+  items.forEach(it=>{const col=P.c[it.i];g.beginPath();it.pp.forEach((q,k)=>k?g.lineTo(q.x,q.y):g.moveTo(q.x,q.y));g.closePath();
+    g.fillStyle=hexA(col,.34);g.fill();g.strokeStyle=hexA(col,.95);g.lineWidth=1.6;g.setLineDash([]);g.stroke()});
+  /* cubo em fio */
+  g.strokeStyle=hexA(P.gray,.75);g.lineWidth=1;
+  EDG.forEach(([i,j])=>{const p=proj(CORN[i]),q=proj(CORN[j]);g.beginPath();g.moveTo(p.x,p.y);g.lineTo(q.x,q.y);g.stroke()});
+  /* rótulos dos planos */
+  items.forEach(it=>{const cx=it.pp.reduce((s,q)=>s+q.x,0)/it.pp.length,cyy=it.pp.reduce((s,q)=>s+q.y,0)/it.pp.length;
+    g.font='italic 700 15px '+SERIF;g.fillStyle=P.c[it.i];g.textAlign='center';g.textBaseline='middle';g.fillText('π'+['₁','₂','₃'][it.i],cx,cyy)});
+  /* retas */
+  const seg=(L,col,wd,dash)=>{const s=clipLine(L);if(!s)return;const p=proj(s[0]),q=proj(s[1]);g.strokeStyle=col;g.lineWidth=wd;g.setLineDash(dash);g.lineCap='round';g.beginPath();g.moveTo(p.x,p.y);g.lineTo(q.x,q.y);g.stroke();g.setLineDash([])};
+  m3.lines.forEach(L=>seg(L,P.ink,2,[6,5]));
+  if(m3.common)seg(m3.common,P.red,4,[]);
+  /* ponto solução */
+  if(m3.pt&&m3.pt.every(x=>Math.abs(x.val())<=5+1e-9)){const q=proj(m3.pt.map(x=>x.val()));
+    const gr=g.createRadialGradient(q.x-2,q.y-2,1,q.x,q.y,8);gr.addColorStop(0,'#fff');gr.addColorStop(.35,P.red);gr.addColorStop(1,P.red);
+    g.fillStyle=gr;g.strokeStyle=P.bg;g.lineWidth=1.5;g.beginPath();g.arc(q.x,q.y,7,0,7);g.fill();g.stroke();
+    const txt='('+m3.pt.map(ff).join(', ')+')';g.font='italic 14px '+SERIF;const tw=g.measureText(txt).width+10;
+    let lx=q.x+11,ly=q.y-20;if(lx+tw>w-3)lx=q.x-11-tw;if(ly<13)ly=q.y+22;pill(g,txt,lx,ly,P,P.red)}
+  /* nomes dos eixos */
+  g.font='italic 16px '+SERIF;g.fillStyle=P.ink;g.textAlign='center';g.textBaseline='middle';
+  ax.forEach(a=>{const q=proj(a.slice(0,3).map(v=>7.1*v));g.fillText(a[3],Math.min(w-8,Math.max(8,q.x)),Math.min(h-8,Math.max(8,q.y)))});
+}
+/* rotação: rato, toque, teclado */
+(function(){const cv=el('c3');let dr=null;
+  cv.addEventListener('pointerdown',e=>{dr={x:e.clientX,y:e.clientY};try{cv.setPointerCapture(e.pointerId)}catch(_){}});
+  cv.addEventListener('pointermove',e=>{if(!dr)return;yaw+=(e.clientX-dr.x)*.01;pit=Math.max(-1.55,Math.min(1.55,pit+(e.clientY-dr.y)*.01));dr={x:e.clientX,y:e.clientY};draw3()});
+  const end=()=>{dr=null};cv.addEventListener('pointerup',end);cv.addEventListener('pointercancel',end);
+  cv.addEventListener('keydown',e=>{const k=e.key;if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(k))return;e.preventDefault();
+    if(k==='ArrowLeft')yaw-=.1;if(k==='ArrowRight')yaw+=.1;if(k==='ArrowUp')pit=Math.max(-1.55,pit-.1);if(k==='ArrowDown')pit=Math.min(1.55,pit+.1);draw3()})})();
+function loop(){if(!auto||tab!=='3d'){raf=0;return}yaw+=.008;draw3();raf=requestAnimationFrame(loop)}
+el('auto').onclick=()=>{auto=!auto;el('auto').setAttribute('aria-pressed',auto);el('auto').textContent=auto?'Parar rotação':'Rotação automática';if(auto&&!raf)raf=requestAnimationFrame(loop)};
+el('rst').onclick=()=>{yaw=Y0[0];pit=Y0[1];draw3()};
+el('proj').onchange=draw3;
+
+/* separadores */
+function setTab(t){tab=t;el('t2').setAttribute('aria-selected',t==='2d');el('t3').setAttribute('aria-selected',t==='3d');
+  el('p2').hidden=t!=='2d';el('p3').hidden=t!=='3d';
+  if(t==='2d')update2();else{update3();if(auto&&!raf)raf=requestAnimationFrame(loop)}
+  try{history.replaceState(null,'','#'+t)}catch(_){}}
+el('t2').onclick=()=>setTab('2d');el('t3').onclick=()=>setTab('3d');
+const redraw=()=>{if(tab==='2d')draw2();else draw3()};
+addEventListener('resize',redraw);
+try{matchMedia('(prefers-color-scheme:dark)').addEventListener('change',redraw)}catch(_){}
+setTab(location.hash==='#3d'?'3d':'2d');
+</script></body></html>

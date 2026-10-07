@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="pt-PT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Inversa por Gauss-Jordan · Matemática I</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+.scroll{overflow-x:auto;padding-bottom:2px}
+.scroll .mat{margin:0}
+.eqline{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:6px 0}
+.box{border-radius:8px;padding:10px 12px;margin-top:10px;background:var(--bg);border:1px solid var(--line)}
+.box.okb{border-color:var(--green)}
+.box.badb{border-color:var(--red)}
+.big{font-size:22px}
+@media(max-width:480px){.mat table{border-spacing:4px 3px}.math{font-size:16px}.grid-in input{width:2.9em;padding:5px 2px}}
+.card h2 i{text-transform:none}
+</style></head>
+<body><div class="wrap">
+<div id="hd"></div>
+<div class="card"><h2>1. A matriz A</h2>
+ <div class="row"><label>Ordem n <select id="n"></select></label>
+ <button class="sec" id="ex2">Exemplo 2×2</button><button class="sec" id="ex3">Exemplo 3×3</button>
+ <button class="sec" id="exs">Matriz singular</button><button class="sec" id="rnd">Aleatória</button></div>
+ <p class="note">Aceita inteiros, decimais (0,5) e frações (1/3).</p>
+ <div id="grid"></div>
+ <p id="det" class="math" style="margin:8px 0 0"></p></div>
+<div class="card"><h2>2. Gauss-Jordan sobre [A | I]</h2>
+ <p class="note" style="margin-top:0">Aplicam-se operações elementares às linhas de [A | I] até a parte esquerda ficar igual a I. A parte direita transforma-se, ao mesmo tempo, em A<sup>−1</sup>.</p>
+ <div class="row"><button id="prev">◀ Anterior</button><button id="next">Passo seguinte ▶</button>
+ <button class="sec" id="all">Ir ao fim</button><button class="sec" id="reset">Recomeçar</button></div>
+ <p class="opdesc" id="desc" aria-live="polite"></p>
+ <div class="scroll"><div class="math" id="cur" style="margin:8px 0"></div></div></div>
+<div class="card" id="resCard" style="display:none"><h2>3. Resultado</h2><div id="res"></div></div>
+<div id="ft"></div></div>
+<script src="../assets/common.js"></script>
+<script>
+el('hd').innerHTML=header('Capítulo 6 · Matriz inversa','Inversa por Gauss-Jordan','Escreve uma matriz quadrada e segue, passo a passo, a transformação de [A | I] em [I | A⁻¹].');
+el('ft').innerHTML=footer();
+rangeSel('n',2,4,2);
+let grid,steps,k=0,n=2,A0=null;
+const INV='A<sup>−1</sup>';
+function build(init,keep){
+  const nn=+el('n').value;
+  if(keep&&grid&&!init){const old=grid.inputs.map(r=>r.map(i=>i.value));init=Array.from({length:nn},(_,i)=>Array.from({length:nn},(_,j)=>(old[i]&&old[i][j]!==undefined)?old[i][j]:(i===j?'1':'0')))}
+  n=nn;grid=makeGrid(el('grid'),n,n,init,recompute);recompute()}
+function recompute(){
+  A0=grid.get();
+  if(!A0){el('desc').innerHTML='<span class="bad">Há um elemento inválido na matriz.</span>';el('cur').innerHTML='';el('det').innerHTML='';el('resCard').style.display='none';el('prev').disabled=el('next').disabled=el('all').disabled=true;return}
+  el('all').disabled=false;
+  const I=M.ident(n);const aug=A0.map((r,i)=>r.concat(I[i]));
+  steps=gaussSteps(aug,'rref',n);k=0;
+  const d=M.det(A0);
+  el('det').innerHTML='det <i>A</i> = '+d.html()+' &nbsp;<span class="note">'+(d.isZero()?'(nulo: A não é invertível)':'(não nulo: A é invertível)')+'</span>';
+  show()}
+function show(){
+  const s=steps[k];const last=k===steps.length-1;
+  el('cur').innerHTML=stepHTML(steps,k,{aug:n});
+  el('desc').textContent='Passo '+k+' de '+(steps.length-1)+': '+(k===0?'matriz ampliada [A | I]: A à esquerda, a identidade à direita.':s.desc);
+  el('prev').disabled=k===0;el('next').disabled=last;
+  el('resCard').style.display=last?'':'none';
+  if(last)result()}
+function result(){
+  const F=steps[steps.length-1];const L=F.A.map(r=>r.slice(0,n)),R=F.A.map(r=>r.slice(n));
+  const isI=M.eq(L,M.ident(n));const d=M.det(A0);const rk=F.pivs.length;
+  let h='';
+  if(!isI){
+    h+='<div class="box badb"><b class="bad"><i>A</i> não é invertível</b> (det <i>A</i> = 0, <i>R</i>(<i>A</i>) &lt; <i>n</i>).'
+     +'<p style="margin:6px 0 0">A parte esquerda não chegou a <i>I</i>: ficou com uma linha nula, por isso <i>R</i>(<i>A</i>) = '+rk+' &lt; '+n+'. Sem <i>n</i> elementos redutores não há forma de escada reduzida igual a <i>I</i>, e a parte direita não é uma inversa.</p></div>';
+    if(!d.isZero())h+='<p class="bad">Aviso: o determinante calculado não é nulo, o que contradiz o resultado.</p>';
+  }else{
+    const P=M.mul(A0,R),Q=M.mul(R,A0);const ok=M.eq(P,M.ident(n))&&M.eq(Q,M.ident(n));
+    h+='<div class="box okb"><b class="ok"><i>A</i> é invertível</b> (det <i>A</i> = '+d.html()+' ≠ 0, <i>R</i>(<i>A</i>) = '+n+').'
+     +'<div class="eqline scroll"><span class="math big">'+INV+' =</span><span class="math">'+matHTML(R)+'</span></div></div>'
+     +'<h3 style="font-size:14px;margin:14px 0 4px;color:var(--navy)">Verificação: <i>A</i> · '+INV+' = <i>I</i></h3>'
+     +'<div class="eqline scroll math"><span>'+matHTML(A0)+'</span><span>·</span><span>'+matHTML(R)+'</span><span>=</span><span>'+matHTML(P,{})+'</span></div>'
+     +'<p>'+(ok?'<span class="ok">Confirmado: <i>A</i>·'+INV+' = '+INV+'·<i>A</i> = <i>I</i>.</span>':'<span class="bad">A verificação falhou.</span>')+'</p>';
+  }
+  el('res').innerHTML=h}
+el('next').onclick=()=>{if(k<steps.length-1){k++;show()}};
+el('prev').onclick=()=>{if(k>0){k--;show()}};
+el('all').onclick=()=>{k=steps.length-1;show()};
+el('reset').onclick=()=>{k=0;show()};
+el('n').onchange=()=>build(null,true);
+const ex=(nn,A)=>{el('n').value=nn;build(M.fromInts(A))};
+el('ex2').onclick=()=>ex(2,[[2,1],[5,3]]);
+el('ex3').onclick=()=>ex(3,[[1,2,0],[2,5,1],[0,1,3]]);
+el('exs').onclick=()=>ex(3,[[1,2,3],[2,4,6],[1,0,1]]);
+el('rnd').onclick=()=>{const nn=+el('n').value;build(Array.from({length:nn},()=>Array.from({length:nn},()=>Math.floor(Math.random()*7)-3)))};
+build(M.fromInts([[2,1],[5,3]]));
+</script></body></html>

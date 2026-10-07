@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="pt-PT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Condensação passo a passo · Matemática I</title>
+<link rel="stylesheet" href="../assets/style.css"></head>
+<body><div class="wrap">
+<div id="hd"></div>
+<div class="card"><h2>1. A matriz</h2>
+ <div class="row"><label>Linhas <select id="m"></select></label><label>Colunas <select id="n"></select></label>
+ <button class="sec" id="ex">Exemplo</button><button class="sec" id="rnd">Aleatória</button></div>
+ <p class="note">Aceita inteiros, decimais (0,5) e frações (1/3).</p><div id="grid"></div></div>
+<div class="card"><h2>2. Condensar</h2>
+ <div class="row"><button id="prev">◀ Anterior</button><button id="next">Passo seguinte ▶</button>
+ <button class="sec" id="all">Ir ao fim</button><label><input type="checkbox" id="red"> Forma reduzida (Gauss-Jordan)</label></div>
+ <p class="opdesc" id="desc"></p><div class="math" id="cur" style="margin:8px 0"></div><p id="rk" class="note"></p></div>
+<div class="card plain"><h2>3. Experimenta tu</h2>
+ <div class="row"><select id="op"><option value="swap">Troca das linhas i e j</option><option value="mul">Multiplicar a linha i por k (×k) ou dividir (:k)</option><option value="add">Operação de Jacobi: linha i ← linha i + k · linha j</option></select>
+ <label>linha i <select id="oi"></select></label><label>linha j (elemento redutor) <select id="oj"></select></label><label>k <input id="ok" type="text" size="5" value="1"></label>
+ <button id="apply">Aplicar</button><button class="sec" id="undo">Desfazer</button></div>
+ <p class="note" id="msg"></p><div class="math" id="man"></div></div>
+<div id="ft"></div></div>
+<script src="../assets/common.js"></script>
+<script>
+el('hd').innerHTML=header('Capítulo 4 · Característica e condensação','Condensação passo a passo','Escreve uma matriz, segue as operações elementares e vê os elementos redutores e a característica.');
+el('ft').innerHTML=footer();
+rangeSel('m',1,5,3);rangeSel('n',1,6,4);
+let grid,steps,k=0,manual=[],nxts=[];
+function build(init){const m=+el('m').value,n=+el('n').value;grid=makeGrid(el('grid'),m,n,init,recompute);
+  ['oi','oj'].forEach(id=>{const s=el(id);s.innerHTML='';for(let i=1;i<=m;i++){const o=document.createElement('option');o.value=i-1;o.textContent=i;s.appendChild(o)}});
+  el('oj').value=Math.min(1,m-1);recompute()}
+function recompute(){const A=grid.get();if(!A){el('desc').innerHTML='<span class="bad">Há um elemento inválido.</span>';return}
+  steps=gaussSteps(A,el('red').checked?'rref':'ref');k=0;manual=[M.clone(A)];nxts=[];show();showMan('')}
+function show(){const s=steps[k];el('cur').innerHTML=stepHTML(steps,k);el('desc').textContent='Passo '+k+' de '+(steps.length-1)+': '+s.desc;
+  el('prev').disabled=k===0;el('next').disabled=k===steps.length-1;
+  el('rk').innerHTML=s.final?'Característica <span class="math">R(A) = '+s.pivs.length+'</span> (número de elementos redutores, circulados na forma de escada).':''}
+el('next').onclick=()=>{if(k<steps.length-1){k++;show()}};el('prev').onclick=()=>{if(k>0){k--;show()}};
+el('all').onclick=()=>{k=steps.length-1;show()};el('red').onchange=recompute;
+el('m').onchange=()=>build();el('n').onchange=()=>build();
+el('ex').onclick=()=>{el('m').value=3;el('n').value=4;build(M.fromInts([[1,2,1,3],[2,5,0,4],[3,7,2,9]]))};
+el('rnd').onclick=()=>{const m=+el('m').value,n=+el('n').value;build(Array.from({length:m},()=>Array.from({length:n},()=>Math.floor(Math.random()*9)-4)))};
+function showMan(msg){el('msg').innerHTML=msg;const n=manual.length;const A=manual[n-1];const s=gaussSteps(A,'ref');const r=s[s.length-1].pivs.length;
+  let h=matHTML(A,{});
+  if(n>1){const src=manual[n-2],nx=nxts[n-2];h=matHTML(src,{left:nx.left,right:nx.right,swap:nx.swap,piv:nx.piv?new Set([nx.piv.join(',')]):new Set()})+'<span class="arr math">→</span>'+matHTML(A,{})}
+  el('man').innerHTML=h+' <span class="note">R(A) = '+r+'</span>';el('undo').disabled=n<2}
+el('apply').onclick=()=>{const A=M.clone(manual[manual.length-1]);const i=+el('oi').value,j=+el('oj').value,t=el('op').value,kk=parseFr(el('ok').value);let nx;
+  if(t==='swap'){if(i===j)return showMan('<span class="bad">Escolhe linhas diferentes.</span>');[A[i],A[j]]=[A[j],A[i]];nx={swap:[i,j]}}
+  else if(t==='mul'){if(!kk||kk.isZero())return showMan('<span class="bad">k tem de ser um número diferente de zero.</span>');A[i]=A[i].map(x=>x.mul(kk));nx={right:{[i]:'×'+kk.html()}}}
+  else{if(i===j)return showMan('<span class="bad">Escolhe linhas diferentes: a linha j é a do elemento redutor.</span>');if(!kk)return showMan('<span class="bad">k inválido.</span>');A[i]=A[i].map((x,c)=>x.add(kk.mul(A[j][c])));
+    const pc=manual[manual.length-1][j].findIndex(x=>!x.isZero());nx={left:{[i]:kk},piv:pc>=0?[j,pc]:null}}
+  nxts[manual.length-1]=nx;manual.push(A);showMan('')};
+el('undo').onclick=()=>{if(manual.length>1){manual.pop();nxts.pop();showMan('')}};
+build(M.fromInts([[1,2,1,3],[2,5,0,4],[3,7,2,9]]));
+</script></body></html>

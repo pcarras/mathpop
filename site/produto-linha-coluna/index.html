@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="pt-PT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Produto linha por coluna · Matemática I</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+.scroll{overflow-x:auto;padding-bottom:2px}
+.grid-in input{width:3.4em;padding:5px 2px}
+.grid-in input.rw{background:rgba(15,123,138,.22)}
+.grid-in input.cl{background:rgba(183,121,31,.28)}
+.grid-in input.sl{background:var(--teal);color:#fff;border-color:var(--teal)}
+@media(max-width:480px){.grid-in input{width:2.7em;font-size:15px;margin:1px}.math{font-size:17px}}
+@media(prefers-color-scheme:dark){.grid-in input.sl,.mat td.sel{color:#0d1117}}
+.mat td.clk{cursor:pointer;min-width:1.8em}
+.mat td.clk:hover{outline:1px dashed var(--teal)}
+.mat td.unk{color:var(--gray)}
+.warn{border-left:4px solid var(--red);padding:6px 10px;background:rgba(198,40,40,.10);border-radius:4px;margin:8px 0}
+.calc{margin:10px 0 0;padding:8px 12px;background:var(--bg);border:1px solid var(--line);border-radius:6px}
+.calc .math{margin:4px 0;overflow-x:auto}
+.dims{font-weight:700;color:var(--navy);margin:6px 0}
+.lg{display:inline-block;width:12px;height:12px;vertical-align:middle;border-radius:3px;margin:0 4px 0 8px}
+.cmp{margin-top:8px}
+</style></head>
+<body><div class="wrap">
+<div id="hd"></div>
+<div class="card"><h2>1. As dimensões</h2>
+ <div class="row"><label>m (linhas de A) <select id="m"></select></label><label>n (colunas de A) <select id="n"></select></label><label>p (colunas de B) <select id="p"></select></label></div>
+ <p class="dims math" id="dims"></p>
+ <div class="row"><label><input type="checkbox" id="ic"> Testar dimensões incompatíveis</label><label id="qlab" style="display:none">Linhas de B <select id="q"></select></label></div>
+ <div class="row" style="margin-top:8px"><button class="sec" id="ex1">Exemplo 2×3 por 3×2</button><button class="sec" id="ex2">Exemplo AB ≠ BA</button><button class="sec" id="ex3">Exemplo AB = BA</button><button class="sec" id="rnd">Aleatórias</button></div>
+ <p class="note">Só se pode multiplicar A por B quando o número de colunas de A é igual ao número de linhas de B. Aceita inteiros, decimais (0,5) e frações (1/3).</p></div>
+<div class="card"><h2>2. As matrizes A e B</h2>
+ <div class="grid2"><div><div class="math" id="la">A</div><div class="scroll"><div id="ga"></div></div></div><div><div class="math" id="lb">B</div><div class="scroll"><div id="gb"></div></div></div></div></div>
+<div class="card plain"><h2>3. O produto AB</h2>
+ <div id="warn"></div>
+ <div id="prod">
+  <div class="row"><button id="next">Próximo elemento ▶</button><button class="sec" id="all">Mostrar AB completa</button><button class="sec" id="reset">Recomeçar</button></div>
+  <p class="note">Clica num elemento de AB (ou usa o botão). <span class="lg" style="background:rgba(15,123,138,.4)"></span>linha i de A <span class="lg" style="background:rgba(183,121,31,.5)"></span>coluna j de B</p>
+  <div class="scroll"><div class="math" id="ab" style="margin:6px 0"></div></div>
+  <div class="calc" id="calc"></div></div></div>
+<div class="card"><h2>4. E se trocarmos a ordem? BA</h2>
+ <div class="row"><button id="ba">Ver BA</button></div>
+ <div id="bares"></div></div>
+<div id="ft"></div></div>
+<script src="../assets/common.js"></script>
+<script>
+el('hd').innerHTML=header('Capítulo 3 · Produto de matrizes','Produto linha por coluna','Cada elemento de AB é a soma dos produtos da linha i de A pelos elementos da coluna j de B.');
+el('ft').innerHTML=footer();
+rangeSel('m',1,4,2);rangeSel('n',1,4,3);rangeSel('p',1,4,2);rangeSel('q',1,4,3);
+let gA=null,gB=null,sel=null,shown=new Set(),baOn=false;
+const T=x=>(x.val()<0||x.d!==1)?'('+x.str()+')':x.str();
+const sub=(a,i,j)=>a+'<sub>'+i+j+'</sub>';
+const key=(i,j)=>i+','+j;
+function rows(){const n=+el('n').value;return el('ic').checked?+el('q').value:n}
+function build(iA,iB){
+  const m=+el('m').value,n=+el('n').value,p=+el('p').value,q=rows();
+  const oA=gA&&gA.get(),oB=gB&&gB.get();
+  const mk=(old,r,c)=>Array.from({length:r},(_,i)=>Array.from({length:c},(_,j)=>old&&old[i]&&old[i][j]?old[i][j]:0));
+  gA=makeGrid(el('ga'),m,n,iA||mk(oA,m,n),changed);gB=makeGrid(el('gb'),q,p,iB||mk(oB,q,p),changed);
+  sel=null;shown=new Set();
+  changed(true);
+}
+function load(A,B){const ic=el('ic');ic.checked=false;el('qlab').style.display='none';el('m').value=A.length;el('n').value=A[0].length;el('p').value=B[0].length;build(M.fromInts(A),M.fromInts(B));next()}
+function changed(first){
+  const m=+el('m').value,n=+el('n').value,p=+el('p').value,q=rows();
+  el('la').innerHTML='A <span class="note">(m×n = '+m+'×'+n+')</span>';el('lb').innerHTML='B <span class="note">('+(el('ic').checked?'q×p':'n×p')+' = '+q+'×'+p+')</span>';
+  el('dims').innerHTML='('+m+'×'+n+')·('+q+'×'+p+')'+(n===q?' → AB é '+m+'×'+p+' (m×p)':'');
+  if(first!==true){shown=sel?new Set([key(sel[0],sel[1])]):new Set()}
+  render();
+}
+function render(){
+  const A=gA.get(),B=gB.get();
+  gA.inputs.forEach(r=>r.forEach(i=>i.className=''));gB.inputs.forEach(r=>r.forEach(i=>i.className=''));
+  el('bares').innerHTML='';
+  if(!A||!B){el('warn').innerHTML='<div class="warn">Há um elemento inválido. Usa números como 3, −2, 0,5 ou 1/2.</div>';el('prod').style.display='none';renderBA(null,null);return}
+  const m=A.length,n=A[0].length,q=B.length,p=B[0].length;
+  if(n!==q){el('warn').innerHTML='<div class="warn"><b>AB não está definido.</b> O número de colunas de A (n = '+n+') tem de ser igual ao número de linhas de B (aqui '+q+'). Corrige as dimensões para poderes multiplicar.</div>';el('prod').style.display='none';renderBA(A,B);return}
+  el('warn').innerHTML='';el('prod').style.display='';
+  const C=M.mul(A,B);
+  if(sel&&(sel[0]>=m||sel[1]>=p))sel=null;
+  const disp=C.map((r,i)=>r.map((x,j)=>shown.has(key(i,j))?x:'?'));
+  el('ab').innerHTML='AB = '+matHTML(disp,{sel:sel?key(sel[0],sel[1]):undefined});
+  const tds=el('ab').querySelectorAll('td');
+  tds.forEach((td,k)=>{const i=Math.floor(k/p),j=k%p;td.classList.add('clk');if(!shown.has(key(i,j)))td.classList.add('unk');td.tabIndex=0;td.setAttribute('role','button');td.setAttribute('aria-label','elemento '+(i+1)+','+(j+1)+' de AB');
+    td.onclick=()=>pick(i,j);td.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();pick(i,j)}}});
+  if(sel){const[i,j]=sel;
+    gA.inputs[i].forEach(x=>x.classList.add('rw'));gB.inputs.forEach(r=>r[j].classList.add('cl'));
+    const terms=[...Array(n).keys()];
+    const gen=terms.map(k=>sub('a',i+1,k+1)+'·'+sub('b',k+1,j+1));
+    const gs=n>3?[gen[0],gen[1],'…',gen[n-1]]:gen;
+    const nums=terms.map(k=>T(A[i][k])+'·'+T(B[k][j]));
+    const prods=terms.map(k=>A[i][k].mul(B[k][j]));
+    el('calc').innerHTML='<div><b>Elemento (AB)<sub>'+(i+1)+(j+1)+'</sub></b>: linha '+(i+1)+' de A por coluna '+(j+1)+' de B</div>'+
+     '<div class="math">(AB)<sub>'+(i+1)+(j+1)+'</sub> = '+gs.join(' + ')+'</div>'+
+     '<div class="math">= '+nums.join(' + ')+'</div>'+
+     (n>1?'<div class="math">= '+prods.map(x=>T(x)).join(' + ')+'</div>':'')+
+     '<div class="math">= <b>'+C[i][j].html()+'</b></div>';
+  }else el('calc').innerHTML='<span class="note">Escolhe um elemento de AB para ver o cálculo.</span>';
+  renderBA(A,B,C);
+}
+function pick(i,j){sel=[i,j];shown.add(key(i,j));render()}
+function next(){const A=gA.get(),B=gB.get();if(!A||!B||A[0].length!==B.length)return;const m=A.length,p=B[0].length;
+  let k=sel?sel[0]*p+sel[1]+1:0;if(k>=m*p)k=0;pick(Math.floor(k/p),k%p)}
+function renderBA(A,B,C){
+  el('ba').textContent=baOn?'Esconder BA':'Ver BA';
+  if(!baOn||!A||!B){el('bares').innerHTML='';return}
+  const m=A.length,n=A[0].length,q=B.length,p=B[0].length;let h='';
+  if(p!==m){h='<div class="warn"><b>BA não está definido.</b> Para multiplicar B por A, o número de colunas de B (p = '+p+') tem de ser igual ao número de linhas de A (m = '+m+').</div>';
+    h+='<p class="cmp">'+(n===q?'Repara que AB existe e BA não: o produto de matrizes não é comutativo.':'')+'</p>'}
+  else{const D=M.mul(B,A);
+    h='<div class="scroll"><div class="math">BA = '+matHTML(D)+(C?' &nbsp;&nbsp; AB = '+matHTML(C):'')+'</div></div>';
+    if(!C)h+='<p class="cmp">BA existe (é '+q+'×'+n+'), mas AB não está definido.</p>';
+    else if(D.length!==C.length||D[0].length!==C[0].length)h+='<p class="cmp"><b>AB ≠ BA</b>: AB é '+m+'×'+p+' e BA é '+q+'×'+n+'. Como as ordens são diferentes, nem sequer se podem comparar.</p>';
+    else if(M.eq(C,D))h+='<p class="cmp"><span class="ok">AB = BA</span> neste caso (dizemos que A e B comutam). É uma exceção: em geral AB ≠ BA.</p>';
+    else{let d=null;C.forEach((r,i)=>r.forEach((x,j)=>{if(!d&&!x.eq(D[i][j]))d=[i,j]}));
+      h+='<p class="cmp"><span class="bad">AB ≠ BA</span>: por exemplo, (AB)<sub>'+(d[0]+1)+(d[1]+1)+'</sub> = '+C[d[0]][d[1]].html()+' mas (BA)<sub>'+(d[0]+1)+(d[1]+1)+'</sub> = '+D[d[0]][d[1]].html()+'. O produto de matrizes em geral não é comutativo.</p>'}}
+  el('bares').innerHTML=h;
+}
+['m','n','p','q'].forEach(id=>el(id).onchange=()=>build());
+el('ic').onchange=()=>{el('qlab').style.display=el('ic').checked?'':'none';if(el('ic').checked)el('q').value=el('n').value;build()};
+el('next').onclick=next;
+el('all').onclick=()=>{const A=gA.get(),B=gB.get();if(!A||!B||A[0].length!==B.length)return;for(let i=0;i<A.length;i++)for(let j=0;j<B[0].length;j++)shown.add(key(i,j));render()};
+el('reset').onclick=()=>{sel=null;shown=new Set();render()};
+el('ba').onclick=()=>{baOn=!baOn;render()};
+el('ex1').onclick=()=>load([[1,2,0],[-1,3,1]],[[3,1],[2,1],[1,0]]);
+el('ex2').onclick=()=>{baOn=true;load([[1,2],[3,4]],[[0,1],[1,0]])};
+el('ex3').onclick=()=>{baOn=true;load([[1,2],[0,1]],[[1,3],[0,1]])};
+el('rnd').onclick=()=>{const m=+el('m').value,n=+el('n').value,p=+el('p').value,q=rows();const R=(r,c)=>Array.from({length:r},()=>Array.from({length:c},()=>Math.floor(Math.random()*9)-3));build(R(m,n),R(q,p));next()};
+load([[1,2,0],[-1,3,1]],[[3,1],[2,1],[1,0]]);
+</script></body></html>

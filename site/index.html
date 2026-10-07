@@ -1,0 +1,8 @@
+<!doctype html><html lang="pt-PT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Applets · Matemática I</title><link rel="stylesheet" href="assets/style.css"></head>
+<body><div class="wrap"><div id="hd"></div><div id="list"></div><div id="ft"></div></div>
+<script src="assets/common.js"></script>
+<script>
+el('hd').innerHTML=header('Matemática I · Tema 1','Applets de apoio à sebenta','Matrizes e Sistemas de Equações Lineares');el('ft').innerHTML=footer();
+const L=[['1','matriz-explorador','Explorador de matrizes'],['1','tipos-classificador','Classificador de matrizes'],['3','produto-linha-coluna','Produto linha por coluna'],['4','gauss-passo-a-passo','Condensação passo a passo'],['5','determinante-area','Determinante e área'],['5','laplace-cofatores','Laplace e cofatores'],['6','inversa-gauss-jordan','Inversa passo a passo'],['7','transformacao-linear','Matriz como transformação'],['8','sel-retas-planos','Retas e planos'],['8','rouche-capelli','Classificador de sistemas'],['8','sel-gauss','Gauss num sistema'],['9','sel-parametro','Discussão com parâmetro'],['10','equilibrio-mercado','Equilíbrio de mercado']];
+el('list').innerHTML='<div class="card"><table class="res"><tr><td>Tema 1</td><td><a href="apresentacao/">Apresentação do Tema 1 (diapositivos)</a></td></tr>'+L.map(x=>'<tr><td>Cap. '+x[0]+'</td><td><a href="'+x[1]+'/">'+x[2]+'</a></td></tr>').join('')+'</table></div>';
+</script></body></html>

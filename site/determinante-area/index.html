@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="pt-PT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Determinante e área · Matemática I</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+input[type=checkbox]{accent-color:var(--teal)}
+canvas{border:0;box-shadow:0 0 0 1px var(--line);cursor:default;display:block}
+.cw{width:100%}
+.btns{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+.res{margin:8px 0}
+.eq{margin:6px 0;line-height:1.9}
+.big{font-size:22px}
+.warn{background:#FFF4E0;color:#7a4f0d;border-left:4px solid var(--amber);padding:6px 10px;border-radius:5px;margin:8px 0}
+@media (prefers-color-scheme:dark){.warn{background:#3a2e14;color:#f0d9a8}}
+.cu{color:var(--navy);font-weight:700}.cv{color:var(--violet);font-weight:700}
+.pos{color:var(--teal);font-weight:700}.neg{color:var(--amber);font-weight:700}
+button{white-space:nowrap}
+@media(max-width:480px){.mat{margin:0 1px;padding:2px 7px}.math{font-size:17px}}
+</style></head>
+<body><div class="wrap">
+<div id="hd"></div>
+<div class="grid2">
+ <div>
+  <div class="card"><h2>1. Vetores u e v</h2>
+   <p class="note" style="margin:0 0 6px">Arrasta as pontas de <span class="cu">u</span> e <span class="cv">v</span> (com o rato ou com o dedo).</p>
+   <div class="cw" id="cw"><canvas id="cv" role="img" aria-label="Plano cartesiano com dois vetores u e v e o paralelogramo que definem"></canvas></div>
+   <div class="btns">
+    <button class="sec" data-ex="0">Exemplo</button>
+    <button class="sec" data-ex="1">Identidade</button>
+    <button class="sec" data-ex="2">Troca de colunas</button>
+    <button class="sec" data-ex="3">Colineares</button>
+    <button class="sec" id="swap">Trocar u ↔ v</button>
+   </div>
+   <label><input type="checkbox" id="snap" checked> Encaixar em inteiros</label>
+   <p class="note" style="margin:6px 0 0">Tracejado cinzento: quadrado unitário de referência. Sombreado: a sua imagem por A.</p>
+  </div>
+ </div>
+ <div>
+  <div class="card"><h2>2. Matriz e determinante</h2>
+   <div class="math big" id="mat"></div>
+   <div class="math eq" id="det"></div>
+   <div id="area"></div>
+  </div>
+  <div class="card plain"><h2>3. O que significa o sinal</h2>
+   <p id="sign" style="margin:0"></p>
+   <p class="note" style="margin-bottom:0">O quadrado unitário (a tracejado, área 1) é transformado por A no paralelogramo sombreado. O determinante diz por quanto se multiplicam as áreas, e o sinal indica se a orientação se mantém ou se inverte.</p>
+  </div>
+ </div>
+</div>
+<div id="ft"></div></div>
+<script src="../assets/common.js"></script>
+<script>
+el('hd').innerHTML=header('Capítulo 5 · Determinantes','Determinante e área','Os vetores u e v são as colunas de A. O determinante mede a área (com sinal) do paralelogramo que definem.');
+el('ft').innerHTML=footer();
+const R=6, LIM=55; /* meia-largura da vista e limite (décimas) */
+const cv=el('cv'),cw=el('cw');
+let W=400,H=400,s=1;
+/* u, v em décimas (inteiros) para que o determinante seja exato */
+let U=[30,10],V=[10,20];
+const EX=[[[30,10],[10,20]],[[10,0],[0,10]],[[0,10],[10,0]],[[20,10],[40,20]]];
+const dec=x=>(Math.round(x*100)/100).toString().replace('-','−').replace('.',',');
+const T=v=>dec(v/10);
+const P=v=>v<0?'('+T(v)+')':T(v);
+const col=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function al(hex,a){hex=hex.replace('#','');if(hex.length===3)hex=hex.split('').map(c=>c+c).join('');const n=parseInt(hex,16);return 'rgba('+(n>>16&255)+','+(n>>8&255)+','+(n&255)+','+a+')'}
+function fit(){
+  W=Math.max(240,Math.min(560,Math.floor(cw.clientWidth)));H=W;s=W/(2*R);
+  const dpr=window.devicePixelRatio||1;cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);
+  cv.style.width=W+'px';cv.style.height=H+'px';cv.getContext('2d').setTransform(dpr,0,0,dpr,0,0);draw();
+}
+const X=x=>W/2+x*s,Y=y=>H/2-y*s;
+function arrow(g,x0,y0,x1,y1,c,w){
+  const a=Math.atan2(y1-y0,x1-x0),h=10;
+  g.strokeStyle=c;g.fillStyle=c;g.lineWidth=w;g.beginPath();g.moveTo(x0,y0);g.lineTo(x1-Math.cos(a)*h*.6,y1-Math.sin(a)*h*.6);g.stroke();
+  g.beginPath();g.moveTo(x1,y1);g.lineTo(x1-h*Math.cos(a-.4),y1-h*Math.sin(a-.4));g.lineTo(x1-h*Math.cos(a+.4),y1-h*Math.sin(a+.4));g.closePath();g.fill();
+}
+function draw(){
+  const g=cv.getContext('2d');
+  const ink=col('--ink'),bg=col('--bg'),line=col('--line'),gray=col('--gray'),navy=col('--navy'),teal=col('--teal'),amber=col('--amber'),red=col('--red'),vio=col('--violet');
+  g.clearRect(0,0,W,H);g.fillStyle=bg;g.fillRect(0,0,W,H);
+  /* grelha */
+  g.lineWidth=1;g.strokeStyle=al(line,.7);
+  for(let k=-R;k<=R;k++){g.beginPath();g.moveTo(X(k)+.5,0);g.lineTo(X(k)+.5,H);g.stroke();g.beginPath();g.moveTo(0,Y(k)+.5);g.lineTo(W,Y(k)+.5);g.stroke()}
+  g.strokeStyle=gray;g.lineWidth=1.5;g.beginPath();g.moveTo(0,Y(0));g.lineTo(W,Y(0));g.moveTo(X(0),0);g.lineTo(X(0),H);g.stroke();
+  g.fillStyle=gray;g.font='11px Lato,system-ui,sans-serif';g.textAlign='center';g.textBaseline='top';
+  const st=s<30?2:1;
+  for(let k=-R+1;k<R;k++){if(k===0||k%st)continue;g.fillText(String(k).replace('-','−'),X(k),Y(0)+4);g.textAlign='right';g.textBaseline='middle';g.fillText(String(k).replace('-','−'),X(0)-5,Y(k));g.textAlign='center';g.textBaseline='top'}
+  /* quadrado unitário */
+  g.fillStyle=al(gray,.15);g.fillRect(X(0),Y(1),s,s);
+  g.setLineDash([5,4]);g.strokeStyle=gray;g.lineWidth=1.5;g.strokeRect(X(0),Y(1),s,s);g.setLineDash([]);
+  const u=[U[0]/10,U[1]/10],v=[V[0]/10,V[1]/10];
+  const d100=U[0]*V[1]-U[1]*V[0];
+  const fc=d100>0?teal:amber, sc=d100>0?teal:red;
+  const pts=[[0,0],u,[u[0]+v[0],u[1]+v[1]],v];
+  if(d100!==0){
+    g.beginPath();pts.forEach((p,i)=>i?g.lineTo(X(p[0]),Y(p[1])):g.moveTo(X(p[0]),Y(p[1])));g.closePath();
+    g.fillStyle=al(fc,.3);g.fill();g.strokeStyle=sc;g.lineWidth=2;g.stroke();
+    /* arco de orientação */
+    const a1=Math.atan2(u[1],u[0]),a2=Math.atan2(v[1],v[0]);let df=a2-a1;while(df>Math.PI)df-=2*Math.PI;while(df<=-Math.PI)df+=2*Math.PI;
+    const lu=Math.hypot(u[0],u[1]),lv=Math.hypot(v[0],v[1]);
+    const rad=Math.max(16,Math.min(.7*s,.5*Math.min(lu,lv)*s));
+    if(Math.abs(df)>.08&&Math.abs(df)<Math.PI-.08&&rad<Math.min(lu,lv)*s){
+      const ccw=df>0,te=-(a1+df);
+      g.strokeStyle=sc;g.fillStyle=sc;g.lineWidth=2;g.beginPath();g.arc(X(0),Y(0),rad,-a1,te,ccw);g.stroke();
+      const ex=X(0)+rad*Math.cos(te),ey=Y(0)+rad*Math.sin(te);
+      const tx=ccw?Math.sin(te):-Math.sin(te),ty=ccw?-Math.cos(te):Math.cos(te);
+      const nx=-ty,ny=tx,hh=7;
+      g.beginPath();g.moveTo(ex+tx*hh,ey+ty*hh);g.lineTo(ex-tx*2+nx*hh*.6,ey-ty*2+ny*hh*.6);g.lineTo(ex-tx*2-nx*hh*.6,ey-ty*2-ny*hh*.6);g.closePath();g.fill();
+    }
+    /* rótulo central */
+    const cx=(u[0]+v[0])/2,cy=(u[1]+v[1])/2;
+    g.fillStyle=ink;g.font='bold 13px Lato,system-ui,sans-serif';g.textAlign='center';g.textBaseline='middle';
+    g.fillText('área '+dec(Math.abs(d100)/100),X(cx),Y(cy));
+  }else{
+    /* degenerado: tracejado */
+    const far=[u[0]+v[0],u[1]+v[1]];const all=[[0,0],u,v,far];
+    let best=[[0,0],[0,0]],bl=-1;
+    for(const a of all)for(const b of all){const l=Math.hypot(a[0]-b[0],a[1]-b[1]);if(l>bl){bl=l;best=[a,b]}}
+    g.setLineDash([7,5]);g.strokeStyle=amber;g.lineWidth=2.5;g.beginPath();g.moveTo(X(best[0][0]),Y(best[0][1]));g.lineTo(X(best[1][0]),Y(best[1][1]));g.stroke();g.setLineDash([]);
+    g.fillStyle=red;g.font='bold 13px Lato,system-ui,sans-serif';g.textAlign='left';g.textBaseline='bottom';
+    g.fillText('área nula',12,H-10);
+  }
+  /* vetores */
+  arrow(g,X(0),Y(0),X(u[0]),Y(u[1]),navy,3);arrow(g,X(0),Y(0),X(v[0]),Y(v[1]),vio,3);
+  [[u,navy,'u'],[v,vio,'v']].forEach(([p,c,n])=>{
+    g.beginPath();g.arc(X(p[0]),Y(p[1]),9,0,7);g.fillStyle=c;g.fill();g.strokeStyle=bg;g.lineWidth=2;g.stroke();
+    g.fillStyle=c;g.font='bold 14px "Libertinus Serif","Times New Roman",serif';
+    const L=Math.hypot(p[0],p[1])||1,dx=p[0]/L,dy=p[1]/L,txt=n+' = ('+dec(p[0])+'; '+dec(p[1])+')';
+    let lx=X(p[0]),ly=Y(p[1]);
+    if(Math.abs(dy)>Math.abs(dx)*.8){g.textAlign='center';g.textBaseline=dy>0?'bottom':'top';ly+=dy>0?-14:14;lx=Math.max(70,Math.min(W-70,lx))}
+    else{g.textBaseline='middle';g.textAlign=dx>=0?'left':'right';lx+=dx>=0?14:-14}
+    g.fillText(txt,lx,ly);
+  });
+}
+function info(){
+  const d100=U[0]*V[1]-U[1]*V[0],d=d100/100;
+  el('mat').innerHTML='A = '+matHTML([[T(U[0]),T(V[0])],[T(U[1]),T(V[1])]])+'<div class="note">Colunas: <span class="cu">u</span> = ('+T(U[0])+'; '+T(U[1])+') e <span class="cv">v</span> = ('+T(V[0])+'; '+T(V[1])+').</div>';
+  el('det').innerHTML='det(A) = u₁v₂ − u₂v₁<br>= '+P(U[0])+'·'+P(V[1])+' − '+P(U[1])+'·'+P(V[0])+' = <b class="'+(d>0?'pos':d<0?'neg':'bad')+'">'+dec(d)+'</b>';
+  let a='<p class="res"><b>Área do paralelogramo = |det(A)| = '+dec(Math.abs(d))+'</b> unidades de área.</p>';
+  if(d100===0)a+='<div class="warn"><b>Vetores colineares, área nula.</b> O paralelogramo fica reduzido a um segmento e a matriz A não é invertível.</div>';
+  el('area').innerHTML=a;
+  el('sign').innerHTML=d100>0?'<span class="pos">det(A) > 0.</span> Para ir de <b>u</b> para <b>v</b> pelo caminho mais curto roda-se no sentido contrário ao dos ponteiros do relógio, tal como de e₁ para e₂. A orientação mantém-se.'
+   :d100<0?'<span class="neg">det(A) < 0.</span> Para ir de <b>u</b> para <b>v</b> roda-se no sentido dos ponteiros do relógio, ao contrário de e₁ para e₂. A orientação inverte-se (o que acontece sempre que se trocam duas colunas).'
+   :'<span class="bad">det(A) = 0.</span> <b>u</b> e <b>v</b> estão na mesma reta que passa na origem, por isso não há orientação nem área: a imagem do quadrado unitário é um segmento.';
+  draw();
+}
+function setUV(u,v){U=u.slice();V=v.slice();info()}
+/* interação */
+let drag=null;
+function pos(e){const r=cv.getBoundingClientRect();return[(e.clientX-r.left)*W/r.width,(e.clientY-r.top)*H/r.height]}
+function hit(p){const c=[[U,'u'],[V,'v']];let best=null,bd=26;for(const[q,n]of c){const d=Math.hypot(X(q[0]/10)-p[0],Y(q[1]/10)-p[1]);if(d<bd){bd=d;best=n}}return best}
+function move(p){
+  let x=(p[0]-W/2)/s,y=-(p[1]-H/2)/s;
+  let a=el('snap').checked?[Math.round(x)*10,Math.round(y)*10]:[Math.round(x*10),Math.round(y*10)];
+  a=a.map(z=>Math.max(-LIM,Math.min(LIM,z)));
+  if(drag==='u')U=a;else V=a;info();
+}
+cv.addEventListener('pointerdown',e=>{const p=pos(e);const h=hit(p);if(!h)return;drag=h;cv.setPointerCapture(e.pointerId);cv.style.cursor='grabbing';move(p);e.preventDefault()});
+cv.addEventListener('pointermove',e=>{const p=pos(e);if(drag){move(p);e.preventDefault()}else cv.style.cursor=hit(p)?'grab':'default'});
+const end=e=>{drag=null;cv.style.cursor='default'};
+cv.addEventListener('pointerup',end);cv.addEventListener('pointercancel',end);
+document.querySelectorAll('[data-ex]').forEach(b=>b.onclick=()=>{const e=EX[+b.dataset.ex];setUV(e[0],e[1])});
+el('swap').onclick=()=>setUV(V,U);
+el('snap').onchange=()=>{if(el('snap').checked)setUV(U.map(z=>Math.round(z/10)*10),V.map(z=>Math.round(z/10)*10))};
+window.addEventListener('resize',fit);
+if(window.matchMedia)matchMedia('(prefers-color-scheme:dark)').addEventListener('change',draw);
+fit();info();
+</script></body></html>

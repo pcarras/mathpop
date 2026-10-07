@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="pt-PT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Matriz como transformação · Matemática I</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+input[type=range],input[type=checkbox]{accent-color:var(--teal)}
+canvas{border:0;box-shadow:0 0 0 1px var(--line);cursor:default;display:block}
+.cw{width:100%}
+.btns{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+.eq{margin:6px 0;line-height:1.9}
+.warn{background:#FFF4E0;color:#7a4f0d;border-left:4px solid var(--amber);padding:6px 10px;border-radius:5px;margin:8px 0}
+@media (prefers-color-scheme:dark){.warn{background:#3a2e14;color:#f0d9a8}}
+.mgrid{display:grid;grid-template-columns:auto auto;gap:6px 14px;padding:2px 4px}
+.cell{display:flex;flex-direction:column;gap:2px;align-items:center}
+.cell input[type=text]{width:4.4em;text-align:center}
+.cell input[type=range]{width:96px}
+.seg{display:inline-flex;border:1px solid var(--navy);border-radius:6px;overflow:hidden}
+.seg button{border-radius:0;background:transparent;color:var(--navy);padding:6px 16px}
+.seg button[aria-pressed=true]{background:var(--navy);color:#fff}
+@media (prefers-color-scheme:dark){.seg button[aria-pressed=true]{color:#0d1117}}
+.trow{display:flex;gap:10px;align-items:center;margin-top:8px}
+.trow input[type=range]{flex:1}
+.pos{color:var(--teal);font-weight:700}.neg{color:var(--amber);font-weight:700}
+.leg{display:flex;flex-wrap:wrap;gap:4px 14px;margin:8px 0 0;font-size:13px;color:var(--gray)}
+.leg i{display:inline-block;width:14px;height:0;border-top:3px solid;vertical-align:middle;margin-right:4px}
+button{white-space:nowrap}
+@media(max-width:480px){.mat{margin:0 1px;padding:2px 7px}.mat table{border-spacing:4px 2px}.math{font-size:16px}.mgrid{gap:6px 8px}}
+</style></head>
+<body><div class="wrap">
+<div id="hd"></div>
+<div class="grid2">
+ <div>
+  <div class="card"><h2>1. A transformação</h2>
+   <div class="cw" id="cw"><canvas id="cv" role="img" aria-label="Plano com a grelha deformada pela matriz A, o quadrado unitário e a sua imagem"></canvas></div>
+   <div class="trow"><label for="t">t</label><input type="range" id="t" min="0" max="1" step="0.01" value="1" aria-label="Animação de I para A"><span class="math" id="tv" style="min-width:3em">1</span><button class="sec" id="play">▶ Animar</button></div>
+   <div class="leg">
+    <span><i style="border-color:var(--navy)"></i>e₁ e a sua imagem</span>
+    <span><i style="border-color:var(--violet)"></i>e₂ e a sua imagem</span>
+    <span><i style="border-color:var(--amber)"></i>x (arrasta a ponta)</span>
+    <span><i style="border-color:var(--green)"></i>produto</span>
+   </div>
+  </div>
+ </div>
+ <div>
+  <div class="card"><h2>2. A matriz A</h2>
+   <div class="row" style="gap:10px">
+    <span class="math big">A =</span><span class="mat math"><div class="mgrid" id="mg"></div></span>
+   </div>
+   <p class="note" style="margin:6px 0">Aceita inteiros, decimais (0,5) e frações (1/3). Os sliders vão de −3 a 3.</p>
+   <div class="btns" id="pre"></div>
+   <div class="row"><span>Desenhar:</span><span class="seg" role="group" aria-label="Transformação a desenhar"><button id="mA" aria-pressed="true">A</button><button id="mI" aria-pressed="false">A⁻¹</button></span></div>
+  </div>
+  <div class="card plain"><h2>3. Resultados</h2>
+   <div class="math eq" id="det"></div>
+   <div id="inv"></div>
+   <div class="math eq" id="prod"></div>
+   <div class="note" id="tnote"></div>
+  </div>
+ </div>
+</div>
+<div id="ft"></div></div>
+<script src="../assets/common.js"></script>
+<script>
+el('hd').innerHTML=header('Capítulo 7 · Matriz como transformação','Matriz como transformação','Cada matriz 2×2 deforma o plano. As colunas de A são as imagens de e₁ e e₂.');
+el('ft').innerHTML=footer();
+const R=7;
+const cv=el('cv'),cw=el('cw');let W=400,H=400,s=1;
+const $=x=>new Fr(x);
+let A=[[$(2),$(1)],[$(1),$(3)]],mode='A',t=1,X0=[10,-10]; /* x em décimas */
+const PRE={
+ 'Identidade':[[1,0],[0,1]],
+ 'Rotação 30°':[['0,866','-0,5'],['0,5','0,866']],
+ 'Dilatação':[[2,0],[0,2]],
+ 'Reflexão (eixo Ox)':[[1,0],[0,-1]],
+ 'Cisalhamento':[[1,1],[0,1]],
+ 'Projeção (singular)':[[1,0],[0,0]]
+};
+/* formatação */
+const fx=x=>String(x).replace('-','−');
+function terminating(f){let d=f.d;while(d%2===0)d/=2;while(d%5===0)d/=5;return d===1}
+function decStr(v,nd){let r=(Math.round(v*Math.pow(10,nd))/Math.pow(10,nd)).toString();return fx(r).replace('.',',')}
+function frText(f){if(f.d===1)return String(f.n);if(terminating(f))return decStr(f.val(),6).replace('−','-');return f.str().replace('−','-')}
+function dec(f){if(f.d===1||terminating(f))return decStr(f.val(),6);return fracH(f)}
+function fracH(f){if(Math.abs(f.n)<=9999&&f.d<=9999)return f.html();return decStr(f.val(),4)}
+const disp=f=>(f.d===1||terminating(f))?decStr(f.val(),6):fracH(f);
+const col=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function al(hex,a){hex=hex.replace('#','');if(hex.length===3)hex=hex.split('').map(c=>c+c).join('');const n=parseInt(hex,16);return 'rgba('+(n>>16&255)+','+(n>>8&255)+','+(n&255)+','+a+')'}
+/* álgebra */
+const detA=()=>A[0][0].mul(A[1][1]).sub(A[0][1].mul(A[1][0]));
+const inv=()=>{const d=detA();return [[A[1][1].div(d),A[0][1].neg().div(d)],[A[1][0].neg().div(d),A[0][0].div(d)]]};
+const useInv=()=>mode==='I'&&!detA().isZero();
+const Tm=()=>useInv()?inv():A;
+function Mt(){const T=Tm().map(r=>r.map(x=>x.val()));return [[1+t*(T[0][0]-1),t*T[0][1]],[t*T[1][0],1+t*(T[1][1]-1)]]}
+/* ecrã */
+function fit(){W=Math.max(240,Math.min(560,Math.floor(cw.clientWidth)));H=W;s=W/(2*R);
+ const dpr=window.devicePixelRatio||1;cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);cv.style.width=W+'px';cv.style.height=H+'px';cv.getContext('2d').setTransform(dpr,0,0,dpr,0,0);draw()}
+const X=x=>W/2+x*s,Y=y=>H/2-y*s;
+function arrow(g,x0,y0,x1,y1,c,w,dash){
+  const a=Math.atan2(y1-y0,x1-x0),h=9;if(Math.hypot(x1-x0,y1-y0)<2)return;
+  g.strokeStyle=c;g.fillStyle=c;g.lineWidth=w;g.setLineDash(dash||[]);g.beginPath();g.moveTo(x0,y0);g.lineTo(x1-Math.cos(a)*h*.6,y1-Math.sin(a)*h*.6);g.stroke();g.setLineDash([]);
+  g.beginPath();g.moveTo(x1,y1);g.lineTo(x1-h*Math.cos(a-.4),y1-h*Math.sin(a-.4));g.lineTo(x1-h*Math.cos(a+.4),y1-h*Math.sin(a+.4));g.closePath();g.fill();
+}
+function label(g,txt,x,y,c,dx,dy){g.fillStyle=c;g.font='bold 14px "Libertinus Serif","Times New Roman",serif';g.textAlign='left';g.textBaseline='middle';g.fillText(txt,x+dx,y+dy)}
+function draw(){
+  const g=cv.getContext('2d');
+  const ink=col('--ink'),bg=col('--bg'),line=col('--line'),gray=col('--gray'),navy=col('--navy'),teal=col('--teal'),amber=col('--amber'),red=col('--red'),vio=col('--violet'),green=col('--green');
+  const m=Mt(),d=m[0][0]*m[1][1]-m[0][1]*m[1][0];
+  const ap=(x,y)=>[m[0][0]*x+m[0][1]*y,m[1][0]*x+m[1][1]*y];
+  g.clearRect(0,0,W,H);g.fillStyle=bg;g.fillRect(0,0,W,H);
+  /* grelha original (fraca) */
+  g.lineWidth=1;g.strokeStyle=al(line,.55);
+  for(let k=-R;k<=R;k++){g.beginPath();g.moveTo(X(k)+.5,0);g.lineTo(X(k)+.5,H);g.stroke();g.beginPath();g.moveTo(0,Y(k)+.5);g.lineTo(W,Y(k)+.5);g.stroke()}
+  /* grelha deformada */
+  const K=16;
+  const seg=(x0,y0,x1,y1,c,w)=>{const p=ap(x0,y0),q=ap(x1,y1);g.strokeStyle=c;g.lineWidth=w;g.beginPath();g.moveTo(X(p[0]),Y(p[1]));g.lineTo(X(q[0]),Y(q[1]));g.stroke()};
+  const gc=al(teal,.5);
+  for(let k=-K;k<=K;k++){if(k===0)continue;seg(k,-K,k,K,gc,1);seg(-K,k,K,k,gc,1)}
+  seg(0,-K,0,K,al(vio,.85),2.2);seg(-K,0,K,0,al(navy,.85),2.2);
+  const sing=Math.abs(d)<1e-9;
+  if(sing){ /* imagem: reta ou ponto */
+    const c1=[m[0][0],m[1][0]],c2=[m[0][1],m[1][1]];const c=Math.hypot(...c1)>=Math.hypot(...c2)?c1:c2;const L=Math.hypot(...c);
+    if(L>1e-9){const k=30/L;g.setLineDash([8,5]);g.strokeStyle=amber;g.lineWidth=2.5;g.beginPath();g.moveTo(X(-c[0]*k),Y(-c[1]*k));g.lineTo(X(c[0]*k),Y(c[1]*k));g.stroke();g.setLineDash([])}
+    else{g.beginPath();g.arc(X(0),Y(0),6,0,7);g.fillStyle=amber;g.fill()}
+  }
+  /* eixos */
+  g.strokeStyle=al(gray,.9);g.lineWidth=1.2;g.beginPath();g.moveTo(0,Y(0));g.lineTo(W,Y(0));g.moveTo(X(0),0);g.lineTo(X(0),H);g.stroke();
+  g.fillStyle=gray;g.font='11px Lato,system-ui,sans-serif';g.textAlign='center';g.textBaseline='top';
+  for(let k=-R+1;k<R;k+=1){if(k===0||k%2)continue;g.fillText(String(k).replace('-','−'),X(k),Y(0)+4)}
+  /* quadrado unitário e imagem */
+  g.setLineDash([5,4]);g.strokeStyle=gray;g.lineWidth=1.5;g.strokeRect(X(0),Y(1),s,s);g.setLineDash([]);
+  const P=[ap(0,0),ap(1,0),ap(1,1),ap(0,1)];
+  const fc=d<-1e-9?amber:teal;
+  g.beginPath();P.forEach((p,i)=>i?g.lineTo(X(p[0]),Y(p[1])):g.moveTo(X(p[0]),Y(p[1])));g.closePath();
+  g.fillStyle=al(fc,.28);g.fill();g.strokeStyle=sing?amber:fc;g.lineWidth=2;g.stroke();
+  /* e1, e2 e imagens */
+  arrow(g,X(0),Y(0),X(1),Y(0),al(navy,.5),1.5,[4,3]);arrow(g,X(0),Y(0),X(0),Y(1),al(vio,.5),1.5,[4,3]);
+  const pf=useInv()?'A⁻¹':'A';
+  arrow(g,X(0),Y(0),X(P[1][0]),Y(P[1][1]),navy,3);arrow(g,X(0),Y(0),X(P[3][0]),Y(P[3][1]),vio,3);
+  label(g,'e₁',X(1),Y(0),al(navy,.7),4,12);label(g,'e₂',X(0),Y(1),al(vio,.7),6,-2);
+  label(g,pf+'e₁',X(P[1][0]),Y(P[1][1]),navy,8,-10);label(g,pf+'e₂',X(P[3][0]),Y(P[3][1]),vio,8,-10);
+  /* vetor de teste */
+  const x=[X0[0]/10,X0[1]/10],y=ap(x[0],x[1]);
+  g.strokeStyle=al(gray,.6);g.lineWidth=1;g.setLineDash([3,4]);g.beginPath();g.moveTo(X(x[0]),Y(x[1]));g.lineTo(X(y[0]),Y(y[1]));g.stroke();g.setLineDash([]);
+  arrow(g,X(0),Y(0),X(y[0]),Y(y[1]),green,2.5);
+  g.beginPath();g.arc(X(y[0]),Y(y[1]),4,0,7);g.fillStyle=green;g.fill();
+  label(g,pf+'x',X(y[0]),Y(y[1]),green,8,-12);
+  arrow(g,X(0),Y(0),X(x[0]),Y(x[1]),amber,2.5);
+  g.beginPath();g.arc(X(x[0]),Y(x[1]),9,0,7);g.fillStyle=amber;g.fill();g.strokeStyle=bg;g.lineWidth=2;g.stroke();
+  label(g,'x',X(x[0]),Y(x[1]),amber,12,-12);
+  if(sing){g.fillStyle=red;g.font='bold 13px Lato,system-ui,sans-serif';g.textAlign='left';g.textBaseline='bottom';g.fillText('a grelha colapsou: det = 0',10,H-10)}
+}
+/* resultados */
+function results(){
+  const d=detA(),T=Tm();
+  const dd=[A[0][0],A[1][1],A[0][1],A[1][0]];
+  const sub=x=>x.n<0||(!terminating(x))?'('+dec(x)+')':dec(x);
+  let h='det(A) = a₁₁a₂₂ − a₁₂a₂₁ = '+sub(dd[0])+'·'+sub(dd[1])+' − '+sub(dd[2])+'·'+sub(dd[3])+' = <b class="'+(d.n>0?'pos':d.n<0?'neg':'bad')+'">'+dec(d)+'</b>';
+  h+='<br>Fator de área = |det(A)| = <b>'+dec(d.n<0?d.neg():d)+'</b>. '+(d.n>0?'<span class="note">A orientação mantém-se.</span>':d.n<0?'<span class="note">A orientação inverte-se (a imagem do quadrado fica "virada do avesso").</span>':'<span class="bad">A área do quadrado unitário passa a 0.</span>');
+  el('det').innerHTML=h;
+  let iv='';
+  if(d.isZero()){
+    iv='<div class="warn"><b>det(A) = 0: A não é invertível.</b> A esmaga o plano numa reta (ou num ponto), por isso não há transformação que a desfaça. '+(mode==='I'?'Como não existe A⁻¹, está a desenhar-se A, e a grelha colapsa.':'A grelha colapsa.')+'</div>';
+  }else{
+    const I=inv();
+    iv='<div class="math eq">A⁻¹ = <span class="frac"><span>1</span><span>det(A)</span></span> '+matHTML([[A[1][1],A[0][1].neg()],[A[1][0].neg(),A[0][0]]].map(r=>r.map(dec)))+' = '+matHTML(I.map(r=>r.map(fracH)))+'</div>';
+    const P=M.mul(A,I);iv+='<div class="note">Verificação: A·A⁻¹ = I '+(M.eq(P,M.ident(2))?'<span class="ok">✓</span>':'<span class="bad">✗</span>')+'</div>';
+  }
+  el('inv').innerHTML=iv;
+  /* produto Tx (exato em t=1) */
+  const x=[new Fr(X0[0],10),new Fr(X0[1],10)];
+  const y=[T[0][0].mul(x[0]).add(T[0][1].mul(x[1])),T[1][0].mul(x[0]).add(T[1][1].mul(x[1]))];
+  const pf=useInv()?'A⁻¹':'A';
+  el('prod').innerHTML=pf+'x = '+matHTML(T.map(r=>r.map(useInv()?fracH:disp)))+matHTML(x.map(v=>[dec(v)]))+' = '+matHTML(y.map(v=>[useInv()?fracH(v):disp(v)]));
+  let n='';if(mode==='I'&&d.isZero())n='';
+  const m=Mt();const dt=m[0][0]*m[1][1]-m[0][1]*m[1][0];
+  n=(t<1?'Em t = '+decStr(t,2)+' desenha-se I + t(T − I); os valores acima referem-se a t = 1. ':'')+'Área da imagem do quadrado unitário neste instante: '+decStr(Math.abs(dt),3)+'.';
+  el('tnote').textContent=n;
+  el('tv').textContent=decStr(t,2);
+  el('mA').setAttribute('aria-pressed',mode==='A');el('mI').setAttribute('aria-pressed',mode==='I');
+}
+function refresh(){results();draw()}
+/* editor */
+const cells=[];
+function buildEditor(){
+  const mg=el('mg');mg.innerHTML='';
+  for(let i=0;i<2;i++)for(let j=0;j<2;j++){
+    const c=document.createElement('div');c.className='cell';
+    const inp=document.createElement('input');inp.type='text';inp.inputMode='decimal';inp.setAttribute('aria-label','a'+(i+1)+(j+1));
+    const sl=document.createElement('input');sl.type='range';sl.min=-3;sl.max=3;sl.step=0.1;sl.setAttribute('aria-label','slider a'+(i+1)+(j+1));
+    inp.addEventListener('input',()=>{const f=parseFr(inp.value);if(!f){inp.style.borderColor='var(--red)';return}inp.style.borderColor='';A[i][j]=f;sl.value=Math.max(-3,Math.min(3,f.val()));stopPlay();refresh()});
+    sl.addEventListener('input',()=>{const f=parseFr(sl.value);A[i][j]=f;inp.value=frText(f);inp.style.borderColor='';stopPlay();refresh()});
+    c.appendChild(inp);c.appendChild(sl);mg.appendChild(c);cells.push({inp,sl})}
+}
+function syncEditor(){for(let i=0;i<2;i++)for(let j=0;j<2;j++){const c=cells[i*2+j];c.inp.value=frText(A[i][j]);c.inp.style.borderColor='';c.sl.value=Math.max(-3,Math.min(3,A[i][j].val()))}}
+function setA(rows){A=rows.map(r=>r.map(x=>typeof x==='number'?$(x):parseFr(x)));syncEditor();refresh()}
+buildEditor();syncEditor();
+Object.keys(PRE).forEach(k=>{const b=document.createElement('button');b.className='sec';b.textContent=k;b.onclick=()=>{stopPlay();mode='A';t=1;el('t').value=1;setA(PRE[k])};el('pre').appendChild(b)});
+el('mA').onclick=()=>{mode='A';refresh()};el('mI').onclick=()=>{mode='I';refresh()};
+el('t').addEventListener('input',()=>{stopPlay();t=parseFloat(el('t').value);refresh()});
+/* animação */
+let raf=null;
+function stopPlay(){if(raf){cancelAnimationFrame(raf);raf=null;el('play').textContent='▶ Animar'}}
+el('play').onclick=()=>{if(raf){stopPlay();return}
+  const t0=performance.now(),T=1800;el('play').textContent='■ Parar';
+  const step=now=>{const u=Math.min(1,(now-t0)/T);t=Math.round(u*100)/100;el('t').value=t;refresh();if(u<1)raf=requestAnimationFrame(step);else{raf=null;el('play').textContent='▶ Animar'}};
+  t=0;raf=requestAnimationFrame(step)};
+/* arrastar x */
+let drag=false;
+function pos(e){const r=cv.getBoundingClientRect();return[(e.clientX-r.left)*W/r.width,(e.clientY-r.top)*H/r.height]}
+const near=p=>Math.hypot(X(X0[0]/10)-p[0],Y(X0[1]/10)-p[1])<26;
+function mv(p){const q=[(p[0]-W/2)/s,-(p[1]-H/2)/s].map(z=>Math.max(-5,Math.min(5,Math.round(z*10)/10)));X0=q.map(z=>Math.round(z*10));refresh()}
+cv.addEventListener('pointerdown',e=>{const p=pos(e);if(!near(p))return;drag=true;cv.setPointerCapture(e.pointerId);cv.style.cursor='grabbing';mv(p);e.preventDefault()});
+cv.addEventListener('pointermove',e=>{const p=pos(e);if(drag){mv(p);e.preventDefault()}else cv.style.cursor=near(p)?'grab':'default'});
+const end=()=>{drag=false;cv.style.cursor='default'};cv.addEventListener('pointerup',end);cv.addEventListener('pointercancel',end);
+window.addEventListener('resize',fit);
+if(window.matchMedia)matchMedia('(prefers-color-scheme:dark)').addEventListener('change',draw);
+fit();results();
+</script></body></html>

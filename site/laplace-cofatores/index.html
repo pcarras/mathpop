@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="pt-PT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Laplace e cofatores · Matemática I</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+.scroll{overflow-x:auto;padding-bottom:2px}
+.grid-in input{width:3.4em;padding:5px 2px}
+.grid-in input.rw,.grid-in input.cl{background:rgba(15,123,138,.22)}
+.grid-in input.sl{background:var(--teal);color:#fff;border-color:var(--teal)}
+@media(max-width:480px){.grid-in input{width:2.7em;font-size:15px;margin:1px}.math{font-size:17px}}
+@media(prefers-color-scheme:dark){.grid-in input.sl{color:#0d1117}}
+.det .mat::before,.det .mat::after{border-top:0;border-bottom:0;width:0}
+.strk .mat td.hl2{text-decoration:line-through;color:var(--gray)}
+.strk .mat td.hl2.sel{text-decoration:none;color:#fff}
+@media(prefers-color-scheme:dark){.strk .mat td.hl2.sel{color:#0d1117}}
+.tip{border-left:4px solid var(--amber);background:rgba(183,121,31,.12);border-radius:4px;padding:6px 10px;margin:8px 0}
+.tip button{margin-left:8px;padding:3px 10px}
+.terms{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:10px;margin-top:8px}
+.term{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 12px;min-width:0}
+.term .th{font-weight:700;color:var(--navy);margin-bottom:4px}
+.term .ln{margin:5px 0;overflow-x:auto}
+.term .ln .math{margin:2px 0}
+.term .ln .lab{font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--teal);font-weight:700;display:block}
+.term.zero{opacity:.85}
+.pos{color:var(--green);font-weight:700}.neg{color:var(--red);font-weight:700}
+.tot{margin-top:12px;padding:10px 12px;background:var(--bg);border:1px solid var(--line);border-radius:8px}
+.tot .math{margin:4px 0;overflow-x:auto}
+.lg{display:inline-block;width:12px;height:12px;vertical-align:middle;border-radius:3px;margin:0 4px 0 8px}
+</style></head>
+<body><div class="wrap">
+<div id="hd"></div>
+<div class="card"><h2>1. A matriz</h2>
+ <div class="row"><label>Ordem n <select id="n"></select></label><button class="sec" id="ex">Exemplo</button><button class="sec" id="ex0">Exemplo com zeros</button><button class="sec" id="rnd">Aleatória</button></div>
+ <p class="note">Aceita inteiros, decimais (0,5) e frações (1/3).</p>
+ <div class="scroll"><div id="grid"></div></div></div>
+<div class="card"><h2>2. Desenvolver por uma linha ou coluna</h2>
+ <div class="row"><label>Desenvolver por <select id="kind"><option value="linha">linha</option><option value="coluna">coluna</option></select></label>
+ <label>número <select id="idx"></select></label>
+ <label><input type="checkbox" id="abr"> Abreviar os termos com a<sub>ij</sub> = 0</label></div>
+ <div class="tip" id="tip"></div></div>
+<div class="card plain"><h2>3. Desenvolvimento de Laplace</h2>
+ <p class="note">Em cada termo, a matriz mostra a linha e a coluna do elemento riscadas <span class="lg" style="background:rgba(183,121,31,.5)"></span> e a submatriz que sobra, cujo determinante é o menor <span class="lg" style="background:rgba(15,123,138,.4)"></span></p>
+ <div id="err"></div><div class="terms" id="terms"></div><div class="tot" id="tot"></div></div>
+<div id="ft"></div></div>
+<script src="../assets/common.js"></script>
+<script>
+el('hd').innerHTML=header('Capítulo 5 · Determinantes','Laplace e cofatores','Escolhe uma linha ou coluna e vê o determinante como soma de elementos vezes cofatores.');
+el('ft').innerHTML=footer();
+rangeSel('n',2,4,3);
+let grid=null;
+const sub=(a,i,j)=>a+'<sub>'+(i+1)+(j+1)+'</sub>';
+const T=x=>(x.val()<0||x.d!==1)?'('+x.str()+')':x.str();
+const sg=s=>s>0?'<span class="pos">+1</span>':'<span class="neg">−1</span>';
+/* determinante independente (eliminação com frações) para confirmar */
+function detGauss(A0){const A=M.clone(A0),n=A.length;let d=Fr.ONE;
+  for(let c=0;c<n;c++){let p=-1;for(let i=c;i<n;i++)if(!A[i][c].isZero()){p=i;break}
+    if(p<0)return Fr.ZERO;if(p!==c){[A[p],A[c]]=[A[c],A[p]];d=d.neg()}
+    d=d.mul(A[c][c]);for(let i=c+1;i<n;i++){const f=A[i][c].div(A[c][c]);for(let j=c;j<n;j++)A[i][j]=A[i][j].sub(f.mul(A[c][j]))}}
+  return d}
+function build(init){
+  const n=+el('n').value;const old=init?null:(grid&&grid.get());
+  const ini=init||Array.from({length:n},(_,i)=>Array.from({length:n},(_,j)=>old&&old[i]&&old[i][j]?old[i][j]:(i===j?1:0)));
+  grid=makeGrid(el('grid'),n,n,ini,update);
+  const cur=+el('idx').value||0;const s=el('idx');s.innerHTML='';for(let t=1;t<=n;t++){const o=document.createElement('option');o.value=t-1;o.textContent=t;s.appendChild(o)}
+  s.value=Math.min(cur,n-1);update();
+}
+function load(A){el('n').value=A.length;build(M.fromInts(A))}
+function update(){
+  const n=+el('n').value,isRow=el('kind').value==='linha',k=+el('idx').value;const A=grid.get();
+  grid.inputs.forEach((r,i)=>r.forEach((inp,j)=>{const on=isRow?i===k:j===k;inp.classList.toggle('rw',on);inp.classList.remove('cl','sl')}));
+  if(!A){el('err').innerHTML='<p class="bad">Há um elemento inválido. Usa números como 3, −2, 0,5 ou 1/2.</p>';el('terms').innerHTML='';el('tot').innerHTML='';el('tip').innerHTML='';return}
+  el('err').innerHTML='';
+  /* dica: linha/coluna com mais zeros */
+  const zr=A.map(r=>r.filter(x=>x.isZero()).length),zc=A[0].map((_,j)=>A.filter(r=>r[j].isZero()).length);
+  const cand=[...zr.map((z,i)=>({t:'linha',i,z})),...zc.map((z,j)=>({t:'coluna',i:j,z}))];
+  const best=cand.reduce((a,b)=>b.z>a.z?b:a);
+  const curZ=isRow?zr[k]:zc[k];const nz=n-best.z;
+  let tip;
+  if(best.z===0)tip='<b>Dica:</b> nenhuma linha nem coluna tem zeros, por isso é preciso calcular os '+n+' cofatores, seja qual for a escolha. Convém escolher uma linha ou coluna com números simples (por exemplo, 1 ou −1).';
+  else{const w=best.t==='linha'?'A linha':'A coluna';
+    tip='<b>Dica:</b> '+w+' '+(best.i+1)+' tem '+best.z+' '+(best.z===1?'zero':'zeros')+' (é o máximo). Desenvolvendo por ela, só é preciso calcular '+nz+' '+(nz===1?'cofator':'cofatores')+', porque os termos com a<sub>ij</sub> = 0 são nulos.';
+    if(curZ===best.z)tip+=' <span class="ok">A tua escolha já é uma das melhores.</span>';
+    else tip+=' <button id="use">Usar '+best.t+' '+(best.i+1)+'</button>'}
+  el('tip').innerHTML=tip;const u=el('use');if(u)u.onclick=()=>{el('kind').value=best.t;el('idx').value=best.i;update()};
+  const pos=[...Array(n).keys()].map(t=>isRow?[k,t]:[t,k]);
+  const abr=el('abr').checked;const terms=[];let sum=Fr.ZERO;
+  let h='';
+  pos.forEach(([i,j])=>{
+    const a=A[i][j],s=((i+j)%2===0)?1:-1,mn=M.det(M.minor(A,i,j)),cof=s>0?mn:mn.neg(),t=a.mul(cof);
+    terms.push(t);sum=sum.add(t);
+    const head='<div class="th">'+sub('a',i,j)+' = '+a.html()+' &nbsp;<span class="note">(linha '+(i+1)+', coluna '+(j+1)+')</span></div>';
+    if(abr&&a.isZero()){h+='<div class="term zero">'+head+'<div class="ln math">'+sub('a',i,j)+'·'+sub('A',i,j)+' = 0·'+sub('A',i,j)+' = <b>0</b></div><div class="note">O elemento é nulo, o termo é 0 e não é preciso calcular o menor.</div></div>';return}
+    const hl=new Set(),hl2=new Set();
+    for(let r=0;r<n;r++)for(let c=0;c<n;c++){if(r===i||c===j)hl2.add(r+','+c);else hl.add(r+','+c)}
+    const S=M.minor(A,i,j);let mexp='';
+    if(S.length===1)mexp='';
+    else if(S.length===2)mexp=T(S[0][0])+'·'+T(S[1][1])+' − '+T(S[0][1])+'·'+T(S[1][0])+' = '+S[0][0].mul(S[1][1]).str()+' − '+T(S[0][1].mul(S[1][0]))+' = ';
+    h+='<div class="term">'+head+
+     '<div class="ln strk math">'+matHTML(A,{hl,hl2,sel:i+','+j})+'</div>'+
+     '<div class="ln"><span class="lab">Sinal</span><span class="math">(−1)<sup>'+(i+1)+'+'+(j+1)+'</sup> = (−1)<sup>'+(i+j+2)+'</sup> = '+sg(s)+'</span></div>'+
+     '<div class="ln"><span class="lab">Menor</span><span class="math">'+sub('M',i,j)+' = <span class="det">'+matHTML(S)+'</span></span><div class="math">= '+mexp+'<b>'+mn.html()+'</b></div></div>'+
+     '<div class="ln"><span class="lab">Cofator</span><span class="math">'+sub('A',i,j)+' = (−1)<sup>'+(i+1)+'+'+(j+1)+'</sup>·'+sub('M',i,j)+' = ('+(s>0?'+1':'−1')+')·'+T(mn)+' = <b>'+cof.html()+'</b></span></div>'+
+     '<div class="ln"><span class="lab">Termo</span><span class="math">'+sub('a',i,j)+'·'+sub('A',i,j)+' = '+T(a)+'·'+T(cof)+' = <b>'+t.html()+'</b></span></div></div>';
+  });
+  el('terms').innerHTML=h;
+  const lab=pos.map(([i,j])=>sub('a',i,j)+sub('A',i,j)).join(' + ');
+  const direct=M.det(A),chk=detGauss(A);
+  el('tot').innerHTML='<div><b>Desenvolvimento pela '+el('kind').value+' '+(k+1)+'</b></div>'+
+   '<div class="math">det(A) = '+lab+'</div>'+
+   '<div class="math">= '+terms.map(x=>T(x)).join(' + ')+' = <b>'+sum.html()+'</b></div>'+
+   '<div style="margin-top:6px">'+(sum.eq(direct)&&sum.eq(chk)?'<span class="ok">Confirmado.</span> O cálculo direto do determinante dá <span class="math">det(A) = '+direct.html()+'</span>, o mesmo valor.':'<span class="bad">Os valores não coincidem: '+direct.str()+'</span>')+'</div>'+
+   (sum.isZero()?'<div class="note">Como det(A) = 0, a matriz é singular (não tem inversa).</div>':'');
+}
+el('n').onchange=()=>{el('idx').value=0;build()};el('kind').onchange=update;el('idx').onchange=update;el('abr').onchange=update;
+el('ex').onclick=()=>load([[2,1,3],[0,-1,4],[5,2,1]]);
+el('ex0').onclick=()=>load([[3,0,2,1],[1,5,0,0],[-2,4,1,0],[0,2,-1,3]]);
+el('rnd').onclick=()=>{const n=+el('n').value;build(Array.from({length:n},()=>Array.from({length:n},()=>Math.floor(Math.random()*9)-3)))};
+build(M.fromInts([[2,1,3],[0,-1,4],[5,2,1]]));
+</script></body></html>

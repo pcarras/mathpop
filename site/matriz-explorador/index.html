@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="pt-PT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Explorador de matrizes · Matemática I</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+.scroll{overflow-x:auto;padding-bottom:2px}
+.grid-in input{width:3.4em;padding:5px 2px}
+.grid-in input.rw,.grid-in input.cl{background:rgba(15,123,138,.22)}
+.grid-in input.sl{background:var(--teal);color:#fff;border-color:var(--teal)}
+.grid-in input.dp{box-shadow:inset 0 -3px 0 var(--navy)}
+.grid-in input.ds{box-shadow:inset 0 3px 0 var(--amber)}
+.grid-in input.dp.ds{box-shadow:inset 0 -3px 0 var(--navy),inset 0 3px 0 var(--amber)}
+@media(max-width:480px){.grid-in input{width:2.6em;font-size:15px;margin:1px}.math{font-size:17px}}
+@media(prefers-color-scheme:dark){.grid-in input.sl,.mat td.sel{color:#0d1117}}
+.big{font-size:20px;margin:0 0 8px}
+.big b{color:var(--navy)}
+.vec{display:flex;flex-wrap:wrap;gap:6px 22px;align-items:center;margin:6px 0}
+.vec>div{overflow-x:auto;max-width:100%}
+.facts{margin:8px 0 0;padding-left:18px}
+.facts li{margin:3px 0}
+.key{display:inline-block;width:14px;height:8px;vertical-align:middle;margin-right:4px;border-radius:2px}
+</style></head>
+<body><div class="wrap">
+<div id="hd"></div>
+<div class="card"><h2>1. Escolhe a matriz</h2>
+ <div class="row"><label>Linhas (m) <select id="m"></select></label><label>Colunas (n) <select id="n"></select></label></div>
+ <div class="row" style="margin-top:8px">
+  <button class="sec" id="f1">a<sub>ij</sub> = i + j</button>
+  <button class="sec" id="f2">a<sub>ij</sub> = i·j</button>
+  <button class="sec" id="f3">a<sub>ij</sub> = 10i + j</button>
+  <button class="sec" id="f4">Aleatórios</button>
+  <button class="sec" id="f5">Todos zero</button>
+  <button class="sec" id="f6">Identidade</button></div>
+ <p class="note">Clica num elemento (ou escolhe i e j) para ver a sua posição. Podes escrever inteiros, decimais (0,5) e frações (1/3). Com a<sub>ij</sub> = 10i + j, o próprio valor diz a posição: 23 é a linha 2, coluna 3.</p>
+ <div class="scroll"><div id="grid"></div></div>
+ <div class="row" style="margin-top:8px"><label>Linha i <select id="si"></select></label><label>Coluna j <select id="sj"></select></label>
+  <label id="dlab"><input type="checkbox" id="dg" checked> Marcar diagonais</label></div>
+</div>
+<div class="card"><h2>2. Notação</h2>
+ <div class="math" id="notacao" style="margin-bottom:6px"></div>
+ <div class="grid2"><div class="scroll"><div class="math" id="simb"></div></div><div class="scroll"><div class="math" id="num"></div></div></div>
+</div>
+<div class="card plain"><h2>3. O elemento escolhido</h2>
+ <p class="big" id="elem"></p>
+ <div class="vec" id="vec"></div>
+ <ul class="facts" id="facts"></ul>
+</div>
+<div id="ft"></div></div>
+<script src="../assets/common.js"></script>
+<script>
+el('hd').innerHTML=header('Capítulo 1 · Matrizes','Explorador de matrizes','Escolhe a ordem, edita os elementos e aprende a ler cada a<sub>ij</sub>: linha i, coluna j.');
+el('ft').innerHTML=footer();
+rangeSel('m',1,6,3);rangeSel('n',1,6,4);
+let grid=null,sel=[0,0];
+const ix=(i,j)=>'a<sub>'+(i+1)+(j+1)+'</sub>';
+const lst=(k,f)=>k===1?f(0):k<=3?[...Array(k).keys()].map(f).join(', '):f(0)+', '+f(1)+', …, '+f(k-1);
+function fill(fn){const m=+el('m').value,n=+el('n').value;grid.set(Array.from({length:m},(_,i)=>Array.from({length:n},(_,j)=>fn(i+1,j+1))))}
+function build(){
+  const m=+el('m').value,n=+el('n').value;const old=grid?grid.get():null;
+  const init=Array.from({length:m},(_,i)=>Array.from({length:n},(_,j)=>old&&old[i]&&old[i][j]?old[i][j]:(old?0:i+j+2)));
+  grid=makeGrid(el('grid'),m,n,init,update);
+  grid.inputs.forEach((r,i)=>r.forEach((inp,j)=>{const f=()=>{if(sel[0]!==i||sel[1]!==j){sel=[i,j];update()}};inp.addEventListener('focus',f);inp.addEventListener('click',f)}));
+  ['si','sj'].forEach((id,k)=>{const s=el(id);s.innerHTML='';for(let t=1;t<=(k?n:m);t++){const o=document.createElement('option');o.value=t-1;o.textContent=t;s.appendChild(o)}});
+  sel=[Math.min(sel[0],m-1),Math.min(sel[1],n-1)];
+  el('dlab').style.display=m===n?'':'none';
+  update();
+}
+function update(){
+  const m=+el('m').value,n=+el('n').value,[si,sj]=sel;const A=grid.get();
+  el('si').value=si;el('sj').value=sj;
+  const sq=m===n,dg=sq&&el('dg').checked;
+  grid.inputs.forEach((r,i)=>r.forEach((inp,j)=>{
+    inp.classList.toggle('rw',i===si&&j!==sj);inp.classList.toggle('cl',j===sj&&i!==si);inp.classList.toggle('sl',i===si&&j===sj);
+    inp.classList.toggle('dp',dg&&i===j);inp.classList.toggle('ds',dg&&i+j===n-1)}));
+  el('notacao').innerHTML='A = (a<sub>ij</sub>)<sub>'+m+'×'+n+'</sub>, &nbsp;i = 1, …, '+m+' &nbsp;e&nbsp; j = 1, …, '+n;
+  const hl=new Set();for(let t=0;t<n;t++)hl.add(si+','+t);for(let t=0;t<m;t++)hl.add(t+','+sj);hl.delete(si+','+sj);
+  el('simb').innerHTML='A = '+matHTML(Array.from({length:m},(_,i)=>Array.from({length:n},(_,j)=>ix(i,j))),{hl,sel:si+','+sj});
+  if(!A){el('num').innerHTML='';el('elem').innerHTML='<span class="bad">Há um elemento inválido na matriz. Corrige-o (por exemplo 3, −2, 0,5 ou 1/2).</span>';el('vec').innerHTML='';el('facts').innerHTML='';return}
+  el('num').innerHTML='A = '+matHTML(A,{hl,sel:si+','+sj});
+  const v=A[si][sj];
+  el('elem').innerHTML='Elemento <span class="math"><b>'+ix(si,sj)+' = '+v.html()+'</b></span> (linha '+(si+1)+', coluna '+(sj+1)+')';
+  el('vec').innerHTML='<div class="math">L<sub>'+(si+1)+'</sub> = '+matHTML([A[si]])+'</div><div class="math">C<sub>'+(sj+1)+'</sub> = '+matHTML(A.map(r=>[r[sj]]))+'</div>';
+  let f='<li>A linha '+(si+1)+' é a matriz linha formada pelos '+n+' elementos '+lst(n,t=>ix(si,t))+'; a coluna '+(sj+1)+' é a matriz coluna formada pelos '+m+' elementos '+lst(m,t=>ix(t,sj))+'.</li>';
+  f+='<li>Ordem (ou dimensão) da matriz: <span class="math"><b>m×n = '+m+'×'+n+'</b></span>. Número de elementos: <span class="math"><b>mn = '+m+'·'+n+' = '+(m*n)+'</b></span>.</li>';
+  if(sq){
+    const dp=A.map((r,i)=>r[i].str()),ds=A.map((r,i)=>r[n-1-i].str());
+    f+='<li><span class="key" style="background:var(--navy)"></span>Diagonal principal (elementos <span class="math">a<sub>ii</sub></span>): <span class="math">('+dp.join(', ')+')</span>.</li>';
+    f+='<li><span class="key" style="background:var(--amber)"></span>Diagonal secundária (elementos <span class="math">a<sub>i,'+(n+1)+'−i</sub></span>, isto é, <span class="math">i + j = '+(n+1)+'</span>): <span class="math">('+ds.join(', ')+')</span>.</li>';
+    const on=[];if(si===sj)on.push('na diagonal principal (i = j)');if(si+sj===n-1)on.push('na diagonal secundária (i + j = '+(n+1)+')');
+    f+='<li>O elemento '+ix(si,sj)+' '+(on.length?'está '+on.join(' e '):'não está em nenhuma das diagonais')+'.</li>';
+  }else f+='<li class="note">A matriz não é quadrada ('+m+' ≠ '+n+'), por isso não tem diagonal principal nem secundária. Muda para m = n para as ver.</li>';
+  el('facts').innerHTML=f;
+}
+el('m').onchange=build;el('n').onchange=build;
+el('si').onchange=()=>{sel=[+el('si').value,sel[1]];update()};el('sj').onchange=()=>{sel=[sel[0],+el('sj').value];update()};
+el('dg').onchange=update;
+el('f1').onclick=()=>fill((i,j)=>i+j);el('f2').onclick=()=>fill((i,j)=>i*j);el('f3').onclick=()=>fill((i,j)=>10*i+j);
+el('f4').onclick=()=>fill(()=>Math.floor(Math.random()*19)-9);el('f5').onclick=()=>fill(()=>0);el('f6').onclick=()=>fill((i,j)=>i===j?1:0);
+build();
+</script></body></html>
