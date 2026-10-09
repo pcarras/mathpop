@@ -1,6 +1,7 @@
 # Gera a pasta deploy/out com os 4 ficheiros que ficam no Vercel (mesma origem): index.html, manifest, sw.js e icones.
 # O resto da app e servido pelo jsDelivr, fixo ao commit SHA. Uso: python3 scripts/make_deploy.py <sha-do-commit>
 import sys, os, json, shutil, pathlib
+import re, time
 sha = sys.argv[1]; root = pathlib.Path(__file__).resolve().parent.parent; out = root / 'deploy' / 'out'
 shutil.rmtree(out, ignore_errors=True); (out / 'icons').mkdir(parents=True)
 CDN = f'https://cdn.jsdelivr.net/gh/pcarras/mathpop@{sha}/web/'
@@ -11,6 +12,9 @@ manifest = {"id": "/", "name": "Arena Mat I", "short_name": "Arena Mat I", "desc
   "icons": [{"src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"}, {"src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"}, {"src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}]}
 # funcao da liga (servidor): api/*.js + package.json (ESM)
 (out / 'api').mkdir(); [shutil.copy(f, out / 'api' / f.name) for f in (root / 'api').glob('*.js')]; (out / 'package.json').write_text('{"type":"module"}\n')
+VERSAO = re.search(r"VERSAO = '([^']+)'", (root / 'web' / 'js' / 'versao.js').read_text()).group(1)
+(out / 'version.json').write_text(json.dumps({'v': VERSAO, 'sha': sha, 't': int(time.time())}), encoding='utf-8')
+(out / 'vercel.json').write_text(json.dumps({"functions": {"api/liga.js": {"maxDuration": 60}}, "headers": [{"source": "/(version.json|sw.js)", "headers": [{"key": "Cache-Control", "value": "no-cache, no-store, must-revalidate"}]}], "rewrites": [{"source": "/icons/:f", "destination": "https://cdn.jsdelivr.net/gh/pcarras/mathpop@8e5699273655bd645babd7d471744471e4067f1c/deploy/icons/:f"}]}, indent=1), encoding='utf-8')
 (out / 'manifest.webmanifest').write_text(json.dumps(manifest, ensure_ascii=False, indent=1), encoding='utf-8')
 sw = f"""// Service worker da Arena Mat I. Guarda a app no aparelho para abrir depressa e funcionar sem rede. Versao {sha[:7]}.
 const CACHE = 'mat1-{sha[:10]}';
@@ -52,6 +56,7 @@ head = f'''<!doctype html>
 <meta name="apple-mobile-web-app-title" content="Arena Mat I">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <title>Arena Mat I</title>
+<script>window.__BUILD={{v:'{VERSAO}',sha:'{sha}'}};</script>
 '''
 for css in ['vendor/katex/katex.min.css', 'css/tokens.css', 'css/base.css', 'css/components.css', 'css/views.css']: head += f'<link rel="stylesheet" href="{CDN}{css}">\n'
 body = (root / 'deploy' / 'body.html').read_text(encoding='utf-8')

@@ -1,5 +1,6 @@
 import { grid } from './grid.js';
 import { usarTeclado } from './keypad.js';
+import { tex } from './tex.js';
 // Widget de resposta conforme o tipo: get() devolve o formato de verificar() do motor.
 export function answerWidget(ex) {
   const r = ex.resposta, el = document.createElement('div'); const sem = usarTeclado();
@@ -14,6 +15,16 @@ export function answerWidget(ex) {
     const box = el.querySelector('.mx'); box.innerHTML = ''; box.style.cssText = 'display:inline-block;padding:0;margin:0'; box.classList.add('sem-par'); box.appendChild(i);
     const st = document.createElement('style'); st.textContent = '.mx.sem-par:before,.mx.sem-par:after{display:none}.mx.sem-par input{width:112px}'; if (!document.getElementById('sp')) { st.id = 'sp'; document.head.appendChild(st); }
     return { el, alvo: box, get: () => i.value, focus: () => i.focus(), marcar: (ok) => { i.classList.toggle('errado', !ok); i.classList.toggle('certo', ok); } };
+  }
+  if (r.kind === 'vetor') { // varios valores, cada um com rotulo e unidade
+    el.className = 'vetor';
+    const cs = r.valor.map((_, k) => {
+      const c = cel('?', r.rotulos[k].replace(/\$/g, '')); c.inputMode = sem ? 'none' : 'decimal';
+      const linha = document.createElement('div'); linha.className = 'vetor-l';
+      linha.innerHTML = `<span class="vetor-r">${tex(r.rotulos[k])}</span><div class="mx sem-par"></div><span class="vetor-u">${r.unidades[k]}</span>`;
+      linha.querySelector('.mx').appendChild(c); el.appendChild(linha); return c;
+    });
+    return { el, alvo: el, get: () => cs.map((c) => c.value), focus: () => cs[0].focus(), marcar: (ok) => cs.forEach((c) => { c.classList.toggle('errado', !ok); c.classList.toggle('certo', ok); }) };
   }
   // sistema: SPD / SPI / SI e solucao
   el.innerHTML = `<div class="linha" role="radiogroup" aria-label="Classificação" style="margin-bottom:10px"></div><div class="linha sol" style="display:none;gap:12px"></div>`;

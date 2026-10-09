@@ -10,8 +10,8 @@ import { festa, tintaEm, celebrar, contar } from '../ui/fx.js';
 import { enfileirar } from '../game/liga.js';
 
 const N = 5; // exercicios por sessao
-const GLIFO = { produto: 'A·B', determinante: '|A|', caracteristica: 'R(A)', inversa: 'A⁻¹', sistema: 'Ax=b', misto: '?' };
-const respostaTxt = (ex) => { const r = ex.resposta; if (r.kind !== 'sistema') return tex('$' + r.valor.toLatex() + '$'); const v = r.valor; return v.tipo + (v.solucao ? ' com ' + tex('$(x,y,z)=(' + v.solucao.map((s) => s.toLatex()).join(',') + ')$') : v.gi ? ` com grau de indeterminação ${v.gi}` : ''); };
+const GLIFO = { produto: 'A·B', determinante: '|A|', caracteristica: 'R(A)', inversa: 'A⁻¹', sistema: 'Ax=b', gestao: '€', misto: '?' };
+const respostaTxt = (ex) => { const r = ex.resposta; if (r.kind === 'vetor') return r.valor.map((v, i) => tex(`${r.rotulos[i]} = $${v.toLatex()}$ ${r.unidades[i]}`)).join('; '); if (r.kind !== 'sistema') return tex('$' + r.valor.toLatex() + '$'); const v = r.valor; return v.tipo + (v.solucao ? ' com ' + tex('$(x,y,z)=(' + v.solucao.map((s) => s.toLatex()).join(',') + ')$') : v.gi ? ` com grau de indeterminação ${v.gi}` : ''); };
 
 export function treinar(root, go, tipoArg, atualizarTopo) {
   document.body.classList.remove('imersivo');
@@ -45,7 +45,7 @@ export function treinar(root, go, tipoArg, atualizarTopo) {
     acoes.innerHTML = `<button class="btn ouro" id="pista" aria-label="Pista" style="flex:0 0 64px;padding:0">${icon('lampada')}</button><button class="btn grande" id="ver" style="width:auto">Verificar</button>`;
     acoes.querySelector('svg').style.cssText = 'width:30px;height:30px';
     const verificarFn = () => { if (feito) return; fn.ver(); };
-    dock.appendChild(acoes); if (usarTeclado()) dock.appendChild(teclado(root, { onOk: verificarFn }));
+    dock.appendChild(acoes); if (usarTeclado()) dock.appendChild(teclado(root, { onOk: verificarFn, decimal: ex.resposta.kind === 'vetor' }));
     requestAnimationFrame(() => { root.style.paddingBottom = dock.offsetHeight + 20 + 'px'; w.focus({ preventScroll: true }); const r = $('#resp').getBoundingClientRect(), livre = innerHeight - dock.offsetHeight - 12; if (r.bottom > livre) scrollBy({ top: r.bottom - livre, behavior: 'auto' }); });
     const folha = (cls, html) => { const f = document.createElement('div'); f.className = 'folha ' + cls; f.innerHTML = html; document.body.appendChild(f); dock.style.display = 'none'; return f; };
     const fecharFolha = (f) => { f.remove(); dock.style.display = ''; };

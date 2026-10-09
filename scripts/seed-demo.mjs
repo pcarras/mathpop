@@ -2,7 +2,7 @@
 import { gerar, TIPOS } from '../web/js/engine/generators.js';
 const BASE = process.argv[2] || 'http://localhost:8092';
 const post = async (b) => { const r = await fetch(BASE + '/api/liga', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(b) }); return { s: r.status, ...(await r.json()) }; };
-const resp = (ex) => { const r = ex.resposta; if (r.kind === 'escalar') return String(r.valor); if (r.kind === 'matriz') return r.valor.rows ? r.valor.rows.map((l) => l.map(String)) : JSON.parse(JSON.stringify(r.valor)); return { tipo: r.valor.tipo, solucao: (r.valor.solucao || []).map(String) }; };
+const resp = (ex) => { const r = ex.resposta; if (r.kind === 'vetor') return r.valor.map(String); if (r.kind === 'escalar') return String(r.valor); if (r.kind === 'matriz') return r.valor.rows ? r.valor.rows.map((l) => l.map(String)) : JSON.parse(JSON.stringify(r.valor)); return { tipo: r.valor.tipo, solucao: (r.valor.solucao || []).map(String) }; };
 const nomes = ['Ana Beatriz Silva', 'Rui Costa', 'Marta Neves', 'Tiago Pereira', 'Inês Matos', 'João Rocha', 'Sofia Lima', 'Pedro Alves', 'Carla Dias', 'Diogo Ramos', 'Beatriz Faria', 'Miguel Sousa', 'Leonor Pinto', 'André Gomes', 'Catarina Reis', 'Bruno Cardoso', 'Daniela Mota', 'Hugo Teixeira', 'Rita Vaz', 'Nuno Batista'];
 const alcs = ['', 'Pivô Veloz', 'MatrizX', '', 'DetMaster', 'Gauss', '', 'Inversa', 'Cramer', '', 'Zero', 'LinhaL1', '', 'Espaço', 'Rank3', '', 'Pivot', 'Sistema', '', 'Algarvio'];
 const plats = ['ios', 'ios', 'android', 'android', 'android', 'windows', 'mac', 'ios'];

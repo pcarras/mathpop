@@ -4,7 +4,7 @@ export const NIVEIS = [[0, 'Aluno iniciante 1'], [80, 'Aluno iniciante 2'], [200
 // o avatar guarda a "raridade" de cada item (0 a 5); cada raridade abre num nivel (indice em NIVEIS)
 export const NIVEL_DA_RARIDADE = [0, 1, 3, 5, 7, 8];
 export const DATA_TESTE = '2026-10-28';
-export const NOMES = { produto: 'Produto', determinante: 'Determinante', inversa: 'Inversa', caracteristica: 'Característica', sistema: 'Sistemas' };
+export const NOMES = { produto: 'Produto', determinante: 'Determinante', inversa: 'Inversa', caracteristica: 'Característica', sistema: 'Sistemas', gestao: 'Economia e Gestão' };
 export const PASSOS_TIPOS = ['inversa', 'caracteristica', 'sistema'];
 
 export function nivelDe(xp) {

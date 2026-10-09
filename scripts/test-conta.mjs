@@ -3,7 +3,7 @@ import { gerar, TIPOS } from '../web/js/engine/generators.js';
 const BASE = process.argv[2] || 'http://localhost:8092';
 const post = async (b) => { const r = await fetch(BASE + '/api/liga', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(b) }); return { s: r.status, ...(await r.json()) }; };
 let falhas = 0; const ok = (c, m) => { console.log((c ? 'ok   ' : 'FALHA'), m); if (!c) falhas++; };
-const resp = (ex) => { const r = ex.resposta; if (r.kind === 'escalar') return String(r.valor); if (r.kind === 'matriz') return r.valor.rows.map((l) => l.map(String)); return { tipo: r.valor.tipo, solucao: (r.valor.solucao || []).map(String) }; };
+const resp = (ex) => { const r = ex.resposta; if (r.kind === 'vetor') return r.valor.map(String); if (r.kind === 'escalar') return String(r.valor); if (r.kind === 'matriz') return r.valor.rows.map((l) => l.map(String)); return { tipo: r.valor.tipo, solucao: (r.valor.solucao || []).map(String) }; };
 const jog = (n) => ({ id: crypto.randomUUID(), sal: Math.floor(Math.random() * 1e9), contador: 0, n, dev: undefined });
 const sem = (j) => { j.contador++; return (j.sal + j.contador * 7919) >>> 0; };
 const certo = (j, t = TIPOS[j.contador % TIPOS.length], nivel = 1) => { const s = sem(j); return { t, n: nivel, s, p: 0, e: false, r: resp(gerar(t, s, nivel)), ts: Date.now() }; };

@@ -2,9 +2,9 @@ import { icon } from './icons.js';
 import { sfx } from './sfx.js';
 export const usarTeclado = () => matchMedia('(hover: none)').matches || innerWidth < 640;
 // Teclado de jogo: escreve na celula ativa (.cel) dentro de `escopo`. Nao tira o foco das celulas.
-export function teclado(escopo, { onOk, rotuloOk = 'Verificar' } = {}) {
+export function teclado(escopo, { onOk, rotuloOk = 'Verificar', decimal = false } = {}) {
   const el = document.createElement('div'); el.className = 'teclado';
-  const teclas = [['7'], ['8'], ['9'], ['apaga'], ['4'], ['5'], ['6'], ['-'], ['1'], ['2'], ['3'], ['/'], ['0'], ['esq'], ['dir'], ['ok']];
+  const teclas = [['7'], ['8'], ['9'], ['apaga'], ['4'], ['5'], ['6'], ['-'], ['1'], ['2'], ['3'], [decimal ? ',' : '/'], ['0'], ['esq'], ['dir'], ['ok']];
   el.innerHTML = teclas.map(([k]) => k === 'apaga' ? `<button type="button" class="t-apaga" data-k="apaga" aria-label="Apagar">⌫</button>` : k === 'ok' ? `<button type="button" class="t-acao" data-k="ok" aria-label="${rotuloOk}">${icon('check')}</button>`
     : k === 'esq' ? `<button type="button" data-k="esq" aria-label="Célula anterior">◀</button>` : k === 'dir' ? `<button type="button" data-k="dir" aria-label="Célula seguinte">▶</button>` : `<button type="button" data-k="${k}">${k === '-' ? '−' : k}</button>`).join('');
   el.querySelectorAll('button').forEach((b) => b.style.display = 'grid');

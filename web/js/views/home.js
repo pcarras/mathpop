@@ -14,16 +14,17 @@ const CONVITE = 'mat1.convite';
 const conviteAtivo = () => { try { const t = Number(localStorage.getItem(CONVITE) || 0); return !t || Date.now() - t > 2 * 86400000; } catch { return true; } };
 const hojeISO = () => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10); };
 
-const ORDEM = ['produto', 'determinante', 'caracteristica', 'inversa', 'sistema'];
-const GLIFO = { produto: 'A·B', determinante: '|A|', caracteristica: 'R(A)', inversa: 'A⁻¹', sistema: 'Ax=b' };
-const POS = [[100, 62], [250, 146], [108, 232], [250, 318], [108, 404]];
-const BOSS = [226, 520];
+const ORDEM = ['produto', 'determinante', 'caracteristica', 'inversa', 'sistema', 'gestao'];
+const GLIFO = { produto: 'A·B', determinante: '|A|', caracteristica: 'R(A)', inversa: 'A⁻¹', sistema: 'Ax=b', gestao: '€' };
+const POS = [[100, 62], [250, 146], [108, 232], [250, 318], [108, 404], [250, 490]];
+const BOSS = [136, 606];
 const hex = (cx, cy, r) => Array.from({ length: 6 }, (_, k) => { const a = (Math.PI / 180) * (60 * k - 30); return `${(cx + r * Math.cos(a)).toFixed(1)},${(cy + r * Math.sin(a)).toFixed(1)}`; }).join(' ');
+const rotulo = (t, x) => (t === 'gestao' ? `<tspan x="${x}">Economia</tspan><tspan x="${x}" dy="16">e Gestão</tspan>` : NOMES[t]);
 const estrelasDe = (d) => (d >= 0.9 ? 3 : d >= 0.7 ? 2 : d >= 0.4 ? 1 : 0);
 
 function mapa() {
   const doms = ORDEM.map((t) => dominio(t)); const rec = doms.indexOf(Math.min(...doms));
-  const caminho = `M${POS[0]} C${POS[0][0] + 100},${POS[0][1] - 10} 250,90 ${POS[1]} S 108,190 ${POS[2]} S 250,276 ${POS[3]} S 108,362 ${POS[4]} S 226,470 ${BOSS}`;
+  const caminho = `M${POS[0]} C${POS[0][0] + 100},${POS[0][1] - 10} 250,90 ${POS[1]} S 108,190 ${POS[2]} S 250,276 ${POS[3]} S 108,362 ${POS[4]} S 250,448 ${POS[5]} S 136,556 ${BOSS}`;
   const nos = ORDEM.map((t, i) => {
     const [x, y] = POS[i], d = doms[i], est = estrelasDe(d), circ = 2 * Math.PI * 47;
     const cor = d >= 0.4 ? ['#27D8E0', '#0E8F98'] : ['#4C6CB4', '#223C78'];
@@ -35,12 +36,12 @@ function mapa() {
       <polygon points="${hex(x, y, 38)}" fill="url(#gNo${d >= 0.4 ? 'On' : 'Off'})" stroke="${cor[0]}" stroke-width="3" stroke-linejoin="round"/>
       <text x="${x}" y="${y + 9}" text-anchor="middle" class="glifo">${GLIFO[t]}</text>
       ${[0, 1, 2].map((k) => `<g transform="translate(${x - 30 + k * 20} ${y - 66}) scale(.82)">${icon(k < est ? 'estrela' : 'estrelaVazia').replace('<svg class="ico "', '<svg class="ico " width="24" height="24"')}</g>`).join('')}
-      <text x="${x}" y="${y + 66}" text-anchor="middle" class="rot">${NOMES[t]}</text>
+      <text x="${x}" y="${y + 66}" text-anchor="middle" class="rot">${rotulo(t, x)}</text>
       ${i === rec ? `<text x="${x > 180 ? 327 : 33}" y="${y - 4}" text-anchor="middle" class="balao"><tspan x="${x > 180 ? 327 : 33}">Começa</tspan><tspan x="${x > 180 ? 327 : 33}" dy="16">aqui</tspan></text>` : ''}
     </g>`;
   }).join('');
   const dias = Math.max(0, diasAteTeste(new Date(), dataDoTeste(estado().perfil)));
-  return `<svg class="mapa" viewBox="0 0 360 590" role="group" aria-label="Jornada até ao teste">
+  return `<svg class="mapa" viewBox="0 0 360 676" role="group" aria-label="Jornada até ao teste">
     <defs><linearGradient id="gNoOn" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2E8FB8"/><stop offset="1" stop-color="#16407A"/></linearGradient>
     <linearGradient id="gNoOff" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3B5797"/><stop offset="1" stop-color="#1B2F63"/></linearGradient>
     <linearGradient id="gBoss" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FF6B7A"/><stop offset="1" stop-color="#9E1626"/></linearGradient></defs>
@@ -53,8 +54,8 @@ function mapa() {
       <g transform="translate(${BOSS[0] - 15} ${BOSS[1] - 36}) scale(1.25)">${icon('coroa')}</g>
       <text x="${BOSS[0]}" y="${BOSS[1] + 16}" text-anchor="middle" class="glifo" style="font-size:30px">${dias}</text>
       <text x="${BOSS[0]}" y="${BOSS[1] + 34}" text-anchor="middle" class="rot" style="font-size:14px">${dias === 1 ? 'dia' : 'dias'}</text>
-      <text x="${BOSS[0] - 92}" y="${BOSS[1] + 8}" text-anchor="middle" class="balao" style="font-size:24px">Teste</text>
-      <text x="${BOSS[0] - 92}" y="${BOSS[1] + 30}" text-anchor="middle" class="balao" style="font-size:24px">28 out</text>
+      <text x="${BOSS[0] + 98}" y="${BOSS[1] + 8}" text-anchor="middle" class="balao" style="font-size:24px">Teste</text>
+      <text x="${BOSS[0] + 98}" y="${BOSS[1] + 30}" text-anchor="middle" class="balao" style="font-size:24px">28 out</text>
     </g></svg>`;
 }
 

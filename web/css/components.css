@@ -118,3 +118,16 @@ body.imersivo .barra{display:none}
 @keyframes av-sobr{0%,58%,100%{translate:0 0}62%,68%{translate:0 -3px}72%{translate:0 0}}
 @keyframes av-respira{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-1.5%) scale(1.012)}}
 @media (prefers-reduced-motion:reduce){.av.anima .av-olhos,.av.anima .av-sobr,.av.anima .av-arte svg{animation:none}}
+/* resposta com varios valores (Economia e Gestao) */
+.vetor{display:grid;gap:10px}
+.vetor-l{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(54px,auto);align-items:center;gap:10px}
+.vetor-r{font:800 18px var(--display);color:var(--giz);line-height:1.15}
+.vetor-u{font:700 15px var(--display);color:var(--giz-2)}
+.vetor .mx.sem-par{padding:0;margin:0}.vetor .mx.sem-par:before,.vetor .mx.sem-par:after{display:none}.vetor .mx.sem-par input{width:118px}
+@media (max-width:400px){.vetor-r{font-size:16px}.vetor .mx.sem-par input{width:100px}}
+.painel.enun{overflow-x:auto}
+/* versao e aviso de atualizacao */
+.versao-rodape{margin:18px 0 6px;text-align:center;font:700 13px var(--corpo);color:var(--giz-2);opacity:.8}
+.aviso-versao{position:fixed;left:12px;right:12px;bottom:calc(86px + env(safe-area-inset-bottom));z-index:95;display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:18px;background:linear-gradient(180deg,#24468C,#162E5E);border:1px solid var(--ouro);box-shadow:0 14px 34px rgba(0,0,0,.5);max-width:520px;margin:0 auto}
+.aviso-versao div{flex:1;display:flex;flex-direction:column;gap:2px}.aviso-versao b{font:900 18px var(--display);color:var(--giz)}.aviso-versao span{font:600 14px var(--corpo);color:var(--giz-2)}
+.aviso-versao .btn{min-height:44px;padding:0 16px}

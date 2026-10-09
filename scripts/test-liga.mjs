@@ -3,7 +3,7 @@ import { gerar, TIPOS } from '../web/js/engine/generators.js';
 const BASE = process.argv[2] || 'http://localhost:8092';
 const post = async (b) => { const r = await fetch(BASE + '/api/liga', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(b) }); return { s: r.status, ...(await r.json()) }; };
 let falhas = 0; const ok = (c, m) => { console.log((c ? 'ok   ' : 'FALHA'), m); if (!c) falhas++; };
-const resp = (ex) => { const r = ex.resposta; if (r.kind === 'escalar') return String(r.valor); if (r.kind === 'matriz') return r.valor.rows ? r.valor.rows.map((l) => l.map(String)) : JSON.parse(JSON.stringify(r.valor)); return { tipo: r.valor.tipo, solucao: (r.valor.solucao || []).map(String) }; };
+const resp = (ex) => { const r = ex.resposta; if (r.kind === 'vetor') return r.valor.map(String); if (r.kind === 'escalar') return String(r.valor); if (r.kind === 'matriz') return r.valor.rows ? r.valor.rows.map((l) => l.map(String)) : JSON.parse(JSON.stringify(r.valor)); return { tipo: r.valor.tipo, solucao: (r.valor.solucao || []).map(String) }; };
 const jogador = (n) => ({ id: crypto.randomUUID(), sal: Math.floor(Math.random() * 1e9), contador: 0, n });
 const semente = (j) => { j.contador++; return (j.sal + j.contador * 7919) >>> 0; };
 const certo = (j, t = TIPOS[j.contador % TIPOS.length], nivel = 1, extra = {}) => { const s = semente(j); const ex = gerar(t, s, nivel); return { t, n: nivel, s, p: 0, e: false, r: resp(ex), ts: Date.now(), ...extra }; };
@@ -87,4 +87,14 @@ ok(r.horas.length === 24 && r.horas.reduce((a, x) => a + x, 0) >= 3, 'horas do d
 ok(r.tipos.inversa.n >= 2 && r.tipos.inversa.e === 1 && r.tipos.inversa.p === 1, `tipos: inversa n>=2, e1, p1 (${JSON.stringify(r.tipos.inversa)})`);
 const antesProf = r.tipos.produto.n; r = await post({ a: 'sync', id: prof.id, chave: prof.chave, ev: [certo(prof, 'produto', 1)] }); r = await post({ a: 'painel', id: prof.id, chave: prof.chave }); ok(r.tipos.produto.n === antesProf, 'treino do professor nao entra nas estatisticas');
 r = await post({ a: 'ranking', id: eva.id, chave: eva.chave, escopo: 'geral', periodo: 'total' }); ok(r.profs.length === 1 && r.profs[0].alc === 'ProfAlc', 'alunos veem o professor numa lista a parte');
+// Economia e Gestao (resposta com varios valores, decimais e milhares)
+{ const g = jogador('Gil'); r = await post({ a: 'registar', id: g.id, sal: g.sal, nome: 'Gil Gestao', alc: 'Gilgestao', regime: 'diurno', local: 'faro', avatar: { top: 'bob' }, consentimento: true }); g.chave = r.chave;
+  const e3 = certo(g, 'gestao', 3), e2 = certo(g, 'gestao', 2), e1 = certo(g, 'gestao', 1);
+  const mau = certo(g, 'gestao', 1); mau.r = mau.r.map((v, i) => (i === 0 ? String(Number(String(v).split('/')[0]) + 1) : v));
+  const curto = certo(g, 'gestao', 1); curto.r = curto.r.slice(1);
+  r = await post({ a: 'sync', id: g.id, chave: g.chave, ev: [e1, e2, e3, mau, curto] }); ok(r.aceites === 3 && r.rejeitados === 2, `gestao: 3 certas aceites, errada e curta recusadas (${r.aceites}/${r.rejeitados})`);
+  const ex = gerar('gestao', e2.s, 2); const dec = ex.resposta.valor.map((v) => (v.isInt() ? String(v) : String(Number(v.n) / Number(v.d)).replace('.', ',')));
+  const g2 = certo(g, 'gestao', 2); const exd = gerar('gestao', g2.s, 2); g2.r = exd.resposta.valor.map((v) => (v.isInt() ? String(v).replace(/(\d)(?=(\d{3})+$)/g, '$1 ') + ',00' : String(Number(v.n) / Number(v.d)).replace('.', ',')));
+  r = await post({ a: 'sync', id: g.id, chave: g.chave, ev: [g2] }); ok(r.aceites === 1, 'gestao: aceita virgula decimal, espacos e ,00 (' + JSON.stringify(g2.r) + ')');
+  r = await post({ a: 'painel', id: prof.id, chave: prof.chave }); ok(r.tipos.gestao && r.tipos.gestao.n >= 4, 'painel conta o tipo gestao (' + JSON.stringify(r.tipos.gestao) + ')'); }
 console.log(falhas ? `\n${falhas} FALHAS` : '\nTodos os testes passaram'); process.exit(falhas ? 1 : 0);

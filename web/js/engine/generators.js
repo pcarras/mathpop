@@ -3,6 +3,7 @@
 import { makeRng } from './rng.js';
 import { Matrix, applyOp, reduce, det, inverse, solveSystem, rank } from './matrix.js';
 import { Frac, F } from './fraction.js';
+import { gestao } from './gestao.js';
 
 const MAXDIG = 3; // nenhum numero com mais de 3 algarismos nas respostas
 const rndMat = (rng, m, n, lo, hi) => Matrix.from(Array.from({ length: m }, () => Array.from({ length: n }, () => F(rng.int(lo, hi)))));
@@ -142,7 +143,7 @@ function sistema(rng, nivel) {
   });
 }
 
-export const GERADORES = { produto, determinante, inversa, caracteristica, sistema };
+export const GERADORES = { produto, determinante, inversa, caracteristica, sistema, gestao };
 export const TIPOS = Object.keys(GERADORES);
 
 export function gerar(tipo, semente, nivel = 1) {
@@ -151,13 +152,18 @@ export function gerar(tipo, semente, nivel = 1) {
   return { ...ex, semente, id: `${tipo}-${nivel}-${semente}` };
 }
 
+const numero = (s) => { s = String(s ?? '').trim().replace(/[\s\u00a0]/g, '').replace(/€$/, ''); if (/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(s)) s = s.replace(/\./g, ''); return Frac.parse(s); };
 // Verificacao exata da resposta final do aluno.
-// matriz: given = [[str]] ; escalar: given = str ; sistema: given = {tipo, solucao?:[str]}
+// matriz: given = [[str]] ; escalar: given = str ; sistema: given = {tipo, solucao?:[str]} ; vetor: given = [str]
 export function verificar(ex, given) {
   const r = ex.resposta;
   try {
     if (r.kind === 'matriz') return Matrix.parse(given).eq(r.valor);
     if (r.kind === 'escalar') { const f = Frac.parse(given); return !!f && f.eq(r.valor); }
+    if (r.kind === 'vetor') { // varios valores (euros, quantidades...): aceita 12,8  12.8  50 000  50.000
+      if (!Array.isArray(given) || given.length !== r.valor.length) return false;
+      return r.valor.every((v, i) => { const f = numero(given[i]); return !!f && f.eq(v); });
+    }
     if (r.kind === 'sistema') {
       if (!given || given.tipo !== r.valor.tipo) return false;
       if (r.valor.tipo !== 'SPD') return true;

@@ -6,6 +6,7 @@ import { avatarHTML, categoria, desbloqueado, nomeNivelDoItem, RARIDADE, CABELOS
 import { CONQUISTAS, progresso } from '../game/achievements.js';
 import { sfx, alternarSom } from '../ui/sfx.js';
 import { toast, festa } from '../ui/fx.js';
+import { versaoTexto, buildCurto, procurar } from '../ui/atualizar.js';
 import { camposHTML, ligarCampos, valido } from './entrada.js';
 import { naLiga, sairDaLiga, agendar, disponivelAgora, eProfessor, tornarProfessor, emailDisponivel } from '../game/liga.js';
 import { conteudo as instConteudo, ligar as instLigar } from '../ui/instalar.js';
@@ -146,6 +147,9 @@ function vDef(s) {
     <button class="btn erro" id="apagar">Apagar os meus dados</button>
   </section>
   <section class="painel" style="margin-top:12px">
+    <div class="linha"><div><b>Versão da app</b><div class="nota">Arena Mat I ${versaoTexto()}${buildCurto() ? ' (' + buildCurto() + ')' : ''}. A app procura atualizações sozinha.</div></div><span class="espaco"></span><button class="btn fantasma" id="procurarAtu" style="min-height:44px">Procurar</button></div>
+  </section>
+  <section class="painel" style="margin-top:12px">
     <b>Créditos</b>
     <p class="nota" style="margin:4px 0 0">Avatares: Avataaars, de Pablo Stanley, através da biblioteca DiceBear. Fórmulas: KaTeX. Confetes: canvas-confetti. Tipos de letra Big Shoulders Display e Figtree, licença OFL. Exercícios e regras: Paulo Carrasco, ESGHT, Universidade do Algarve.</p>
   </section>`;
@@ -153,6 +157,7 @@ function vDef(s) {
 
 function ligarDef(root, s, go, redesenhar, atualizarTopo) {
   const ci = root.querySelector('#instalar'); if (ci) instLigar(ci, redesenhar);
+  root.querySelector('#procurarAtu')?.addEventListener('click', (e) => { sfx.clique(); e.currentTarget.disabled = true; procurar(true).finally(() => { const b = root.querySelector('#procurarAtu'); if (b) b.disabled = false; }); });
   const ler = ligarCampos(root, 'd', () => { const p = ler(), o = s.perfil; root.querySelector('#gravDados').disabled = !valido(p) || (p.nome === o.nome && p.regime === o.regime && p.local === o.local && p.alcunha === (o.alcunha || '') && (p.teste || o.teste || '') === (o.teste || '')); });
   root.querySelector('#gravDados').addEventListener('click', () => { const p = ler(); if (!valido(p)) return; p.teste = p.teste || s.perfil.teste || ''; Object.assign(s.perfil, p); gravar(); sfx.xp(); agendar(1500); sincronizarNuvem(); toast(`<div><b>Dados guardados</b><br><span class="nota">${p.nome}, ${p.regime === 'diurno' ? 'diurno' : 'noturno'}, ${p.local === 'faro' ? 'Faro' : 'Portimão'}.</span></div>`); atualizarTopo(); redesenhar(); });
   const volta = () => { atualizarTopo(); redesenhar(); };

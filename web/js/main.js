@@ -7,6 +7,7 @@ import { home } from './views/home.js';
 import { treinar } from './views/treinar.js';
 import { perfil } from './views/perfil.js';
 import { registarSW } from './ui/instalar.js';
+import { iniciarAtualizacoes, versaoTexto } from './ui/atualizar.js';
 import { entrada, perfilCompleto, falta_teste, pedirTeste } from './views/entrada.js';
 import { ligaDisponivel, disponivelAgora, iniciarLiga, agendar } from './game/liga.js';
 import { iniciarConta, aoMudarConta, sincronizarNuvem } from './game/conta.js';
@@ -40,12 +41,14 @@ function render() {
   marcarNav(nome);
   scrollTo(0, 0);
   v(root, go, tipo, atualizarTopo);
+  if (v === home) root.insertAdjacentHTML('beforeend', `<p class="versao-rodape">Arena Mat I · ${versaoTexto()}</p>`);
   atualizarTopo(); root.focus({ preventScroll: true });
 }
 document.getElementById('topo-id').addEventListener('click', () => go('perfil'));
 window.addEventListener('hashchange', render);
 render();
 registarSW();
+iniciarAtualizacoes();
 // a liga so aparece quando o servidor esta ligado a base de dados
 ligaDisponivel().then(async (ok) => {
   if (ok) { const m = await import('./views/liga.js'); VISTAS.liga = m.liga; }
