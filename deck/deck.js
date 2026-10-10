@@ -276,9 +276,9 @@ function bindKeys(){
   addEventListener('wheel',e=>{if(e.target.closest('.scroll'))return;},{passive:true});
 }
 /* ---------- cronómetro dos exercícios recomendados ---------- */
-const TMR={dur:600,left:600,run:false,end:0,open:false,iv:null,ctx:null,el:null};
-try{const s=JSON.parse(localStorage.getItem('m1t1_tmr')||'{}');if(s.dur>=60&&s.dur<=3600){TMR.dur=TMR.left=s.dur|0}TMR.open=!!s.open}catch(e){}
-const tmrSave=()=>{try{localStorage.setItem('m1t1_tmr',JSON.stringify({dur:TMR.dur,open:TMR.open}))}catch(e){}};
+const TMR={dur:600,left:600,run:false,end:0,open:false,iv:null,ctx:null,el:null,kind:'ex',durs:{ex:600,t:1200}};
+try{const s=JSON.parse(localStorage.getItem('m1t1_tmr')||'{}');if(s.dur>=60&&s.dur<=3600){TMR.durs.ex=s.dur|0}if(s.durT>=60&&s.durT<=3600){TMR.durs.t=s.durT|0}TMR.dur=TMR.left=TMR.durs.ex;TMR.open=!!s.open}catch(e){}
+const tmrSave=()=>{try{TMR.durs[TMR.kind]=TMR.dur;localStorage.setItem('m1t1_tmr',JSON.stringify({dur:TMR.durs.ex,durT:TMR.durs.t,open:TMR.open}))}catch(e){}};
 const tmrFmt=s=>{s=Math.max(0,Math.ceil(s-1e-6));return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')};
 const TMR_ICON='<svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13.5" r="7.5"/><path d="M12 9.5v4.2l2.6 1.6M9.5 2.8h5M12 2.8v3.2M18.6 6.4l1.4-1.4"/></svg>';
 const TMR_PLAY='<svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor"><path d="M8 5.2v13.6a1 1 0 0 0 1.5.9l11-6.8a1 1 0 0 0 0-1.8l-11-6.8A1 1 0 0 0 8 5.2z"/></svg>';
@@ -313,7 +313,8 @@ function buildTimer(){
   ['touchstart','touchend'].forEach(ev=>d.addEventListener(ev,e=>e.stopPropagation(),{passive:true}));
   tmrRender();
 }
-function tmrSync(cur){if(!TMR.el)return;TMR.el.classList.toggle('off',!(cur&&(cur.exs||cur.tmr)))}
+function tmrSync(cur){if(!TMR.el)return;const on=!!(cur&&(cur.exs||cur.tmr));TMR.el.classList.toggle('off',!on);
+  if(on){const k=cur.tmr?'t':'ex';if(k!==TMR.kind){TMR.durs[TMR.kind]=TMR.dur;TMR.kind=k;TMR.dur=TMR.durs[k];tmrReset()}}}
 function tmrOpen(v){TMR.open=v;tmrSave();tmrRender()}
 function tmrAudio(){try{if(!TMR.ctx)TMR.ctx=new(window.AudioContext||window.webkitAudioContext)();if(TMR.ctx.state==='suspended')TMR.ctx.resume()}catch(e){}}
 function tmrBeep(){tmrAudio();const c=TMR.ctx;if(!c)return;
