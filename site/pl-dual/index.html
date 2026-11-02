@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="pt-PT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dualidade · Matemática I</title>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/pl.css">
+<style>
+.pre{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.pre button{padding:5px 10px;font-size:14px}
+.nmg{display:grid;grid-template-columns:auto minmax(0,1fr) 6.5em;gap:6px 8px;align-items:center;font-size:14px}
+.nmg input{width:100%}
+.nmg .h{font-size:12px;color:var(--gray);text-transform:uppercase;letter-spacing:.04em}
+.pd{position:relative;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px 64px;padding:6px 2px}
+@media(max-width:640px){.pd{grid-template-columns:minmax(0,1fr);gap:46px}}
+.pd svg{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;overflow:visible;z-index:0}
+.mdl{position:relative;z-index:1;background:transparent;border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+.mdl [data-k].one:not(.on){color:var(--gray)}
+td.wr{white-space:normal!important;min-width:12em}
+.mdl .tt{font-size:12px;letter-spacing:.06em;text-transform:uppercase;font-weight:700;color:var(--navy);margin-bottom:4px}
+.mdl .ln{font-family:"Libertinus Serif","Latin Modern Roman","STIX Two Text","Times New Roman",serif;font-size:19px;line-height:1.9;white-space:nowrap}
+.mdl [data-k]{display:inline-block;padding:0 3px;border-radius:5px;transition:background .15s,color .15s}
+.mdl [data-k].on{color:#fff}
+.mdl .kw{font-family:Lato,"Segoe UI",system-ui,sans-serif;font-size:15px;font-weight:700}
+@media (prefers-color-scheme:dark){.mdl [data-k].on{color:#0d1117}}
+.modes{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.modes button{padding:5px 10px;font-size:14px}
+#mexp{font-size:14px;margin:6px 0 0}
+.eqz{font-size:22px;text-align:center;margin:8px 0}
+ul.int{margin:6px 0;padding-left:20px}ul.int li{margin:5px 0}
+</style></head>
+<body><div class="wrap">
+<div id="hd"></div>
+<div class="grid2">
+ <div class="card"><h2>1. O problema primal</h2>
+  <div id="ed"></div>
+  <div class="pre" id="pre"></div>
+  <p class="note">Forma canónica: Max com restrições ≤, ou Min com restrições ≥ (2 ou 3 variáveis e 2 ou 3 restrições).</p>
+ </div>
+ <div class="card"><h2>2. Para a interpretação económica</h2>
+  <div class="nmg" id="nm"></div>
+  <div class="row" style="margin-top:8px"><label>A função objetivo mede o <select id="fw"><option>lucro</option><option>custo</option><option>rendimento</option><option>valor</option></select></label><label>em <input type="text" id="cur" value="€" size="3"></label></div>
+ </div>
+</div>
+<div class="card"><h2>3. Primal e dual lado a lado</h2>
+ <div class="modes" id="modes"></div>
+ <div class="pd" id="pd"><div class="mdl" id="P"></div><div class="mdl" id="D"></div><svg id="ar" aria-hidden="true"></svg></div>
+ <p id="mexp" class="note"></p>
+</div>
+<div class="grid2">
+ <div class="card"><h2>4. Soluções ótimas</h2><div id="sol"></div></div>
+ <div class="card"><h2>5. Preços-sombra e interpretação</h2><div id="sh"></div></div>
+</div>
+<div class="card plain"><h2>6. Quadro ótimo do primal</h2><div id="qf"></div><p class="note" id="qn"></p></div>
+<div id="ft"></div></div>
+<script src="../assets/common.js"></script>
+<script src="../assets/pl.js"></script>
+<script>
+el('hd').innerHTML=header('Tema 2 · Capítulo 8 · Dualidade','Primal e dual','A cada problema de PL corresponde um problema dual: troca-se Max por Min, os termos independentes com os coeficientes da função objetivo, transpõe-se a matriz e invertem-se as desigualdades.');
+el('ft').innerHTML=footer();
+const {vHTML,cHTML,cTxt,REL}=PL;
+const PRE=[
+ ['Exemplo do caderno',PL.make('max',[30,20],[[3,1],[1,2]],['<=','<='],[150,100]),[['matéria-prima K','kg'],['trabalho','hora']],'lucro'],
+ ['Dieta (Min)',PL.make('min',[4,6],[[2,1],[1,2],[5,6]],['>=','>=','>='],[420,500,2100]),[['nutriente A','unidade'],['nutriente B','unidade'],['nutriente C','unidade']],'custo'],
+ ['Três produtos',PL.make('max',[2,3,1],[[1,1,1],[2,1,0],[0,1,3]],['<=','<=','<='],[40,60,90]),[['máquina 1','hora'],['máquina 2','hora'],['matéria-prima','kg']],'lucro']];
+let lp=null,DL=null,R=null,RD=null,mode='bc',names=[];
+const ed=PL.editor(el('ed'),{n:2,m:2,nMin:2,nMax:3,mMin:2,mMax:3,relFixed:s=>s==='max'?'<=':'>='},()=>recompute());
+PRE.forEach(([nm,p,lab,fw])=>{const b=document.createElement('button');b.className='sec';b.textContent=nm;b.onclick=()=>{[...el('pre').children].forEach(x=>x.classList.toggle('on',x===b));names=lab.map(x=>x.slice());el('fw').value=fw;ed.set(p)};el('pre').appendChild(b)});
+const MODES=[['bc','b ↔ c'],['at','Matriz A ↔ Aᵀ'],['sr','Max ↔ Min e ≤ ↔ ≥'],['vr','Restrições ↔ variáveis']];
+MODES.forEach(([k,t])=>{const b=document.createElement('button');b.className='sec'+(k===mode?' on':'');b.textContent=t;b.onclick=()=>{mode=k;[...el('modes').children].forEach(x=>x.classList.toggle('on',x===b));arrows()};el('modes').appendChild(b)});
+function nameRows(){
+  const box=el('nm');const m=lp.m;while(names.length<m)names.push(['restrição '+(names.length+1),'unidade']);
+  box.innerHTML='<span class="h"></span><span class="h">Restrição (recurso ou exigência)</span><span class="h">Unidade</span>';
+  for(let i=0;i<m;i++){const t=document.createElement('span');t.textContent='('+(i+1)+')';const a=document.createElement('input');a.type='text';a.value=names[i][0];a.setAttribute('aria-label','nome da restrição '+(i+1));
+    const u=document.createElement('input');u.type='text';u.value=names[i][1];u.setAttribute('aria-label','unidade da restrição '+(i+1));
+    a.oninput=()=>{names[i][0]=a.value;interp()};u.oninput=()=>{names[i][1]=u.value;interp()};box.append(t,a,u)}
+}
+function recompute(){
+  lp=ed.get();if(!lp){el('sol').innerHTML='<div class="err">Há um coeficiente inválido (assinalado a vermelho).</div>';return}
+  DL=PL.dual(lp);R=PL.simplex(lp);RD=PL.simplex(DL);
+  nameRows();models();results();interp();quadro();requestAnimationFrame(arrows);
+}
+/* modelos com cada coeficiente numa caixa identificada (data-k) */
+function term(k,coef,vn,first){const neg=coef.n<0,ab=neg?coef.neg():coef;
+  const one=(ab.isOne()||ab.isZero())?' class="one"':'';
+  if(first)return '<span data-k="'+k+'"'+one+'>'+cHTML(coef)+'</span>'+vHTML(vn);
+  return (neg?' ':' + ')+'<span data-k="'+k+'"'+one+'>'+(neg?'− ':'')+cHTML(ab)+'</span>'+vHTML(vn)}
+function models(){
+  const n=lp.n,m=lp.m,x=lp.names,y=DL.names;
+  let p='<div class="tt">Primal</div><div class="ln"><span class="kw" data-k="s">'+(lp.sense==='max'?'Max':'Min')+'</span> z = '+lp.c.map((c,j)=>term('c'+j,c,x[j],j===0)).join('')+'</div>';
+  lp.A.forEach((r,i)=>{p+='<div class="ln"><span class="note">('+(i+1)+')</span> '+r.map((a,j)=>term('a'+i+'_'+j,a,x[j],j===0)).join('')+' <span data-k="r'+i+'">'+REL[lp.rel[i]]+'</span> <span data-k="b'+i+'">'+cHTML(lp.b[i])+'</span> <span class="note" data-k="y'+i+'">→ '+vTxtH(y[i])+'</span></div>'});
+  p+='<div class="ln">'+x.map((v,j)=>'<span data-k="x'+j+'">'+vHTML(v)+'</span>').join(', ')+'&nbsp;≥&nbsp;0</div>';
+  let d='<div class="tt">Dual</div><div class="ln"><span class="kw" data-k="s">'+(DL.sense==='max'?'Max':'Min')+'</span> w = '+lp.b.map((b,i)=>term('b'+i,b,y[i],i===0)).join('')+'</div>';
+  for(let j=0;j<n;j++){d+='<div class="ln"><span class="note">('+(j+1)+')</span> '+lp.A.map((r,i)=>term('a'+i+'_'+j,r[j],y[i],i===0)).join('')+' <span data-k="q'+j+'">'+REL[DL.rel[j]]+'</span> <span data-k="c'+j+'">'+cHTML(lp.c[j])+'</span> <span class="note" data-k="x'+j+'">→ '+vTxtH(x[j])+'</span></div>'}
+  d+='<div class="ln">'+y.map((v,i)=>'<span data-k="y'+i+'">'+vHTML(v)+'</span>').join(', ')+'&nbsp;≥&nbsp;0</div>';
+  el('P').innerHTML=p;el('D').innerHTML=d;
+  document.querySelectorAll('.mdl [data-k]').forEach(s=>{s.onmouseenter=()=>hover(s.dataset.k);s.onmouseleave=()=>arrows()});
+}
+function vTxtH(v){return vHTML(v)}
+const PAL=['--teal','--amber','--violet','--green','--red','--navy'];
+function pairs(){
+  const n=lp.n,m=lp.m,o=[];
+  if(mode==='bc'){for(let i=0;i<m;i++)o.push(['b'+i,'--amber']);for(let j=0;j<n;j++)o.push(['c'+j,'--violet'])}
+  else if(mode==='at'){for(let i=0;i<m;i++)for(let j=0;j<n;j++)o.push(['a'+i+'_'+j,PAL[i]])}
+  else if(mode==='sr'){o.push(['s','--red'])}
+  else{for(let i=0;i<m;i++)o.push(['y'+i,PAL[i]]);for(let j=0;j<n;j++)o.push(['x'+j,PAL[(j+3)%6]])}
+  return o;
+}
+const MEXP={bc:'Os termos independentes b do primal passam a coeficientes da função objetivo do dual, e os coeficientes c da função objetivo do primal passam a termos independentes do dual.',
+ at:'A linha i da matriz A do primal passa a coluna i da matriz do dual (matriz transposta Aᵀ): cada cor é uma restrição do primal.',
+ sr:'Max passa a Min (e vice-versa); as restrições ≤ do primal dão restrições ≥ no dual (e vice-versa). As variáveis de ambos são ≥ 0.',
+ vr:'A cada restrição i do primal corresponde uma variável dual yᵢ; a cada variável xⱼ do primal corresponde uma restrição j do dual.'};
+function clearHL(){document.querySelectorAll('.mdl [data-k]').forEach(s=>{s.classList.remove('on');s.style.background=''})}
+function hl(k,col){document.querySelectorAll('.mdl [data-k="'+k+'"]').forEach(s=>{s.classList.add('on');s.style.background='var('+col+')'})}
+function arrows(){
+  if(!lp)return;clearHL();const svg=el('ar');const box=el('pd').getBoundingClientRect();
+  const P=el('P'),D=el('D');let h='';
+  const list=pairs();
+  if(mode==='sr'){for(let i=0;i<lp.m;i++)hl('r'+i,'--teal');for(let j=0;j<lp.n;j++)hl('q'+j,'--teal')}
+  list.forEach(([k,col])=>{hl(k,col);const a=P.querySelector('[data-k="'+k+'"]'),b=D.querySelector('[data-k="'+k+'"]');if(!a||!b)return;h+=arrowPath(a,b,col,box)});
+  if(mode==='sr'){const a=P.querySelector('[data-k="r0"]'),b=D.querySelector('[data-k="q0"]');if(a&&b)h+=arrowPath(a,b,'--teal',box)}
+  svg.innerHTML=h;const stacked=el('D').getBoundingClientRect().top>el('P').getBoundingClientRect().bottom-2;
+  el('mexp').textContent=MEXP[mode]+(stacked?' Neste ecrã os dois problemas estão um por baixo do outro: as cores indicam os pares correspondentes (num ecrã largo aparecem também as setas).':'');
+}
+function arrowPath(a,b,col,box){
+  const ra=a.getBoundingClientRect(),rb=b.getBoundingClientRect();const c=PL.css(col);
+  const side=rb.left>ra.right+10;if(!side)return '';let x1,y1,x2,y2,c1x,c1y,c2x,c2y;
+  if(side){x1=ra.right-box.left;y1=ra.top+ra.height/2-box.top;x2=rb.left-box.left-3;y2=rb.top+rb.height/2-box.top;const d=Math.max(40,(x2-x1)*.5);c1x=x1+d;c1y=y1;c2x=x2-d;c2y=y2}
+  else{x1=ra.left+ra.width/2-box.left;y1=ra.bottom-box.top;x2=rb.left+rb.width/2-box.left;y2=rb.top-box.top-3;const d=Math.max(30,(y2-y1)*.45);c1x=x1;c1y=y1+d;c2x=x2;c2y=y2-d}
+  const ang=Math.atan2(y2-c2y,x2-c2x),L=8;
+  const hx1=x2-L*Math.cos(ang-.45),hy1=y2-L*Math.sin(ang-.45),hx2=x2-L*Math.cos(ang+.45),hy2=y2-L*Math.sin(ang+.45);
+  return '<path d="M'+x1+' '+y1+' C'+c1x+' '+c1y+' '+c2x+' '+c2y+' '+x2+' '+y2+'" fill="none" stroke="'+c+'" stroke-width="1.8" opacity=".7"/><path d="M'+x2+' '+y2+' L'+hx1+' '+hy1+' L'+hx2+' '+hy2+' Z" fill="'+c+'"/>';
+}
+function hover(k){clearHL();const box=el('pd').getBoundingClientRect();const a=el('P').querySelector('[data-k="'+k+'"]'),b=el('D').querySelector('[data-k="'+k+'"]');hl(k,'--red');el('ar').innerHTML=a&&b?arrowPath(a,b,'--red',box):''}
+function results(){
+  const x=lp.names,y=DL.names;let h='';
+  const st=(r)=>r.status==='otimo'?null:(r.status==='ilimitado'?'sem ótimo':r.status==='impossivel'?'impossível':'sem conclusão');
+  if(R.status==='otimo'&&RD.status==='otimo'){
+    h+='<p><b>Primal</b> (Simplex): <span class="math">'+x.map((v,j)=>vHTML(v)+'* = '+R.x[j].html()).join(', ')+'</span>, <b class="math">z* = '+R.z.html()+'</b></p>';
+    h+='<p><b>Dual</b> (Simplex, M grande): <span class="math">'+y.map((v,i)=>vHTML(v)+'* = '+RD.x[i].html()).join(', ')+'</span>, <b class="math">w* = '+RD.z.html()+'</b></p>';
+    h+=R.z.eq(RD.z)?'<div class="good eqz math">z* = w* = '+R.z.html()+'</div><p class="note">Teorema da dualidade: quando um dos problemas tem ótimo finito, o outro também tem, e os valores ótimos coincidem.</p>':'<div class="err">Os valores ótimos não coincidem.</div>';
+    h+='<p class="note">Ver todos os quadros: <a href="../pl-simplex/#'+PL.toHash(lp)+'">primal</a> · <a href="../pl-simplex/#'+PL.toHash(DL)+'">dual</a> no applet do Simplex.</p>';
+  }else{
+    h+='<div class="err">Primal: '+(st(R)||'ótimo')+'. Dual: '+(st(RD)||'ótimo')+'.</div>';
+    if(R.status==='ilimitado')h+='<p>Se o primal não tem ótimo (z ilimitado), o dual é impossível: não há preços que cubram o valor de todas as atividades.</p>';
+    if(R.status==='impossivel')h+='<p>Se o primal é impossível, o dual é impossível ou não tem ótimo.</p>';
+  }
+  el('sol').innerHTML=h;
+}
+function interp(){
+  if(!R||R.status!=='otimo'||RD.status!=='otimo'){el('sh').innerHTML='<p class="note">Os preços-sombra só existem quando o primal tem solução ótima.</p>';return}
+  const S=PL.sombra(R),mx=lp.sense==='max',fw=el('fw').value,cur=el('cur').value.trim();const last=R.quadros[R.quadros.length-1];
+  let h='<p>O valor ótimo de cada variável dual é o <b>preço-sombra</b> da restrição correspondente: quanto varia z* por cada unidade adicional do termo independente.</p>';
+  h+='<div class="tw"><table class="pt"><tr><th>Restrição</th><th>Variável dual</th><th>Leitura no quadro ótimo</th><th>Estado</th></tr>';
+  S.forEach((s,i)=>{const e=R.estado[i];const q=s.cz;
+    const read=mx?'−(c<sub>j</sub> − z<sub>j</sub> de '+vHTML(s.col)+') = −('+q.html()+') = '+s.y.html():'c<sub>j</sub> − z<sub>j</sub> de '+vHTML(s.col)+' = '+s.y.html();
+    h+='<tr><td>('+(i+1)+') '+esc(names[i][0])+'</td><td class="m">'+vHTML(DL.names[i])+'* = '+RD.x[i].html()+'</td><td class="m wr">'+read+(s.y.eq(RD.x[i])?' <span class="ok">✓</span>':' <span class="bad">✗</span>')+'</td><td>'+(e.sat?'<span class="chip s">saturada</span>':'<span class="chip o">não saturada</span>')+'</td></tr>'});
+  h+='</table></div><ul class="int">';
+  S.forEach((s,i)=>{const nm=esc(names[i][0]),un=esc(names[i][1]),e=R.estado[i];const y=s.y;
+    if(!y.isZero())h+='<li>'+(mx?'Cada '+un+' adicional de '+nm+' aumenta o '+fw+' em <b>'+cTxtV(y)+' '+esc(cur)+'</b>.':'Exigir mais 1 '+un+' de '+nm+' aumenta o '+fw+' em <b>'+cTxtV(y)+' '+esc(cur)+'</b>.')+(mx?' Vale a pena pagar até '+cTxtV(y)+' '+esc(cur)+' por cada '+un+' extra.':'')+'</li>';
+    else h+='<li>'+(mx?'A restrição de '+nm+' não está saturada (folga '+vHTML(e.var)+' = '+cTxtV(e.val)+'): ter mais '+nm+' não altera o '+fw+'. Preço-sombra nulo.':'A exigência '+nm+' já é ultrapassada (excesso '+vHTML(e.var)+' = '+cTxtV(e.val)+'): aumentá-la um pouco não altera o '+fw+'. Preço-sombra nulo.')+'</li>'});
+  h+='</ul><p class="note">Estas interpretações valem para pequenas variações dos termos independentes, enquanto a base ótima se mantiver. Uma restrição não saturada tem sempre preço-sombra nulo.</p>';
+  el('sh').innerHTML=h;
+}
+function cTxtV(f){return f.d===1||PL.isTerm(f)?PL.cTxt(f):f.str()+' (≈ '+PL.decTxt(f.val(),2)+')'}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function quadro(){
+  if(R.status!=='otimo'){el('qf').innerHTML='';el('qn').textContent='';return}
+  const last=R.quadros[R.quadros.length-1];const hc=new Set(R.std.cols.filter(c=>c.type==='F'||c.type==='E').map(c=>c.name));
+  el('qf').innerHTML=PL.quadroHTML(last,{final:true,hlCols:hc});
+  el('qn').innerHTML=lp.sense==='max'?'Os preços-sombra leem-se na linha c<sub>j</sub> − z<sub>j</sub>, nas colunas das variáveis de folga (a violeta), com o sinal trocado: y<sub>i</sub> = −(c<sub>j</sub> − z<sub>j</sub>) de F<sub>i</sub>.':'Num problema de minimização com restrições ≥, os preços-sombra leem-se na linha c<sub>j</sub> − z<sub>j</sub>, nas colunas das variáveis de excesso (a violeta): y<sub>i</sub> = c<sub>j</sub> − z<sub>j</sub> de E<sub>i</sub>.';
+}
+el('fw').onchange=interp;el('cur').oninput=interp;
+window.addEventListener('resize',()=>requestAnimationFrame(arrows));
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>arrows());
+if(window.matchMedia)matchMedia('(prefers-color-scheme:dark)').addEventListener('change',arrows);
+el('pre').children[0].click();
+</script></body></html>

@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="pt-PT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Simplex passo a passo · Matemática I</title>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/pl.css">
+<style>
+.pre{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.pre button{padding:5px 10px;font-size:14px}
+.std ul{margin:6px 0 4px;padding-left:20px}.std li{margin:2px 0}
+.nav{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.nav .cnt{font-weight:700;color:var(--navy);margin-left:4px}
+.expl p{margin:6px 0}
+.qblock{border-top:1px dashed var(--line);padding-top:6px;margin-top:6px}
+.qblock:first-child{border-top:0;margin-top:0}
+.legq{font-size:13px;color:var(--gray);margin-top:8px;line-height:1.7}
+.legq .ring{display:inline-block;border:2px solid var(--red);border-radius:50%;padding:0 5px;color:var(--ink)}
+.legq .sw{display:inline-block;width:14px;height:11px;vertical-align:middle;border-radius:2px;margin-right:3px}
+</style></head>
+<body><div class="wrap">
+<div id="hd"></div>
+<div class="grid2">
+ <div class="card"><h2>1. O problema</h2>
+  <div id="ed"></div>
+  <div class="pre" id="pre"></div>
+  <p class="note">De 2 a 4 variáveis e de 2 a 4 restrições. Aceita inteiros, decimais (0,5) e frações (1/3).</p>
+ </div>
+ <div class="card std"><h2>2. Forma standard</h2><div id="std"></div></div>
+</div>
+<div class="card"><h2>3. Quadros do Simplex</h2>
+ <div class="nav"><button id="prev">◀ Anterior</button><button id="next">Seguinte ▶</button><button class="sec" id="end">Ir ao fim</button><button class="sec" id="rst">Recomeçar</button><span class="cnt" id="cnt"></span></div>
+ <div class="btns"><label><input type="checkbox" id="all"> Mostrar todos os quadros até aqui</label><label id="altl"><input type="checkbox" id="alt"> Mostrar o quadro da solução ótima alternativa</label></div>
+ <div id="qs"></div>
+ <div class="expl info" id="ex"></div>
+ <details class="calc" id="calc"><summary>Como se calculam os c<sub>j</sub> − z<sub>j</sub> deste quadro</summary><div id="cz"></div></details>
+ <div class="legq">Notação: <span class="ring">a</span> elemento redutor; <span class="sw" style="background:rgba(15,123,138,.25)"></span>coluna da variável que entra (↑); <span class="sw" style="background:rgba(183,121,31,.3)"></span>linha da variável que sai (← menor rácio); <b style="color:var(--teal)">:k</b> à direita, dividir a linha pelo elemento redutor; <b style="color:var(--teal)">número à esquerda</b>, multiplicador da operação de Jacobi (soma-se à linha a linha do elemento redutor já dividida, multiplicada por esse número). Na linha c<sub>j</sub> − z<sub>j</sub>, por baixo de RHS, está o valor de z.</div>
+</div>
+<div class="card"><h2>4. Resultado</h2><div id="res"></div></div>
+<div id="ft"></div></div>
+<script src="../assets/common.js"></script>
+<script src="../assets/pl.js"></script>
+<script>
+el('hd').innerHTML=header('Tema 2 · Capítulos 5 e 6 · Método do Simplex e M grande','Simplex passo a passo','Escreva um problema, veja a forma standard e siga os quadros do Simplex um a um, com o elemento redutor e as operações de cada passo.');
+el('ft').innerHTML=footer();
+const {vHTML,cHTML,MV,REL}=PL;
+const PRE=[
+ ['Exemplo do caderno',PL.make('max',[30,20],[[3,1],[1,2]],['<=','<='],[150,100])],
+ ['Ficha prática (M grande)',PL.make('min',[3,5],[[1,2],[3,0],[1,5]],['<=','>=','>='],[410,450,500])],
+ ['Dieta',PL.make('min',[4,6],[[2,1],[1,2],[5,6]],['>=','>=','>='],[420,500,2100])],
+ ['Três variáveis',PL.make('min',[1,2,3],[[1,-1,2],[1,1,-1]],['>=','>='],[2,1])],
+ ['Ótimos múltiplos',PL.make('max',[10,20],[[3,1],[1,2]],['<=','<='],[150,100])],
+ ['Sem ótimo',PL.make('max',[2,3],[[-1,1],[1,-1]],['<=','<='],[4,2])],
+ ['Impossível',PL.make('max',[3,2],[[1,1],[2,3]],['<=','>='],[2,12])]];
+let lp=null,R=null,k=0;
+const ed=PL.editor(el('ed'),{n:2,m:2,nMin:2,nMax:4,mMin:2,mMax:4},()=>recompute());
+PRE.forEach(([nm,p])=>{const b=document.createElement('button');b.className='sec';b.textContent=nm;b.onclick=()=>{mark(b);ed.set(p)};el('pre').appendChild(b)});
+function mark(b){[...el('pre').children].forEach(x=>x.classList.toggle('on',x===b))}
+const nm=(q,j)=>vHTML(q.cols[j].name);
+const par=x=>{const h=x.html();return (x instanceof MV?(x.hasM()&&!x.a.isZero())||x.b.n<0&&x.a.isZero()||(!x.hasM()&&x.a.n<0):x.n<0)?'('+h+')':h};
+function recompute(){
+  lp=ed.get();
+  if(!lp){el('std').innerHTML='<div class="err">Há um coeficiente inválido (assinalado a vermelho).</div>';el('qs').innerHTML='';el('ex').innerHTML='';el('res').innerHTML='';return}
+  try{history.replaceState(null,'','#'+PL.toHash(lp))}catch(e){}
+  R=PL.simplex(lp,{alt:el('alt').checked});k=0;stdForm();show();
+}
+function stdForm(){
+  const L=R.lp,S=R.std;const big=L.sense==='max'?'−M':'+M';let h='';
+  if(L.flipped.length)h+='<div class="warn">'+L.flipped.map(i=>'A restrição ('+(i+1)+') tinha termo independente negativo: multiplicou-se por −1 e o sinal da desigualdade inverteu-se.').join('<br>')+'</div>';
+  h+='<ul>';L.rel.forEach((rl,i)=>{const r='('+(i+1)+') '+REL[rl]+': ';
+    if(rl==='<=')h+='<li>'+r+'soma-se a variável de folga '+vHTML('F'+(i+1))+'.</li>';
+    else if(rl==='>=')h+='<li>'+r+'subtrai-se a variável de excesso '+vHTML('E'+(i+1))+' e soma-se a variável artificial '+vHTML('A'+(i+1))+'.</li>';
+    else h+='<li>'+r+'soma-se a variável artificial '+vHTML('A'+(i+1))+'.</li>'});h+='</ul>';
+  if(S.cols.some(c=>c.type==='A'))h+='<p class="note">As variáveis artificiais só servem para formar a matriz identidade da base inicial. Na função objetivo entram com coeficiente '+big+' (M muito grande): é a penalização do método do M grande, que as obriga a sair da base.</p>';
+  const names=S.cols.map(c=>c.name);const zero=new Set(S.cols.map((c,j)=>j).filter(j=>S.cols[j].type!=='x'));
+  h+='<table class="pl-mod math"><tr><td class="k">'+(L.sense==='max'?'Maximizar':'Minimizar')+'</td><td>z = '+PL.linHTML(S.cost,names,{zero})+'</td></tr>';
+  S.rows.forEach((r,i)=>{h+='<tr><td class="k">'+(i?'':'sujeito a')+'</td><td>'+PL.linHTML(r,names)+' = '+cHTML(S.rhs[i])+'</td></tr>'});
+  h+='<tr><td></td><td>'+names.map(vHTML).join(', ')+'&nbsp;≥&nbsp;0</td></tr></table>';
+  const b0=S.basis.map(b=>vHTML(S.cols[b].name)).join(', ');
+  h+='<p class="note">Base inicial (colunas da matriz identidade): '+b0+'.</p>';
+  el('std').innerHTML=h;
+}
+function qTitle(i){const q=R.quadros[i];return 'Quadro '+(i+1)+(q.altFinal?' (solução ótima alternativa)':'')}
+function isFinal(i){return i===R.quadros.length-1}
+function qHTML(i){const q=R.quadros[i];
+  return '<div class="qblock"><p class="qcap">'+qTitle(i)+'</p>'+PL.quadroHTML(q,{annot:true,final:(R.status==='otimo'&&(isFinal(i)||q.alt||(R.quadros[i+1]&&R.quadros[i+1].altFinal)))})+'</div>'}
+function show(){
+  const N=R.quadros.length;k=Math.max(0,Math.min(N-1,k));
+  let h='';if(el('all').checked)for(let i=0;i<k;i++)h+=qHTML(i);h+=qHTML(k);el('qs').innerHTML=h;
+  el('cnt').textContent='Quadro '+(k+1)+' de '+N;
+  el('prev').disabled=k===0;el('next').disabled=k===N-1;el('end').disabled=k===N-1;
+  el('altl').style.display=(R.status==='otimo'&&R.multiplas)||el('alt').checked?'':'none';
+  el('ex').innerHTML=explain(k);el('cz').innerHTML=czCalc(R.quadros[k]);
+  result();
+}
+function explain(i){
+  const q=R.quadros[i],L=R.lp,mx=L.sense==='max';let h='';
+  const base=q.basis.map(b=>vHTML(q.cols[b].name)).join(', ');
+  h+='<p><b>'+qTitle(i)+'.</b> Variáveis básicas: '+base+'. Valor de z: <span class="math">'+q.val.html()+'</span>.</p>';
+  if(q.altFinal)return h+'<p>Esta é outra solução ótima, com o mesmo valor de z. Todos os pontos do segmento entre as duas soluções são também ótimos.</p>';
+  if(q.entra!==null){
+    const e=q.entra,v=q.cz[e];
+    const nb=q.cols.map((c,j)=>j).filter(j=>!q.basis.includes(j)&&j!==e&&q.cz[j].cmp(v)===0);
+    if(q.alt)h+='<p>Todos os c<sub>j</sub> − z<sub>j</sub> são '+(mx?'≤ 0':'≥ 0')+': este quadro já é ótimo. Mas '+nm(q,e)+' está fora da base com c<sub>j</sub> − z<sub>j</sub> = 0, o que indica <b>ótimos múltiplos</b>. Fazendo entrar '+nm(q,e)+' obtém-se outra solução ótima.</p>';
+    else h+='<p><b>Entra '+nm(q,e)+'</b> porque, em '+(mx?'maximização, é a variável com c<sub>j</sub> − z<sub>j</sub> mais positivo':'minimização, é a variável com c<sub>j</sub> − z<sub>j</sub> mais negativo')+' (<span class="math">'+v.html()+'</span>)'+(q.cz.some(x=>x.hasM())?'; compara-se primeiro o coeficiente de M':'')+(nb.length?'; há empate com '+nb.map(j=>nm(q,j)).join(', ')+' e escolhe-se a primeira coluna':'')+'.</p>';
+    const rs=q.rows.map((r,ii)=>{const a=r[e];const lab=nm(q,q.basis[ii]);
+      return sgn(a)>0?'linha de '+lab+': <span class="math">'+q.rhs[ii].html()+' / '+par(a)+' = '+q.ratios[ii].html()+'</span>':'linha de '+lab+': coeficiente <span class="math">'+a.html()+'</span> ≤ 0, sem rácio'});
+    h+='<p>Rácios r = RHS / coeficiente positivo da coluna de '+nm(q,e)+': '+rs.join('; ')+'.</p>';
+    if(q.sai===null)return h+'<p class="bad">Nenhum coeficiente da coluna de '+nm(q,e)+' é positivo: não há rácios válidos. O problema não tem ótimo, porque '+nm(q,e)+' pode crescer indefinidamente e z '+(mx?'aumenta':'diminui')+' sem limite.</p>';
+    const r=q.sai,lv=nm(q,q.basis[r]);
+    h+='<p><b>Sai '+lv+'</b> porque o rácio <span class="math">'+q.ratios[r].html()+'</span> é o menor. O elemento redutor é <span class="math">'+q.rows[r][e].html()+'</span> (circulado), no cruzamento da coluna de '+nm(q,e)+' com a linha de '+lv+'.</p>';
+    const mul=Object.keys(q.ops.mult).map(Number);
+    h+='<p>Para obter o quadro seguinte divide-se a linha de '+lv+' pelo elemento redutor (<b class="math" style="color:var(--teal)">:'+q.ops.div.html()+'</b>, à direita) e '+nm(q,e)+' passa a ocupar essa linha'+(mul.length?'. Nas outras linhas aplica-se a operação de Jacobi: soma-se a linha do elemento redutor, já dividida, multiplicada pelo número escrito à esquerda ('+mul.map(ii=>'<span class="math">'+q.ops.mult[ii].html()+'</span> na linha de '+nm(q,q.basis[ii])).join('; ')+'), para anular a coluna de '+nm(q,e):'')+'.'+(q.rows.some((rw,ii)=>ii!==r&&rw[e].isZero())?' As linhas com 0 nessa coluna mantêm-se.':'')+'</p>';
+    if(q.retira)h+='<p>A variável artificial '+vHTML(q.retira)+' sai da base: já cumpriu a sua função e a sua coluna é retirada no quadro seguinte.</p>';
+    return h;
+  }
+  if(R.status==='impossivel'&&R.impM)return h+'<p>A variável artificial '+R.artIn.map(vHTML).join(', ')+' continua na base com valor positivo e nenhum c<sub>j</sub> − z<sub>j</sub> tem coeficiente de M '+(mx?'positivo':'negativo')+': já não é possível fazer sair as artificiais. <b class="bad">O problema é impossível</b>: não há nenhuma solução que satisfaça todas as restrições.</p>';
+  if(R.status==='impossivel')return h+'<p>Todos os c<sub>j</sub> − z<sub>j</sub> são '+(mx?'≤ 0':'≥ 0')+', mas a variável artificial '+R.artIn.map(vHTML).join(', ')+' continua na base com valor positivo. <b class="bad">O problema é impossível</b>: não há nenhuma solução que satisfaça todas as restrições.</p>';
+  h+='<p>Todos os c<sub>j</sub> − z<sub>j</sub> são '+(mx?'≤ 0 (maximização)':'≥ 0 (minimização)')+': nenhuma variável fora da base melhora z. <b>O quadro é ótimo.</b></p>';
+  if(R.multiplas)h+='<p>Há variáveis fora da base com c<sub>j</sub> − z<sub>j</sub> = 0 ('+R.altCols.map(j=>nm(q,j)).join(', ')+'): o problema tem <b>ótimos múltiplos</b>.</p>';
+  return h;
+}
+function czCalc(q){
+  let h='<div class="tw"><table class="pt">';
+  q.cols.forEach((c,j)=>{const terms=q.basis.map((b,i)=>par(q.cost[b])+'·'+par(q.rows[i][j]));
+    h+='<tr><td class="m">'+vHTML(c.name)+'</td><td class="m">z<sub>j</sub> = '+terms.join(' + ')+' = '+q.z[j].html()+'</td><td class="m">c<sub>j</sub> − z<sub>j</sub> = '+par(q.cost[j])+' − '+par(q.z[j])+' = <b>'+q.cz[j].html()+'</b></td></tr>'});
+  const vt=q.basis.map((b,i)=>par(q.cost[b])+'·'+par(q.rhs[i]));
+  h+='<tr><td class="m">z</td><td class="m" colspan="2">z = '+vt.join(' + ')+' = <b>'+q.val.html()+'</b></td></tr></table></div>';
+  return h;
+}
+const sgn=f=>Math.sign(f.n);
+function result(){
+  const N=R.quadros.length;const last=R.quadros[N-1];
+  if(k<N-1&&!R.quadros[k].alt){el('res').innerHTML='<p class="note">Avance até ao último quadro ('+N+') para ver a conclusão.</p>';return}
+  const L=R.lp;let h='';
+  if(R.status==='ilimitado'){h='<div class="err"><b>Problema sem ótimo.</b> A variável '+nm(last,last.entra)+' pode entrar na base sem limite (nenhum rácio válido), por isso z '+(L.sense==='max'?'cresce':'decresce')+' indefinidamente.'+(R.artIn?' Atenção: ainda há variáveis artificiais na base ('+R.artIn.map(vHTML).join(', ')+').':'')+'</div>';el('res').innerHTML=h;return}
+  if(R.status==='impossivel'){h='<div class="err"><b>Problema impossível.</b> No último quadro a variável artificial '+R.artIn.map(vHTML).join(', ')+' está na base com valor positivo: o conjunto de soluções admissíveis é vazio.</div>';el('res').innerHTML=h;return}
+  if(R.status!=='otimo'){el('res').innerHTML='<div class="warn">O número máximo de iterações foi atingido.</div>';return}
+  const V=R.vals;const dec=L.names.map(n=>vHTML(n)+'* = '+V[n].html()).join(',&nbsp; ');
+  const aux=R.std.cols.filter(c=>c.type==='F'||c.type==='E').map(c=>vHTML(c.name)+' = '+(V[c.name]||Fr.ZERO).html()).join(',&nbsp; ');
+  h+='<div class="good"><b>Solução ótima'+(R.multiplas?' (uma delas)':'')+':</b> <span class="math">'+dec+'</span><br><b>Valor ótimo:</b> <span class="math big">z* = '+PL.resHTML(R.z)+'</span>'+(aux?'<br><span class="note">Folgas e excessos:</span> <span class="math">'+aux+'</span>':'')+'</div>';
+  if(R.multiplas)h+='<div class="warn"><b>Ótimos múltiplos:</b> no quadro ótimo, '+R.altCols.map(j=>nm(last.altFinal?R.quadros[N-2]:last,j)).join(', ')+' está fora da base com c<sub>j</sub> − z<sub>j</sub> = 0.'+(R.altX?' Outra solução ótima: <span class="math">'+L.names.map((n,j)=>vHTML(n)+' = '+R.altX[j].html()).join(', ')+'</span>, com o mesmo z*.':R.altRay?' A coluna dessa variável não tem coeficientes positivos: os ótimos formam uma semirreta.':' Ative “Mostrar o quadro da solução ótima alternativa” para a ver.')+'</div>';
+  h+='<p class="qcap">Estado das restrições</p><div class="tw"><table class="pt"><tr><th>Restrição</th><th>Estado</th><th>Folga / excesso</th></tr>';
+  R.estado.forEach(s=>{h+='<tr><td class="m">('+(s.i+1)+') '+PL.linHTML(L.A[s.i],L.names)+' '+REL[s.rel]+' '+cHTML(s.b)+'</td><td>'+(s.sat?'<span class="chip s">saturada</span>':'<span class="chip o">não saturada</span>')+'</td><td class="m">'+(s.var?vHTML(s.var)+' = '+s.val.html()+' <span class="note">('+s.tipo+')</span>':'<span class="note">igualdade</span>')+'</td></tr>'});
+  h+='</table></div>';
+  el('res').innerHTML=h;
+}
+el('prev').onclick=()=>{k--;show()};el('next').onclick=()=>{k++;show()};el('end').onclick=()=>{k=R.quadros.length-1;show()};el('rst').onclick=()=>{k=0;show()};
+el('all').onchange=show;el('alt').onchange=()=>{const kk=k;recompute();k=Math.min(kk,R.quadros.length-1);if(el('alt').checked)k=R.quadros.length-1;show()};
+const fromH=location.hash.length>1?PL.fromHash(location.hash):null;
+if(fromH&&fromH.n>=2&&fromH.n<=4&&fromH.m>=2&&fromH.m<=4)ed.set(fromH);else el('pre').children[0].click();
+</script></body></html>

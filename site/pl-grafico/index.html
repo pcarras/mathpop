@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="pt-PT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Resolução gráfica · Matemática I</title>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/pl.css">
+<style>
+.gl{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:12px;align-items:start}
+@media(max-width:820px){.gl{grid-template-columns:minmax(0,1fr);gap:0}.gl>div{display:contents}.c-prob{order:1}.c-graph{order:2}.c-sol{order:3}}
+.zrow{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;margin-top:10px}
+.zrow input[type=range]{width:100%}
+.zrow .zv{font-size:18px;min-width:6.5em;text-align:right}
+#zmsg{min-height:1.4em;margin:6px 0 0;font-size:14px}
+.pre{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.pre button{padding:5px 10px;font-size:14px}
+</style></head>
+<body><div class="wrap">
+<div id="hd"></div>
+<div class="gl">
+ <div>
+  <div class="card c-prob"><h2>1. O problema</h2>
+   <div id="ed"></div>
+   <div class="pre" id="pre"></div>
+   <p class="note">Aceita inteiros, decimais (0,25) e frações (1/3). Até 5 restrições técnicas.</p>
+  </div>
+  <div class="card c-sol"><h2>3. Solução</h2><div id="sol"></div></div>
+ </div>
+ <div>
+  <div class="card c-graph"><h2>2. Gráfico</h2>
+   <div class="cw" id="cw"><canvas id="cv" role="img" aria-label="Gráfico com as restrições, o conjunto de soluções admissíveis e a reta da função objetivo"></canvas></div>
+   <div class="leg" id="leg"></div>
+   <div class="zrow"><label for="zs" class="math"><i>z</i></label><input type="range" id="zs" aria-label="valor de z da reta da função objetivo"><span class="zv math" id="zv"></span></div>
+   <div class="btns"><button id="go">Ir ao ótimo</button><label><input type="checkbox" id="sh" checked> Sombrear o lado admissível de cada restrição</label></div>
+   <p id="zmsg" class="note"></p>
+   <p class="note">Arraste o gráfico (rato ou dedo) para deslocar a reta da função objetivo em paralelo.</p>
+  </div>
+ </div>
+</div>
+<div class="grid2">
+ <div class="card"><h2>4. Vértices do CSA</h2><div class="tw" id="vt"></div></div>
+ <div class="card"><h2>5. Estado das restrições no ótimo</h2><div id="est"></div></div>
+</div>
+<div id="ft"></div></div>
+<script src="../assets/common.js"></script>
+<script src="../assets/pl.js"></script>
+<script>
+el('hd').innerHTML=header('Tema 2 · Capítulo 3 · Resolução gráfica','Resolução gráfica','Desenhe as restrições, encontre o conjunto de soluções admissíveis (CSA) e desloque a reta da função objetivo até ao ótimo.');
+el('ft').innerHTML=footer();
+const {vHTML,vTxt,cHTML,decTxt,ptTxt,ptHTML,REL}=PL;
+const PRE=[
+ ['Exemplo do caderno',PL.make('max',[30,20],[[3,1],[1,2]],['<=','<='],[150,100])],
+ ['Mistura de carne',PL.make('min',[8,6],[['0,2','0,32'],[1,1]],['<=','='],['0,25',1],['x','y'])],
+ ['Dieta',PL.make('min',[4,6],[[2,1],[1,2],[5,6]],['>=','>=','>='],[420,500,2100])],
+ ['Ótimos múltiplos',PL.make('max',[10,20],[[3,1],[1,2]],['<=','<='],[150,100])],
+ ['Sem ótimo',PL.make('max',[2,3],[[-1,1],[1,-1]],['<=','<='],[4,2])],
+ ['Impossível',PL.make('max',[3,2],[[1,1],[2,3]],['<=','>='],[2,12])]];
+const cv=el('cv'),plot=new PL.Plot(cv,el('cw'),{ratio:.8,maxW:680});
+let lp=null,G=null,zc=null,zr={lo:0,hi:1,step:1,dec:0},anim=null,csa=[];
+const ed=PL.editor(el('ed'),{nFixed:true,n:2,m:2,mMin:1,mMax:5},()=>recompute());
+PRE.forEach(([nm,p],k)=>{const b=document.createElement('button');b.className='sec';b.textContent=nm;b.onclick=()=>{[...el('pre').children].forEach(x=>x.classList.remove('on'));b.classList.add('on');ed.set(p)};el('pre').appendChild(b)});
+const word=()=>lp&&lp.sense==='max'?'isolucro':'isocusto';
+const zTxt=()=>zc?PL.cTxt(zc):'';
+function setRange(){
+  const v=plot.v,c=lp.c.map(x=>x.val());const cs=[[0,0],[v.x1,0],[0,v.y1],[v.x1,v.y1]].map(P=>c[0]*P[0]+c[1]*P[1]);
+  let lo=Math.min(...cs),hi=Math.max(...cs);if(hi-lo<1e-12){lo-=1;hi+=1}
+  const st=PL.niceStep(hi-lo,200);const dec=Math.max(0,-Math.floor(Math.log10(st)+1e-9));
+  lo=Math.floor(lo/st)*st;hi=Math.ceil(hi/st)*st;zr={lo,hi,step:st,dec};
+  const zs=el('zs');zs.min=lo.toFixed(dec);zs.max=hi.toFixed(dec);zs.step=st.toFixed(dec);
+}
+function snap(v){v=Math.max(zr.lo,Math.min(zr.hi,v));const s=Math.round(v/zr.step)*zr.step;
+  if(G&&G.zStar&&Math.abs(v-G.zStar.val())<zr.step*.6)return G.zStar;return parseFr(s.toFixed(zr.dec))}
+function setZ(f,fromSlider){zc=f;if(!fromSlider)el('zs').value=f.val();el('zv').innerHTML='<i>z</i> = '+cHTML(f);draw();zmsg()}
+function recompute(){
+  lp=ed.get();
+  if(!lp){el('sol').innerHTML='<div class="err">Há um coeficiente inválido (assinalado a vermelho).</div>';return}
+  if(lp.c.every(x=>x.isZero())){}
+  G=PL.graph2(lp);
+  plot.fit();plot.auto(lp,G);setRange();
+  let z0;
+  if(G.verts.length){const zs=G.verts.map(P=>P.z.val());const lo=Math.min(...zs),hi=Math.max(...zs);z0=lp.sense==='max'?lo+.35*(hi-lo):hi-.35*(hi-lo);if(hi-lo<1e-12)z0=lo}
+  else z0=zr.lo+.4*(zr.hi-zr.lo);
+  setZ(snap(z0));panels();
+}
+function draw(){
+  if(!lp||!plot.g)return;
+  const c=plot.C(),n=lp.names;plot.base(n);
+  csa=plot.constraints(lp,{shade:el('sh').checked});
+  const c1=lp.c[0].val(),c2=lp.c[1].val(),z=zc?zc.val():0;
+  /* ótimos múltiplos: segmento ou semirreta */
+  if(G.status==='multiplas'&&!G.nulo){
+    if(G.opt.length>1){const P=G.opt[0],Q=G.opt[G.opt.length-1];plot.segment([P.x.val(),P.y.val()],[Q.x.val(),Q.y.val()],PL.rgba(c.red,.75),6)}
+    else if(G.optRay){const P=G.opt[0],d=G.optRay;const k=10*Math.max(plot.v.x1,plot.v.y1);plot.segment([P.x.val(),P.y.val()],[P.x.val()+k*d[0].val(),P.y.val()+k*d[1].val()],PL.rgba(c.red,.75),6)}
+  }
+  /* reta da função objetivo */
+  if(!(c1===0&&c2===0)){
+    const s=plot.line(c1,c2,z,c.red,2,[8,6]);
+    const inn=PL.lineInPoly(csa,c1,c2,z,plot);
+    if(inn)plot.segment(inn[0],inn[1],c.red,3.6);
+    if(s){const A=inn||s;const mx=(plot.X(A[0][0])+plot.X(A[1][0]))/2,my=(plot.Y(A[0][1])+plot.Y(A[1][1]))/2;
+      let dx=plot.Y(s[1][1])-plot.Y(s[0][1]),dy=-(plot.X(s[1][0])-plot.X(s[0][0]));const L=Math.hypot(dx,dy)||1;dx/=L;dy/=L;
+      const q=plot.inv(mx+dx*10,my+dy*10);const zq=c1*q[0]+c2*q[1];if((lp.sense==='max')!==(zq>z)){dx=-dx;dy=-dy}
+      plot.arrow(mx,my,mx+dx*40,my+dy*40,c.red,2.4);[.35,.7,1].forEach(k=>plot.reserve(mx+dx*40*k,my+dy*40*k,9));
+      const e=s[1][1]>s[0][1]?s[1]:s[0];plot.text('z = '+zTxt(),plot.X(e[0]),plot.Y(e[1]),c.red,{tries:[[-70,16],[6,16],[-70,-6],[6,-6]]})}
+  }
+  /* raio de ilimitação */
+  if(G.status==='ilimitado'){const P=G.verts.reduce((a,b)=>PL.dot(lp.c,[b.x,b.y]).val()*(lp.sense==='max'?1:-1)>PL.dot(lp.c,[a.x,a.y]).val()*(lp.sense==='max'?1:-1)?b:a);
+    const d=G.ray,L=Math.hypot(d[0].val()/plot.v.x1*plot.pw,d[1].val()/plot.v.y1*plot.ph);const x0=plot.X(P.x.val()),y0=plot.Y(P.y.val());
+    const ux=d[0].val()/plot.v.x1*plot.pw/L,uy=-d[1].val()/plot.v.y1*plot.ph/L;plot.arrow(x0+ux*14,y0+uy*14,x0+ux*80,y0+uy*80,c.teal,3)}
+  /* vértices */
+  const isOpt=P=>G.opt&&G.opt.includes(P);
+  G.verts.forEach(P=>{const o=isOpt(P);plot.dot(P.x.val(),P.y.val(),o?7:5,o?c.red:c.navy,c.bg,2);plot.reserve(plot.X(P.x.val()),plot.Y(P.y.val()),7)});
+  G.verts.forEach(P=>{const o=isOpt(P);plot.text(P.lab+' '+ptTxt(P.x,P.y),plot.X(P.x.val()),plot.Y(P.y.val()),o?c.red:c.navy)});
+}
+function zmsg(){
+  if(!lp||!zc)return;let t='';
+  const inn=PL.lineInPoly(csa,lp.c[0].val(),lp.c[1].val(),zc.val(),plot);
+  if(G.status==='impossivel')t='O CSA é vazio: nenhuma reta de '+word()+' passa por soluções admissíveis.';
+  else if(G.zStar&&zc.eq(G.zStar))t='<b>Reta de '+word()+' no ótimo:</b> z* = '+cHTML(G.zStar)+'. Deslocá-la mais no sentido da seta faz com que deixe de tocar no CSA.';
+  else if(inn)t='A reta de '+word()+' z = '+cHTML(zc)+' passa pelo CSA (troço a cheio): há soluções admissíveis com este valor de z.';
+  else t='A reta de '+word()+' z = '+cHTML(zc)+' não toca no CSA (na zona visível).';
+  el('zmsg').innerHTML=t;
+}
+function satList(P){const out=[];lp.A.forEach((r,i)=>{if(PL.lhs(lp,i,[P.x,P.y]).eq(lp.b[i]))out.push('('+(i+1)+')')});if(P.x.isZero())out.push(vHTML(lp.names[0])+' = 0');if(P.y.isZero())out.push(vHTML(lp.names[1])+' = 0');return out.join(', ')}
+function parallelTo(){const P=G.opt[0],Q=G.opt[G.opt.length-1];const out=[];lp.A.forEach((r,i)=>{if(PL.lhs(lp,i,[P.x,P.y]).eq(lp.b[i])&&PL.lhs(lp,i,[Q.x,Q.y]).eq(lp.b[i]))out.push('à restrição ('+(i+1)+')')});
+  if(P.x.isZero()&&Q.x.isZero())out.push('ao eixo '+vHTML(lp.names[1]));if(P.y.isZero()&&Q.y.isZero())out.push('ao eixo '+vHTML(lp.names[0]));return out.join(' e ')}
+function panels(){
+  const n=lp.names;let h='';
+  const leg='<span><b class="sq" style="background:'+PL.rgba(plot.C().teal,.45)+'"></b>CSA</span>'+lp.A.map((r,i)=>'<span><i style="border-color:var('+PL.CCOL[i%5]+')"></i>('+(i+1)+')</span>').join('')+'<span><i class="d" style="border-color:var(--red)"></i>reta de '+word()+'</span><span><i style="border-color:var(--red);border-top-width:6px"></i>ótimo</span>';
+  el('leg').innerHTML=leg;
+  h+=PL.modelHTML(lp,{tags:true});
+  const vs=G.opt&&G.opt[0];
+  if(G.status==='unico')h+='<div class="good"><b>Ótimo único</b> no vértice '+vs.lab+': '+vHTML(n[0])+'* = '+PL.resHTML(vs.x)+', '+vHTML(n[1])+'* = '+PL.resHTML(vs.y)+', <b>z* = '+PL.resHTML(G.zStar)+'</b>.</div>';
+  else if(G.status==='multiplas'&&G.nulo)h+='<div class="warn">A função objetivo é nula: todas as soluções admissíveis são ótimas (z = 0).</div>';
+  else if(G.status==='multiplas'&&G.opt.length>1){const P=G.opt[0],Q=G.opt[G.opt.length-1];
+    h+='<div class="warn"><b>Ótimos múltiplos:</b> todos os pontos do segmento ['+P.lab+Q.lab+'], entre '+ptHTML(P.x,P.y)+' e '+ptHTML(Q.x,Q.y)+', são soluções ótimas, com <b>z* = '+PL.resHTML(G.zStar)+'</b>. A reta de '+word()+' é paralela '+parallelTo()+'.</div>';
+    h+='<p class="note">Qualquer combinação convexa λ·'+P.lab+' + (1 − λ)·'+Q.lab+', com 0 ≤ λ ≤ 1, dá o mesmo valor ótimo.</p>'}
+  else if(G.status==='multiplas')h+='<div class="warn"><b>Ótimos múltiplos:</b> todos os pontos da semirreta que parte de '+vs.lab+' '+ptHTML(vs.x,vs.y)+' na direção ('+G.optRay[0].html()+', '+G.optRay[1].html()+') são ótimos, com <b>z* = '+PL.resHTML(G.zStar)+'</b>.</div>';
+  else if(G.status==='ilimitado')h+='<div class="err"><b>Problema sem ótimo:</b> o CSA é ilimitado no sentido de melhoria da função objetivo. A reta de '+word()+' pode deslocar-se indefinidamente sem deixar o CSA, por isso z '+(lp.sense==='max'?'cresce':'decresce')+' sem limite.</div>';
+  else h+='<div class="err"><b>Problema impossível:</b> o CSA é vazio. Não existe nenhum ponto que satisfaça todas as restrições ao mesmo tempo.</div>';
+  if(G.unbounded&&G.status!=='ilimitado')h+='<div class="info">O CSA é ilimitado, mas a função objetivo não melhora nas direções em que o CSA se prolonga, por isso o ótimo existe.</div>';
+  el('sol').innerHTML=h;
+  /* vértices */
+  if(!G.verts.length)el('vt').innerHTML='<p class="note">Não há vértices: o CSA é vazio.</p>';
+  else{let t='<table class="pt"><tr><th>Vértice</th><th>('+vHTML(n[0])+', '+vHTML(n[1])+')</th><th>z</th><th>Saturadas</th></tr>';
+    G.verts.forEach(P=>{const o=G.opt&&G.opt.includes(P);t+='<tr class="'+(o?'best':'')+'"><td>'+P.lab+(o?' (ótimo)':'')+'</td><td class="m">'+ptHTML(P.x,P.y)+'</td><td class="m">'+P.z.html()+'</td><td>'+satList(P)+'</td></tr>'});
+    t+='</table>';if(G.unbounded)t+='<p class="note">O CSA é ilimitado: além dos vértices, prolonga-se indefinidamente.</p>';el('vt').innerHTML=t}
+  /* estado */
+  if(!G.opt){el('est').innerHTML='<p class="note">'+(G.status==='impossivel'?'Sem ótimo: o problema é impossível.':'Sem ótimo: o problema não tem solução ótima finita.')+'</p>';return}
+  let e='';const list=G.opt.length>1?[G.opt[0],G.opt[G.opt.length-1]]:[G.opt[0]];
+  list.forEach(P=>{const x=[P.x,P.y];const st=PL.estado(lp,x);
+    e+='<p class="qcap">No vértice '+P.lab+' '+ptHTML(P.x,P.y)+'</p><div class="tw"><table class="pt"><tr><th>Restrição</th><th>1.º membro</th><th>Estado</th><th>Folga / excesso</th></tr>';
+    st.forEach(s=>{const r=lp.A[s.i];const allInt=r.every(a=>a.d===1)&&x.every(v=>v.d===1);
+      const sub=allInt?r.map((a,j)=>a.str()+'·'+x[j].str()).join(' + ').replace(/\+ −/g,'− ')+' = ':'';
+      e+='<tr><td class="m">('+(s.i+1)+') '+PL.linHTML(r,n)+' '+REL[s.rel]+' '+cHTML(s.b)+'</td><td class="m">'+sub+cHTML(s.v)+'</td><td>'+(s.sat?'<span class="chip s">saturada</span>':'<span class="chip o">não saturada</span>')+'</td><td class="m">'+(s.var?vHTML(s.var)+' = '+s.val.html()+' <span class="note">('+s.tipo+')</span>':'<span class="note">igualdade</span>')+'</td></tr>'});
+    e+='</table></div>'});
+  e+='<p class="note">Saturada: o recurso esgota-se (sobre a reta). Não saturada: sobra folga (≤) ou há excesso (≥).</p>';
+  el('est').innerHTML=e;
+}
+function animTo(target){if(anim)cancelAnimationFrame(anim);const a=zc.val(),b=target.val(),t0=performance.now(),T=650;
+  const step=t=>{const k=Math.min(1,(t-t0)/T),e=k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2;if(k<1){zc=parseFr((a+(b-a)*e).toFixed(zr.dec+2))||zc;el('zs').value=zc.val();el('zv').innerHTML='<i>z</i> = '+decTxt(zc.val(),zr.dec);draw();anim=requestAnimationFrame(step)}else{anim=null;setZ(target)}};anim=requestAnimationFrame(step)}
+el('go').onclick=()=>{if(!G)return;
+  if(G.zStar)animTo(G.zStar);
+  else if(G.status==='ilimitado'){animTo(parseFr((lp.sense==='max'?zr.hi:zr.lo).toFixed(zr.dec)));setTimeout(()=>{el('zmsg').innerHTML='<span class="bad">Não há ótimo:</span> a reta chegou ao limite do gráfico, mas continua a tocar no CSA. Pode deslocar-se indefinidamente no sentido da seta.'},700)}
+  else el('zmsg').innerHTML='<span class="bad">Não há ótimo:</span> o CSA é vazio.'};
+el('zs').addEventListener('input',()=>{if(anim){cancelAnimationFrame(anim);anim=null}setZ(snap(+el('zs').value),true)});
+el('sh').onchange=draw;
+/* arrastar a reta */
+let drag=null;
+cv.addEventListener('pointerdown',ev=>{if(!lp)return;const r=cv.getBoundingClientRect();drag={p:plot.inv(ev.clientX-r.left,ev.clientY-r.top),z:zc.val()};cv.setPointerCapture(ev.pointerId);ev.preventDefault()});
+cv.addEventListener('pointermove',ev=>{if(!drag)return;const r=cv.getBoundingClientRect();const p=plot.inv(ev.clientX-r.left,ev.clientY-r.top);
+  const dz=lp.c[0].val()*(p[0]-drag.p[0])+lp.c[1].val()*(p[1]-drag.p[1]);setZ(snap(drag.z+dz))});
+const end=()=>{drag=null};cv.addEventListener('pointerup',end);cv.addEventListener('pointercancel',end);
+window.addEventListener('resize',()=>{if(!lp)return;plot.fit();draw()});
+if(window.matchMedia)matchMedia('(prefers-color-scheme:dark)').addEventListener('change',()=>{draw();panels()});
+el('pre').children[0].click();
+</script></body></html>

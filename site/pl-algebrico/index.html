@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="pt-PT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Método algébrico · Matemática I</title>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/pl.css">
+<style>
+.pre{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.pre button{padding:5px 10px;font-size:14px}
+.cnt .math{font-size:19px}
+.cnt p{margin:6px 0}
+.cnk{display:inline-flex;align-items:center}.cnk>span{display:inline-flex;flex-direction:column;font-size:.62em;line-height:1.05;margin-left:1px}
+table.pt td.c,table.pt th.c{text-align:center}
+table.pt td.nz{color:var(--gray)}
+.steps{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px}.steps button{white-space:normal;text-align:left}
+.det .math{font-size:18px}
+.sys{display:inline-flex;align-items:stretch;gap:6px;margin:4px 0}
+.sys .br{border-left:2px solid var(--ink);border-radius:10px 0 0 10px;width:8px}
+.sys .eqs{display:flex;flex-direction:column;gap:2px}
+</style></head>
+<body><div class="wrap">
+<div id="hd"></div>
+<div class="grid2">
+ <div class="card"><h2>1. O problema</h2>
+  <div id="ed"></div>
+  <div class="pre" id="pre"></div>
+  <p class="note">O método algébrico usa só as restrições técnicas na forma standard, com folgas e excessos (sem variáveis artificiais).</p>
+ </div>
+ <div class="card cnt"><h2>2. Forma standard e combinações</h2><div id="std"></div></div>
+</div>
+<div class="card"><h2>3. Soluções básicas</h2>
+ <div class="steps"><button class="sec" id="s1">1.º passo: variáveis nulas</button><button class="sec on" id="s2">2.º passo: calcular e comparar</button></div>
+ <div class="tw" id="tab"></div>
+ <div id="concl"></div>
+ <p class="note">Toque numa linha para ver o sistema que lhe corresponde e, com 2 variáveis de decisão, o ponto no gráfico.</p>
+</div>
+<div class="grid2">
+ <div class="card det"><h2>4. A linha escolhida</h2><div id="det"></div></div>
+ <div class="card" id="gcard"><h2>5. No gráfico</h2>
+  <div class="cw" id="cw"><canvas id="cv" role="img" aria-label="Gráfico com as restrições, o CSA e as soluções básicas"></canvas></div>
+  <div class="leg"><span><b class="sq" style="background:rgba(15,123,138,.45)"></b>CSA</span><span>● solução básica admissível (vértice)</span><span>○ não admissível</span></div>
+ </div>
+</div>
+<div id="ft"></div></div>
+<script src="../assets/common.js"></script>
+<script src="../assets/pl.js"></script>
+<script>
+el('hd').innerHTML=header('Tema 2 · Capítulo 4 · Método algébrico','Método algébrico','Com m restrições e n variáveis na forma standard, anulam-se n − m variáveis de cada vez: cada combinação dá uma solução básica. A melhor admissível é o ótimo.');
+el('ft').innerHTML=footer();
+const {vHTML,cHTML,REL}=PL;
+const PRE=[
+ ['Exemplo do caderno',PL.make('max',[30,20],[[3,1],[1,2]],['<=','<='],[150,100])],
+ ['Dieta',PL.make('min',[4,6],[[2,1],[1,2],[5,6]],['>=','>=','>='],[420,500,2100])],
+ ['Três variáveis',PL.make('max',[2,3,1],[[1,1,1],[2,1,0]],['<=','<='],[40,60])],
+ ['Com igualdade',PL.make('min',[8,6],[['0,2','0,32'],[1,1]],['<=','='],['0,25',1],['x','y'])]];
+let A=null,lp=null,sel=-1,step=2,S=null;
+const cv=el('cv'),plot=new PL.Plot(cv,el('cw'),{ratio:.8,maxW:560});
+const ed=PL.editor(el('ed'),{n:2,m:2,nMin:2,nMax:4,mMin:1,mMax:3},()=>recompute());
+PRE.forEach(([nm,p])=>{const b=document.createElement('button');b.className='sec';b.textContent=nm;b.onclick=()=>{[...el('pre').children].forEach(x=>x.classList.toggle('on',x===b));ed.set(p)};el('pre').appendChild(b)});
+const andList=a=>a.length<2?a.join(''):a.slice(0,-1).join(', ')+' e '+a[a.length-1];
+const fact=n=>n<=1?1:n*fact(n-1);
+function recompute(){
+  lp=ed.get();
+  if(!lp){el('std').innerHTML='<div class="err">Há um coeficiente inválido (assinalado a vermelho).</div>';return}
+  A=PL.algebraic(lp);S=PL.simplex(lp);
+  const adm=A.out.map((r,i)=>i).filter(i=>A.out[i].adm);
+  sel=adm.length?bestRows()[0]:0;render();
+}
+function bestRows(){const adm=A.out.map((r,i)=>i).filter(i=>A.out[i].adm);if(!adm.length)return[];
+  let b=adm[0];adm.forEach(i=>{const s=PL.cmpF(A.out[i].z,A.out[b].z);if(lp.sense==='max'?s>0:s<0)b=i});return adm.filter(i=>A.out[i].z.eq(A.out[b].z))}
+function render(){
+  const N=A.N,m=A.m,L=A.lp;const names=A.cols.map(c=>c.name);
+  let h='';
+  if(L.flipped.length)h+='<div class="warn">'+L.flipped.map(i=>'A restrição ('+(i+1)+') foi multiplicada por −1 (termo independente negativo).').join('<br>')+'</div>';
+  const zero=new Set(A.cols.map((c,j)=>j).filter(j=>A.cols[j].type!=='x'));
+  h+='<table class="pl-mod math"><tr><td class="k">'+(L.sense==='max'?'Maximizar':'Minimizar')+'</td><td>z = '+PL.linHTML(A.cols.map((c,j)=>j<L.n?L.c[j]:Fr.ZERO),names,{zero})+'</td></tr>';
+  A.rows.forEach((r,i)=>{h+='<tr><td class="k">'+(i?'':'sujeito a')+'</td><td>'+PL.linHTML(r,names)+' = '+cHTML(L.b[i])+'</td></tr>'});
+  h+='<tr><td></td><td>'+names.map(vHTML).join(', ')+'&nbsp;≥&nbsp;0</td></tr></table>';
+  if(A.bad){h+='<div class="err">Há mais restrições do que variáveis na forma standard: o método não se aplica.</div>';el('std').innerHTML=h;el('tab').innerHTML='';el('concl').innerHTML='';el('det').innerHTML='';return}
+  const C=PL.binom(N,m);
+  h+='<p>Temos <b>m = '+m+'</b> equações (restrições técnicas) e <b>n = '+N+'</b> incógnitas, logo</p>';
+  h+='<p class="math" style="text-align:center"><span class="cnk">C<span><span>'+N+'</span><span>'+m+'</span></span></span> = <span class="frac"><span>'+N+'!</span><span>('+N+' − '+m+')!·'+m+'!</span></span> = <span class="frac"><span>'+fact(N)+'</span><span>'+fact(N-m)+'·'+fact(m)+'</span></span> = <b>'+C+'</b></p>';
+  h+='<p>combinações possíveis. Em cada uma, <b>n − m = '+(N-m)+'</b> variáveis são nulas e as outras <b>'+m+'</b> calculam-se resolvendo o sistema.</p>';
+  el('std').innerHTML=h;
+  /* tabela */
+  const best=new Set(bestRows());
+  let t='<table class="pt"><tr><th class="c">#</th>'+A.cols.map(c=>'<th class="c">'+vHTML(c.name)+'</th>').join('')+(step===2?'<th class="c">Admissível</th><th class="c">z</th>':'')+'</tr>';
+  A.out.forEach((r,i)=>{
+    const cls=['click'];if(step===2&&best.has(i))cls.push('best');if(i===sel)cls.push('sel');
+    t+='<tr class="'+cls.join(' ')+'" data-i="'+i+'"><td class="c">'+(i+1)+'</td>';
+    if(step===1){A.cols.forEach((c,j)=>{t+='<td class="m c'+(r.nb.includes(j)?' zero':'')+'">'+(r.nb.includes(j)?'0':'')+'</td>'})}
+    else if(!r.vals){A.cols.forEach((c,j)=>{t+=r.nb.includes(j)?'<td class="m c zero">0</td>':'<td class="c note">?</td>'});
+      t+='<td class="c"><span class="chip n">sem solução básica</span></td><td class="c m">×</td>'}
+    else{A.cols.forEach((c,j)=>{const v=r.vals[j];t+='<td class="m c'+(r.nb.includes(j)?' zero':(PL.sgn(v)<0?' neg':''))+'">'+v.html()+'</td>'});
+      t+='<td class="c">'+(r.adm?'<span class="chip s">Sim</span>':'<span class="chip n">Não</span>')+'</td><td class="c m">'+(r.adm?r.z.html():'×')+'</td>'}
+    t+='</tr>'});
+  t+='</table>';el('tab').innerHTML=t;
+  [...el('tab').querySelectorAll('tr.click')].forEach(tr=>tr.onclick=()=>{sel=+tr.dataset.i;render()});
+  /* conclusão */
+  let c='';
+  if(step===1)c='<p class="note">Primeiro passo: construir todas as combinações com '+(N-m)+' zeros. Passe ao 2.º passo para calcular as restantes variáveis.</p>';
+  else if(!best.size)c='<div class="err">Nenhuma solução básica é admissível: o problema é impossível (CSA vazio).</div>';
+  else{const bi=[...best];const r=A.out[bi[0]];
+    if(S.status==='ilimitado')c='<div class="err"><b>Atenção:</b> a melhor solução básica admissível é a linha '+(bi[0]+1)+' (z = '+r.z.html()+'), mas o problema <b>não tem ótimo</b>: o CSA é ilimitado e z '+(lp.sense==='max'?'cresce':'decresce')+' sem limite. O método algébrico só compara vértices e não deteta esta situação; o Simplex sim.</div>';
+    else{c='<div class="good">A solução ótima é a da linha '+(bi[0]+1)+': <span class="math">'+andList(L.names.map((nm,j)=>vHTML(nm)+' = '+r.vals[j].html()))+'</span>, com <b class="math">z* = '+PL.resHTML(r.z)+'</b> (o '+(lp.sense==='max'?'maior':'menor')+' valor de z entre as soluções admissíveis).</div>';
+      if(bi.length>1)c+='<div class="warn"><b>Ótimos múltiplos:</b> as linhas '+bi.map(i=>i+1).join(' e ')+' têm o mesmo valor ótimo de z.</div>'}}
+  const nadm=A.out.filter(r=>r.adm).length,nsem=A.out.filter(r=>!r.vals).length;
+  if(step===2)c+='<p class="note">'+nadm+' de '+A.out.length+' soluções básicas são admissíveis'+(nsem?'; '+nsem+' combinação'+(nsem>1?'ões':'')+' sem solução básica (sistema impossível ou indeterminado)':'')+'.</p>';
+  el('concl').innerHTML=c;
+  detail();
+  el('gcard').style.display=L.n===2?'':'none';if(L.n===2){plot.fit();draw()}
+}
+function detail(){
+  const r=A.out[sel];if(!r){el('det').innerHTML='';return}
+  const L=A.lp,names=A.cols.map(c=>c.name);
+  let h='<p><b>Linha '+(sel+1)+'.</b> Anulam-se '+r.nb.map(j=>vHTML(names[j])+' = 0').join(' e ')+'. O sistema fica só com '+r.base.map(j=>vHTML(names[j])).join(', ')+':</p>';
+  h+='<div class="sys math"><span class="br"></span><span class="eqs">'+A.rows.map((row,i)=>'<span>'+PL.linHTML(row.map((x,j)=>r.base.includes(j)?x:Fr.ZERO),names)+' = '+cHTML(L.b[i])+'</span>').join('')+'</span></div>';
+  if(step===1){el('det').innerHTML=h;return}
+  if(!r.vals){h+='<p><b>Sem solução básica:</b> este sistema é '+(r.kind==='SI'?'impossível':'possível e indeterminado')+', por isso a combinação não dá um ponto.</p>';el('det').innerHTML=h;return}
+  h+='<p>Solução: <span class="math">'+r.base.map(j=>vHTML(names[j])+' = '+r.vals[j].html()).join(',&nbsp; ')+'</span></p>';
+  const negs=r.base.filter(j=>PL.sgn(r.vals[j])<0);
+  if(r.adm)h+='<p><span class="chip s">Admissível</span> todas as variáveis são ≥ 0. Valor da função objetivo: <span class="math">z = '+L.c.map((c,j)=>PL.cTxt(c)+'·'+(r.vals[j].d===1?r.vals[j].str():'('+r.vals[j].str()+')')).join(' + ').replace(/\+ −/g,'− ')+' = <b>'+r.z.html()+'</b></span></p>';
+  else h+='<p><span class="chip n">Não admissível</span> '+negs.map(j=>vHTML(names[j])+' = '+r.vals[j].html()).join(', ')+' é negativo, o que viola a restrição de sinal.</p>';
+  if(L.n===2){const o=A.out.filter(x=>x.vals&&x.vals[0].eq(r.vals[0])&&x.vals[1].eq(r.vals[1]));
+    h+='<p class="note">No gráfico corresponde ao ponto '+PL.ptHTML(r.vals[0],r.vals[1])+(r.adm?', um vértice do CSA':', fora do CSA')+(o.length>1?' (o mesmo ponto aparece nas linhas '+o.map(x=>A.out.indexOf(x)+1).join(', ')+': solução degenerada)':'')+'.</p>'}
+  el('det').innerHTML=h;
+}
+function draw(){
+  const L=lp,c=plot.C();const G=PL.graph2(L);
+  const ex=A.out.filter(r=>r.vals).map(r=>[r.vals[0].val(),r.vals[1].val()]).filter(p=>p[0]>=0&&p[1]>=0);
+  plot.auto(L,G,ex);plot.base(L.names);plot.constraints(L,{shade:false});
+  const pts=[];A.out.forEach((r,i)=>{if(!r.vals)return;const x=r.vals[0].val(),y=r.vals[1].val();let p=pts.find(P=>Math.abs(P.x-x)<1e-12&&Math.abs(P.y-y)<1e-12);if(!p){p={x,y,ids:[],adm:r.adm};pts.push(p)}p.ids.push(i)});
+  pts.forEach(p=>{if(p.x<-1e-9||p.y<-1e-9||p.x>plot.v.x1||p.y>plot.v.y1)return;const on=p.ids.includes(sel);
+    if(p.adm)plot.dot(p.x,p.y,on?7:5,on?c.red:c.teal,c.bg,2);else plot.dot(p.x,p.y,on?7:5,c.bg,on?c.red:c.gray,2);plot.reserve(plot.X(p.x),plot.Y(p.y),7)});
+  pts.forEach(p=>{if(p.x<-1e-9||p.y<-1e-9||p.x>plot.v.x1||p.y>plot.v.y1)return;const on=p.ids.includes(sel);plot.text(p.ids.map(i=>i+1).join(','),plot.X(p.x),plot.Y(p.y),on?c.red:(p.adm?c.teal:c.gray))});
+  plot._pts=pts;
+}
+cv.addEventListener('click',ev=>{if(!plot._pts)return;const r=cv.getBoundingClientRect();const px=ev.clientX-r.left,py=ev.clientY-r.top;let best=null,bd=18;
+  plot._pts.forEach(p=>{const d=Math.hypot(plot.X(p.x)-px,plot.Y(p.y)-py);if(d<bd){bd=d;best=p}});if(best){sel=best.ids[0];render()}});
+el('s1').onclick=()=>{step=1;el('s1').classList.add('on');el('s2').classList.remove('on');render()};
+el('s2').onclick=()=>{step=2;el('s2').classList.add('on');el('s1').classList.remove('on');render()};
+window.addEventListener('resize',()=>{if(lp&&lp.n===2){plot.fit();draw()}});
+if(window.matchMedia)matchMedia('(prefers-color-scheme:dark)').addEventListener('change',()=>{if(lp&&lp.n===2)draw()});
+el('pre').children[0].click();
+</script></body></html>
