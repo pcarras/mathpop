@@ -378,3 +378,17 @@ def path(lp, res=None):
 
 def ptxt(p):
     return '(' + ','.join(dn(v) for v in p) + ')'
+
+
+def lphash(lp):
+    """problema no formato do link dos applets: max;30,20;3,1,le,150;1,2,le,100"""
+    f = lambda x: fstr(F(x))
+    rel = {'<=': 'le', '>=': 'ge', '=': 'eq'}
+    return lp.sense + ';' + ','.join(f(c) for c in lp.c) + ';' + ';'.join(','.join([f(a) for a in r] + [rel[rl], f(bb)]) for r, rl, bb in zip(lp.A, lp.rel, lp.b))
+
+
+APPNAME = {'pl-grafico': 'Resolução gráfica', 'pl-simplex': 'Simplex passo a passo', 'pl-algebrico': 'Método algébrico', 'pl-dual': 'Primal e dual', 'pl-sensibilidade': 'Coeficientes da função objetivo'}
+
+
+def link(slug, lp):
+    return (slug, lphash(lp), APPNAME[slug])

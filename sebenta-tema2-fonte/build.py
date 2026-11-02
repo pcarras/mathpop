@@ -33,23 +33,24 @@ PRAT = {
     1: 'exercícios propostos 1 a 6.',
     2: 'exercício resolvido 1; exercícios propostos 1 a 6.',
     3: 'exercícios resolvidos 2 a 4; exercícios propostos 7 a 12 e 30 a 33.',
-    4: 'exercício resolvido 5; exercícios propostos 13 a 16, 32 (alínea b) e 34.',
-    5: 'exercícios resolvidos 6, 7 e 10 (alínea a); exercícios propostos 17 a 19, 22, 23 e 35 a 39.',
-    6: 'exercícios resolvidos 8 a 10; exercícios propostos 20, 21 e 40 a 42.',
+    4: 'exercícios resolvidos 5 e 14; exercícios propostos 13 a 16, 32 (alínea b) e 34.',
+    5: 'exercícios resolvidos 6, 7, 10 (alínea a) e 13; exercícios propostos 17 a 19, 22, 23 e 35 a 39.',
+    6: 'exercícios resolvidos 8 a 10 e 13; exercícios propostos 20, 21 e 40 a 42.',
     7: 'exercício resolvido 7; exercícios propostos 26, 27 e 39.',
     8: 'exercício resolvido 11; exercícios propostos 24, 25, 43 e 44.',
     9: 'exercício resolvido 12; exercícios propostos 28 e 29.',
     10: 'exercícios propostos 30, 31, 33, 38, 39, 44 e 45.'}
 ch_teoria.PRAT.update(PRAT)
 
-INTRO = [P('Esta sebenta acompanha o Tema 2 de Matemática I. A **Parte I** expõe a teoria, com exemplos resolvidos em cada capítulo e notas na margem. A **Parte II** tem doze exercícios resolvidos, um por cada tipo de problema. A **Parte III** reúne 45 exercícios propostos, com grau de dificuldade (de uma a três estrelas) e soluções no fim. A **Parte IV** tem quatro testes de exemplo e a **Parte V** as resoluções detalhadas de todos os exercícios propostos e testes. A **Parte VI** indica os applets de apoio, com código QR.'),
+INTRO = [P('Esta sebenta acompanha o Tema 2 de Matemática I. A **Parte I** expõe a teoria, com exemplos resolvidos em cada capítulo e notas na margem. A **Parte II** tem catorze exercícios resolvidos (dois deles de provas antigas), um por cada tipo de problema. A **Parte III** reúne 45 exercícios propostos, com grau de dificuldade (de uma a três estrelas) e soluções no fim. A **Parte IV** tem quatro testes de exemplo e a **Parte V** as resoluções detalhadas de todos os exercícios propostos e testes. A **Parte VI** indica os applets de apoio, com código QR.'),
          P('Nos quadros do Simplex usamos sempre a mesma notação: o elemento redutor é marcado com um círculo vermelho, a divisão da sua linha escreve-se $:k$ à direita e os multiplicadores das operações de Jacobi escrevem-se à esquerda das linhas que mudam. Todos os números foram calculados com frações exatas e confirmados por computador.')]
 
 
 def part2():
     out = [Part('Exercícios resolvidos', 'Problemas tipo resolvidos passo a passo, no estilo das aulas.', wide=True, roman='II')]
     for i, e in enumerate(RESOLVED):
-        out.append(Exercise(str(i + 1), e['title'], e['lv'], e['stmt'], e['res'](), kind='res'))
+        lk = RLINK.get(i + 1)
+        out.append(Exercise(str(i + 1), e['title'], e['lv'], e['stmt'], e['res'](), kind='res', link=link(*lk) if lk else None))
     return out
 
 
@@ -94,13 +95,18 @@ def part5():
     for n in range(1, 30 + len(NEW)):
         t, lv, st = stmt_of(n)
         res = RESOL[n]() if n <= 29 else NEW[n - 30]['res']()
-        out.append(Exercise(str(n), 'Exercício %d  %s' % (n, t), lv, st, res, kind='sol'))
+        lk = PLINK.get(n)
+        out.append(Exercise(str(n), 'Exercício %d  %s' % (n, t), lv, st, res, kind='sol', link=link(*lk) if lk else None))
     for k, t in enumerate(['T1', 'T2', 'T3', 'T4']):
         out.append(SecU('Teste de exemplo %d' % (k + 1), newpage=True))
         rs = RES_T[t]()
         for q in range(1, 6):
             st, pts = stmt(t, q)
-            out.append(Exercise('', 'Questão %d (%s val.)' % (q, str(pts).replace('.', ',')), 0, st, rs[q], kind='sol'))
+            tl = TL.get('%sq%d' % (t.lower(), q))
+            lk = None
+            if tl is not None:
+                lk = link('pl-grafico' if q == 2 else ('pl-algebrico' if (t, q) == ('T1', 4) else 'pl-simplex'), tl)
+            out.append(Exercise('', 'Questão %d (%s val.)' % (q, str(pts).replace('.', ',')), 0, st, rs[q], kind='sol', link=lk))
     return out
 
 

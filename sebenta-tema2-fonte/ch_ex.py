@@ -524,3 +524,36 @@ _res = _lp([-20, -50, -30], A_ub=[[2, 2, 1], [1, 3, 2]], b_ub=[288, 360], bounds
 assert [round(v, 6) for v in _res.x] == [36, 108, 0]
 _res = _lp([-30, -20], A_ub=[[3, 1], [1, 2]], b_ub=[150, 100], bounds=[(0, None)] * 2, method='highs')
 assert [round(-v, 6) for v in _res.ineqlin.marginals] == [8, 6]
+
+
+# ======================================================================= exercícios das fichas e frequências antigas
+R['r13'] = LP('min', [3, -1, 1], [[1, 1, 0], [1, 2, 1], [2, 1, -1]], ['>=', '>=', '<='], [1, 1, 1])
+RR['r13'] = simplex(R['r13'])
+assert RR['r13']['z'] == -1 and RR['r13']['x'][:3] == [0, 1, 0]
+resolved('M grande com um custo negativo', 3,
+         [P('Resolva pelo método do Simplex (método do M grande) e interprete o valor ótimo:'), Eq(model(R['r13']))],
+         lambda: [Ul(classify(R['r13']))] + simplex_blocks(R['r13'])[0] +
+         [P('O custo mínimo é negativo porque $x_2$ tem coeficiente $-1$: cada unidade de $x_2$ **baixa** o valor de $z$. Por isso $x_2$ entra na base logo que as artificiais o permitem. O valor $z^*=-1$ não tem nada de estranho: num problema de mínimo a função objetivo pode tomar valores negativos (pense num custo líquido, depois de descontar uma receita).'),
+          Box('nota', 'Origem', [P('Exercício 2 da prova de 18 de janeiro de 2021 (versão 1).')])])
+cols_b, al_b = algebraic(C.brinq)
+assert len(al_b) == 10
+resolved('Método algébrico com três variáveis', 3,
+         [P('Uma empresa de brinquedos de madeira quer produzir barcos ($x_1$), aviões ($x_2$) e bonecas ($x_3$). Um barco precisa de 2 horas de carpintaria e 1 de acabamentos; um avião, 2 e 3 horas; uma boneca, 1 e 2 horas. Há 8 empregados na carpintaria e 10 nos acabamentos, com 36 horas semanais cada um. O lucro unitário é de 20, 50 e 30 u.m.'),
+          Ul(['Formule o problema.', 'Resolva-o pelo método algébrico.', 'Caracterize a solução ótima: o que se produz e qual o estado das restrições.'], 'alpha')],
+         lambda: alinea('a', [Eq(model(C.brinq))]) + alinea('b', [Eq(std_model(C.brinq))] + algeb(C.brinq)[0] +
+                                                              [P('Com três variáveis de decisão não há gráfico, mas o método algébrico continua a funcionar: só é preciso resolver mais sistemas ($C^5_2=10$).')]) +
+         alinea('c', [P('Produzem-se 36 barcos e 108 aviões por semana e nenhuma boneca, com lucro de 6120 u.m.'), estado_ul(C.brinq, simplex(C.brinq))]) +
+         [Box('nota', 'Origem', [P('Questão 3 da 2.ª frequência de 2017/18 (Portimão, noturno). O mesmo problema aparece pelo Simplex no exercício proposto 18.')])])
+
+# ligações aos applets (código QR nas resoluções)
+PLINK = {7: ('pl-grafico', C.pastel), 8: ('pl-grafico', C.dieta), 9: ('pl-grafico', C.banh), 10: ('pl-grafico', C.tur), 11: ('pl-grafico', C.q2),
+         14: ('pl-algebrico', C.gel), 15: ('pl-algebrico', C.small), 17: ('pl-simplex', C.pastel), 18: ('pl-simplex', C.brinq), 19: ('pl-simplex', C.tur),
+         20: ('pl-simplex', C.f21), 21: ('pl-simplex', C.fr), 22: ('pl-simplex', C.cint), 23: ('pl-simplex', C.mult), 24: ('pl-dual', C.pastel),
+         25: ('pl-dual', C.dieta), 26: ('pl-dual', C.brinq), 27: ('pl-dual', C.tur)}
+NLINK = {'padaria': 'pl-grafico', 'rentacar': 'pl-grafico', 'vinho': 'pl-grafico', 'eventos': 'pl-grafico', 'alg3': 'pl-algebrico', 'praia': 'pl-simplex',
+         'deg': 'pl-simplex', 'ilim2': 'pl-simplex', 'golfe': 'pl-simplex', 'moveis': 'pl-simplex', 'mgr': 'pl-simplex', 'mgr2': 'pl-simplex',
+         'imp2': 'pl-simplex', 'dual3': 'pl-dual', 'catering': 'pl-dual', 'turnos': 'pl-simplex'}
+for i, k in enumerate(NEW):
+    PLINK[30 + i] = (NLINK[k['key']], X[k['key']])
+RLINK = {2: ('pl-grafico', R['r2']), 3: ('pl-grafico', R['r3']), 4: ('pl-sensibilidade', R['r4']), 5: ('pl-algebrico', R['r5']), 6: ('pl-simplex', R['r2']),
+         7: ('pl-simplex', R['r7']), 8: ('pl-simplex', R['r8']), 9: ('pl-simplex', R['r9']), 11: ('pl-dual', R['r5']), 13: ('pl-simplex', R['r13']), 14: ('pl-algebrico', C.brinq)}

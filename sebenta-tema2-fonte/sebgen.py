@@ -75,8 +75,8 @@ class Quadro(Node):
 
 class Exercise(Node):
     """kind: 'res' (resolvido, enunciado + resolução), 'prop' (só enunciado), 'sol' (enunciado repetido + resolução)"""
-    def __init__(self, n, title, lv, stmt, res=None, kind='prop', pts=None):
-        self.n, self.title, self.lv, self.stmt, self.res, self.kind, self.pts = n, title, lv, stmt, res or [], kind, pts
+    def __init__(self, n, title, lv, stmt, res=None, kind='prop', pts=None, link=None):
+        self.n, self.title, self.lv, self.stmt, self.res, self.kind, self.pts, self.link = n, title, lv, stmt, res or [], kind, pts, link
 
 
 class TestHeader(Node):
@@ -103,6 +103,7 @@ class Applets(Node):
     def __init__(self, items): self.items = items  # (slug, título, texto, capítulo)
 
 
+SITE = 'https://matematica1-carrasco-esght.netlify.app/'
 BOXLAB = {'def': 'Definição', 'prop': 'Propriedades', 'teo': 'Teorema', 'metodo': 'Método', 'exemplo': 'Exemplo',
           'nota': 'Nota', 'atencao': 'Atenção', 'dica': 'Dica de exame', 'notacao': 'Notação', 'excel': 'No Excel',
           'python': 'Em Python', 'resumo': 'Em resumo'}
@@ -135,6 +136,26 @@ def tex_text(t):
 
 
 def inl(s):
+    if '^[' in s:
+        out, i = '', 0
+        while True:
+            j = s.find('^[', i)
+            if j < 0:
+                out += _inl(s[i:]); break
+            depth, k = 0, j + 1
+            while k < len(s):
+                if s[k] == '[': depth += 1
+                elif s[k] == ']':
+                    depth -= 1
+                    if depth == 0: break
+                k += 1
+            out += _inl(s[i:j]) + r'\footnote{' + _inl(s[j + 2:k]) + '}'
+            i = k + 1
+        return out
+    return _inl(s)
+
+
+def _inl(s):
     codes = []
     def keep(m):
         codes.append(m.group(1)); return '\x00%d\x00' % (len(codes) - 1)
@@ -284,13 +305,18 @@ PREAMBLE = r"""\documentclass[11pt,a4paper,twoside,openany]{book}
 \linespread{1.06}
 \newcommand{\R}{\mathbb{R}}
 % ---------- títulos
-\titleformat{\chapter}[display]{\sffamily}{}{0pt}{\chapterhead}
+\titleformat{\chapter}[display]{\sffamily\raggedright}{}{0pt}{\chapterhead}
 \titlespacing*{\chapter}{0pt}{-10pt}{18pt}
 \titleformat{name=\chapter,numberless}[display]{\sffamily}{}{0pt}{\chapterheadstar}
 \titlespacing*{name=\chapter,numberless}{0pt}{-10pt}{18pt}
-\newcommand{\chapterheadstar}[1]{{\color{navy}\fontsize{25}{30}\selectfont\bfseries #1}\\[-4pt]{\color{teal}\rule{\textwidth}{1.4pt}}}
+\newcommand{\chapterheadstar}[1]{\parbox{\textwidth}{\raggedright\color{navy}\fontsize{25}{30}\selectfont\bfseries #1}\\[-4pt]{\color{teal}\rule{\textwidth}{1.4pt}}}
 \newcommand{\mtx}{\dimexpr1in+\hoffset+\oddsidemargin+\textwidth+\marginparsep\relax}
-\newcommand{\mnoteput}[1]{\par\begingroup\dimen0=\prevdepth\nointerlineskip\vbox to0pt{\noindent\begin{tikzpicture}[remember picture,overlay]\node[anchor=north west,inner sep=0pt,text width=\marginparwidth] at ([xshift=\mtx,yshift=0.75em]current page.west |- 0,0) {#1};\end{tikzpicture}\vss}\prevdepth=\dimen0\endgroup}
+\newcommand{\mnoteput}[1]{\marginpar{\vspace*{-0.55em}#1}}
+\newcommand{\nesteput}[1]{\par\begingroup\dimen0=\prevdepth\nointerlineskip\vbox to0pt{\noindent\begin{tikzpicture}[remember picture,overlay]\node[anchor=north west,inner sep=0pt,text width=\marginparwidth] at ([xshift=\mtx,yshift=-2.55cm]current page.north west) {#1};\end{tikzpicture}\vss}\prevdepth=\dimen0\endgroup}
+\gappto\captionsportuguese{\renewcommand{\contentsname}{Índice}}\AtBeginDocument{\renewcommand{\contentsname}{Índice}}
+\setlength{\skip\footins}{14pt plus 4pt}
+\renewcommand{\footnoterule}{\vspace*{-3pt}{\color{teal}\rule{3cm}{0.6pt}}\vspace*{2.6pt}}
+\makeatletter\renewcommand{\@makefntext}[1]{\noindent\makebox[1.4em][l]{\textcolor{teal}{\sffamily\bfseries\scriptsize\@thefnmark}}{\footnotesize #1}}\makeatother
 \newcommand{\chapterhead}[1]{%
  \begin{tikzpicture}[remember picture,overlay]
  \def\chx{\dimexpr1in+\hoffset+\oddsidemargin+\textwidth\relax}\node[anchor=north east,inner sep=0,text=teal!14] at ([xshift=\chx,yshift=-1.5cm]current page.north west){\fontsize{110}{110}\selectfont\bfseries\thechapter};
@@ -355,14 +381,14 @@ class TexBackend:
         if p.wide and not self.in_wide:
             self.emit(r'\clearpage\newgeometry{top=2.4cm,bottom=2.6cm,inner=2.4cm,outer=2.4cm,footskip=1.1cm}')
         self.in_wide = p.wide
-        self.emit(r'\cleardoublepage\thispagestyle{empty}\vspace*{6cm}{\sffamily\color{teal}\Large\bfseries PARTE %s}\par{\sffamily\color{navy}\fontsize{34}{40}\selectfont\bfseries %s}\par\medskip{\color{teal}\rule{0.6\textwidth}{1.5pt}}\par\bigskip{\large\itshape\color{cinza} %s}\par\addcontentsline{toc}{part}{Parte %s: %s}\clearpage' % (p.roman, inl(p.title), inl(p.intro), p.roman, inl(p.title)))
+        self.emit(r'\cleardoublepage\thispagestyle{empty}\vspace*{6.5cm}\begin{center}{\sffamily\color{teal}\large\bfseries PARTE %s}\par\medskip{\sffamily\color{navy}\fontsize{34}{40}\selectfont\bfseries %s}\par\medskip{\color{teal}\rule{2.2cm}{1.5pt}}\par\bigskip\begin{minipage}{0.7\linewidth}\centering{\sffamily\color{cinza} %s}\end{minipage}\end{center}\addcontentsline{toc}{part}{Parte %s: %s}\clearpage' % (p.roman, inl(p.title), inl(p.intro), p.roman, inl(p.title)))
 
     def r_Chapter(self, c):
         self.emit(r'\chapter{%s}' % inl(c.title))
         if c.lead:
             self.emit(r'{\large\itshape\color{cinza} %s}\par\medskip' % inl(c.lead))
         if c.neste:
-            self.emit(r'\begin{bnota}{NESTE CAPÍTULO}\begin{itemize}' + ''.join(r'\item ' + inl(x) for x in c.neste) + r'\end{itemize}\end{bnota}')
+            self.emit(r'\nesteput{\begin{tcolorbox}[enhanced,colback=bprop,colframe=bprop,boxrule=0pt,toprule=1.2pt,colframe=teal,arc=0pt,left=4pt,right=4pt,top=4pt,bottom=4pt,fontupper=\sffamily\scriptsize\raggedright]{\bfseries\color{teal}NESTE CAPÍTULO}\par\smallskip\begin{itemize}[leftmargin=9pt,itemsep=2pt,topsep=0pt]' + ''.join(r'\item ' + inl(x) for x in c.neste) + r'\end{itemize}\end{tcolorbox}}')
 
     def r_Sec(self, s):
         self.emit(r'\Needspace{6\baselineskip}\section{%s}' % inl(s.title))
@@ -465,6 +491,10 @@ class TexBackend:
 
     def r_Exercise(self, e):
         sub = TexBackend(); sub.in_wide = True; sub.blocks(e.stmt); st = '\n'.join(sub.o)
+        if e.link:
+            slug, h, nome = e.link
+            url = SITE + slug + '/#' + h
+            st += r'\par\smallskip\noindent\begin{minipage}[c]{\dimexpr\linewidth-2.3cm\relax}\raggedleft{\sffamily\scriptsize\bfseries\color{teal}RESOLVA NO APPLET}\par{\sffamily\scriptsize\color{cinza}Leia o código para abrir este problema já preenchido no applet \emph{%s}.}\end{minipage}\hfill\textcolor{black}{\qrcode[height=1.8cm]{%s}}' % (nome, url.replace('#', '\\#').replace('%', '\\%'))
         if e.kind == 'prop':
             right = r'\stars{%d}' % e.lv if e.lv else ''
             if e.pts:
@@ -550,6 +580,32 @@ def quadro_tex(q, o, caption=None):
 
 
 # ============================================================ backend Markdown (pandoc → Word)
+def word_math(l):
+    """o Word não lida bem com células vazias em array: passa os modelos a uma só coluna"""
+    m = re.match(r'^\\begin\{array\}\{ll\}(.*)\\end\{array\}$', l.strip(), re.S)
+    if not m:
+        return l
+    rows = re.split(r'\\\\(?:\[[^\]]*\])?', m.group(1))
+    out = []
+    for r in rows:
+        if '&' in r:
+            a, b = r.split('&', 1)
+            a = a.strip()
+            out.append((a + r'\ ' if a else r'\qquad ') + b.strip())
+        else:
+            out.append(r.strip())
+    return r'\begin{array}{l}' + r'\\'.join(out) + r'\end{array}'
+
+
+def qr_png(url):
+    import hashlib, segno
+    name = 'qr_' + hashlib.md5(url.encode()).hexdigest()[:10]
+    p = os.path.join(FIG, name + '.png')
+    if not os.path.exists(p):
+        segno.make(url, error='m').save(p, scale=6, border=2, dark='#0A1A2C')
+    return p
+
+
 class MdBackend:
     def __init__(self):
         self.o = []
@@ -592,7 +648,7 @@ class MdBackend:
 
     def r_Eq(self, e):
         for l in e.lines:
-            self.emit('$$%s$$\n' % l)
+            self.emit('$$%s$$\n' % word_math(l))
 
     def r_Ul(self, u):
         for k, it in enumerate(u.items):
@@ -619,7 +675,8 @@ class MdBackend:
         self.r_Box(Box(m.kind if m.kind != 'def' else 'nota', m.title, [P(m.text)]))
 
     def r_QR(self, q):
-        self.emit('::: {custom-style="Caixa Nota"}\n**EXPLORAR ONLINE**  %s: %s <https://matematica1-carrasco-esght.netlify.app/%s/>\n:::\n' % (q.title, q.text, q.slug))
+        url = SITE + q.slug + '/'
+        self.emit('::: {custom-style="Caixa Nota"}\n![](%s){width=2.6cm}\n\n**EXPLORAR ONLINE: %s.** %s <%s>\n:::\n' % (qr_png(url), q.title, q.text, url))
 
     def r_Tab(self, t):
         self.emit('| ' + ' | '.join(t.header) + ' |')
@@ -642,7 +699,11 @@ class MdBackend:
             head = e.title
         else:
             head += ('  ' + e.title if e.title else '') + ('  ' + '★' * e.lv + '☆' * (3 - e.lv) if e.lv and not e.pts else '') + ('  (%s val.)' % e.pts if e.pts else '')
-        self.emit('::: {custom-style="Caixa Enunciado"}\n**%s**\n\n%s\n:::\n' % (head, '\n'.join(sub.o)))
+        extra = ''
+        if e.link:
+            url = SITE + e.link[0] + '/#' + e.link[1]
+            extra = '\n\n![](%s){width=2.2cm} **Resolva no applet:** leia o código para abrir este problema no applet *%s*.' % (qr_png(url), e.link[2])
+        self.emit('::: {custom-style="Caixa Enunciado"}\n**%s**\n\n%s%s\n:::\n' % (head, '\n'.join(sub.o), extra))
         if e.res:
             sub2 = MdBackend(); sub2.chap = self.chap; sub2.blocks(e.res)
             self.emit('::: {custom-style="Caixa Resolucao"}\n**RESOLUÇÃO**\n\n%s\n:::\n' % '\n'.join(sub2.o))
@@ -667,7 +728,8 @@ class MdBackend:
 
     def r_Applets(self, a):
         for slug, t, d, cap in a.items:
-            self.emit('- **%s** (capítulo %s): %s <https://matematica1-carrasco-esght.netlify.app/%s/>\n' % (t, cap, d, slug))
+            url = SITE + slug + '/'
+            self.emit('![](%s){width=2.6cm}\n\n**%s** (capítulo %s): %s <%s>\n' % (qr_png(url), t, cap, d, url))
 
 
 def quadro_md(q, o, caption=None):

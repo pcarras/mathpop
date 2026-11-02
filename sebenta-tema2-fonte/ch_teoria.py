@@ -17,6 +17,9 @@ assert R_EX1['z'] == 1800 and R_EX1['x'][:2] == [40, 30]
 assert precos_sombra(EX1, R_EX1) == [8, 6]
 assert simplex(LP('max', [30, 20], [[3, 1], [1, 2]], ['<=', '<='], [151, 100]))['z'] == 1808
 assert simplex(LP('max', [30, 20], [[3, 1], [1, 2]], ['<=', '<='], [150, 101]))['z'] == 1806
+for _b2, _same in ((50, True), (300, True), (49, False), (301, False)):
+    _r = simplex(LP('max', [30, 20], [[3, 1], [1, 2]], ['<=', '<='], [150, _b2]))
+    assert (_r['x'][0] > 0 and _r['x'][1] > 0) == _same or _b2 in (50, 300), _b2
 assert simplex(CHV)['z'] == 13 and simplex(M1)['z'] == 16 and simplex(MEQ)['z'] == 11 and simplex(DEX)['z'] == 9
 assert simplex(CARNE)['z'] == Fr(43, 6)
 assert simplex(MULT)['multiplas'] and simplex(ILIM)['status'] == 'ilimitado' and simplex(IMP)['status'] == 'impossivel'
@@ -37,10 +40,12 @@ def cap1():
                 ['O que é um problema de programação linear e de onde vem o nome.', 'Onde se usa em gestão, hotelaria e turismo.', 'Os quatro ingredientes de um modelo: variáveis de decisão, função objetivo, restrições técnicas e restrições de sinal.', 'As hipóteses que tornam um modelo linear.', 'Soluções admissíveis e solução ótima.']),
         Sec('O que é programar?'),
         P('Em programação linear, **programar** quer dizer **planear**: escolher os níveis de um conjunto de atividades (produzir, comprar, transportar, investir) de modo a obter o melhor resultado possível sem ultrapassar os recursos disponíveis. A palavra vem dos planos militares e industriais dos anos 40, muito antes dos programas de computador.'),
-        P('O método que vamos estudar, o **método do Simplex**, foi proposto por George Dantzig em 1947, quando trabalhava no planeamento da Força Aérea dos Estados Unidos. Alguns anos antes, em 1939, o matemático soviético Leonid Kantorovich tinha já formulado problemas de planeamento da produção com a mesma estrutura. Kantorovich e Tjalling Koopmans receberam em 1975 o Prémio Nobel da Economia pelos seus contributos para a teoria da afetação ótima de recursos.'),
+        Margin('nota', 'Programa', 'Em inglês diz-se *linear programming*. "Programa" tinha o sentido de plano de atividades, como num programa de produção.'),
+        P('O método que vamos estudar, o **método do Simplex**, foi proposto por George Dantzig^[George B. Dantzig (1914 a 2005), matemático norte-americano, trabalhava então no planeamento da Força Aérea dos Estados Unidos.] em 1947, quando trabalhava no planeamento da Força Aérea dos Estados Unidos. Alguns anos antes, em 1939, o matemático soviético Leonid Kantorovich tinha já formulado problemas de planeamento da produção com a mesma estrutura^[L. V. Kantorovich, *Métodos matemáticos de organização e planeamento da produção*, Leninegrado, 1939.]. Kantorovich e Tjalling Koopmans receberam em 1975 o Prémio Nobel da Economia pelos seus contributos para a teoria da afetação ótima de recursos.'),
         Margin('nota', 'Linear', 'O adjetivo diz respeito à forma das expressões: todas são somas de constantes vezes variáveis, sem produtos entre variáveis nem potências.'),
         Sec('Onde se usa'),
         P('A programação linear é uma das ferramentas mais usadas em gestão. Alguns exemplos:'),
+        Margin('dica', 'Exemplos do Algarve', 'Neste tema há problemas de hotéis, agências de viagens, concessões de praia, restaurantes e conservas. Todos têm a mesma estrutura matemática.'),
         Ul(['**Plano de produção:** quanto fabricar de cada produto, com matérias-primas e horas de trabalho limitadas.',
             '**Mistura:** a ração, a dieta ou o lote de café mais barato que cumpre requisitos de qualidade.',
             '**Hotelaria:** quantos quartos reservar para cada canal de venda (operadores, agências, venda direta) com capacidade fixa.',
@@ -65,6 +70,7 @@ def cap1():
                 '$x_j\\geq0$ são as **restrições de sinal** (ou de não negatividade).'])]),
         Margin('notacao', 'Notação', '"s.a." lê-se "sujeito a". Nos testes escreva sempre Max ou Min, a função objetivo, as restrições técnicas e as restrições de sinal.'),
         P('A função objetivo diz **o que queremos**; as restrições dizem **o que podemos**. Um modelo sem restrições não tem interesse: o lucro cresceria sem limite.'),
+        Margin('atencao', 'Dados e incógnitas', 'Os coeficientes $c_j$, $a_{ij}$ e $b_i$ são números conhecidos; só os $x_j$ são incógnitas.'),
         Sec('Hipóteses do modelo linear'),
         P('Escrever um problema real como um modelo linear supõe quatro hipóteses. Vale a pena confirmá-las antes de confiar na solução.'),
         Box('prop', 'Hipóteses da programação linear', [
@@ -75,10 +81,12 @@ def cap1():
         Box('atencao', 'O que não é linear', [
             P('Não são lineares, por exemplo, $x_1x_2$, $x_1^2$, $\\sqrt{x_2}$, $\\dfrac{x_1}{x_2}$ ou $|x_1|$. Uma restrição como $\\dfrac{x_1}{x_1+x_2}\\geq0{,}3$ parece não linear, mas multiplicando pelo denominador (positivo) obtém-se $x_1\\geq0{,}3(x_1+x_2)$, isto é, $0{,}7x_1-0{,}3x_2\\geq0$, que já é linear.')]),
         P('Quando a divisibilidade falha (unidades que só podem ser inteiras), o problema passa a ser de **programação inteira**, que não estudamos aqui. Em muitos casos práticos a solução do modelo linear, arredondada com cuidado, é uma boa aproximação.'),
+        Margin('nota', 'Divisibilidade', 'Produzir 40,5 kg de café faz sentido; 40,5 mesas por semana pode ler-se como uma média.'),
         Sec('Soluções admissíveis e solução ótima'),
         Box('def', 'Solução admissível e solução ótima', [
             P('Uma **solução** é qualquer conjunto de valores $(x_1,\\dots,x_n)$. É **admissível** se satisfaz todas as restrições (técnicas e de sinal). O conjunto de todas as soluções admissíveis chama-se **conjunto das soluções admissíveis** (CSA). Uma **solução ótima** é uma solução admissível com o melhor valor possível da função objetivo; esse valor representa-se por $z^*$.')]),
         P('No exemplo dos produtos A e B, $(x_1,x_2)=(20,20)$ é admissível: gasta $3\\cdot20+20=80\\leq150$ kg e $20+2\\cdot20=60\\leq100$ horas, com lucro $z=1000$ €. Já $(60,10)$ não é admissível, porque gasta $190$ kg de matéria-prima. Veremos no capítulo 3 que a solução ótima é $(40,30)$, com $z^*=1800$ €.'),
+        Margin('def', 'CSA', 'Sigla de conjunto das soluções admissíveis. Também se diz região admissível.'),
         Box('resumo', 'Capítulo 1', [Ul([
             'Um problema de PL maximiza ou minimiza uma função linear sujeita a restrições lineares.',
             'Ingredientes: variáveis de decisão, função objetivo, restrições técnicas, restrições de sinal.',
@@ -101,6 +109,7 @@ def cap2():
             '**Restrições de sinal.** Acrescente $x_j\\geq0$ para todas as variáveis.'], 'num')]),
         Margin('dica', 'Dica', 'Uma tabela com uma linha por produto e uma coluna por recurso ajuda a ler o enunciado. As restrições leem-se depois por colunas.'),
         P('Voltemos ao exemplo dos produtos A e B do capítulo 1, agora com o método.'),
+        Margin('atencao', 'Unidades', 'Se o lucro é dado por unidade e $x_1$ está em dúzias, converta antes de escrever a função objetivo.'),
         Box('exemplo', 'Produtos A e B, passo a passo', [Ul([
             '**Variáveis:** $x_1$ = unidades de A produzidas por semana; $x_2$ = unidades de B produzidas por semana.',
             '**Objetivo:** lucro semanal, $z=30x_1+20x_2$ (em euros), a maximizar.',
@@ -109,13 +118,14 @@ def cap2():
         Sec('Minimizar também é otimizar'),
         P('Nos problemas de custo o objetivo é minimizar. As restrições costumam ser de "pelo menos" (exigências de qualidade ou de procura), e é preciso cuidado para não aceitar a solução trivial de não fazer nada.'),
         Box('exemplo', 'Mistura de carne', [
-            P('Um talho faz uma mistura de carne picada com carne de vaca (20 % de gordura, 8 €/kg) e carne de porco (32 % de gordura, 6 €/kg). A mistura não pode ter mais de 25 % de gordura. Qual é a composição mais barata de um quilo de mistura?'),
+            P('Um talho faz uma mistura de carne picada com carne de vaca (20 % de gordura, 8 €/kg) e carne de porco (32 % de gordura, 6 €/kg). A mistura não pode ter mais de 25 % de gordura. Qual é a composição mais barata de um quilo de mistura?^[Problema adaptado de R. Bronson e G. Naadimuthu, *Investigação Operacional*, McGraw-Hill, 2001.]'),
             P('Sejam $x$ e $y$ os kg de vaca e de porco em cada kg de mistura. O custo é $8x+6y$. A gordura da mistura é $0{,}2x+0{,}32y$ kg e não pode passar de $0{,}25$ kg. Como se trata de um quilo de mistura, $x+y=1$:'),
             Eq(model(CARNE)),
             P('Sem a igualdade $x+y=1$ o mínimo seria $x=y=0$, com custo zero: não fazer mistura nenhuma. É a restrição que obriga a produzir.')]),
         Margin('atencao', 'Atenção', 'Num problema de minimização, pergunte sempre: o que impede a solução $x=0$? Se nada a impede, falta uma restrição.'),
         Sec('Traduzir frases dos enunciados'),
         P('Algumas expressões aparecem muitas vezes. A tabela seguinte mostra como se traduzem, supondo $x_1$ e $x_2$ as quantidades de dois produtos.'),
+        Margin('dica', 'Dica de exame', 'Sublinhe no enunciado as palavras "no máximo", "pelo menos" e "exatamente": cada uma dá uma restrição.'),
         Tab(['Frase do enunciado', 'Restrição'], [
             ['Há no máximo 40 horas', '$\\cdots\\leq40$'], ['É preciso pelo menos 20 unidades de B', '$x_2\\geq20$'],
             ['Devem produzir-se exatamente 100 unidades no total', '$x_1+x_2=100$'],
@@ -126,6 +136,7 @@ def cap2():
         Box('atencao', 'Variáveis dos dois lados', [P('No modelo, cada restrição escreve-se com as variáveis à esquerda e uma constante à direita. "$x_1\\leq2x_2$" está certo como ideia, mas deve passar a $x_1-2x_2\\leq0$ antes de resolver.')]),
         Sec('Problemas com mais variáveis'),
         P('O método não muda com o número de variáveis. Só a resolução gráfica fica limitada a duas.'),
+        Margin('nota', 'Quantas variáveis?', 'Uma por cada decisão independente. Uma quantidade que se calcula a partir de outras não precisa de variável própria.'),
         Box('exemplo', 'Orçamento de publicidade', [
             P('Um hotel de Albufeira tem 6000 € para uma campanha na rádio, num jornal regional e nas redes sociais. Cada anúncio custa 300 €, 400 € e 100 €, e chega, em média, a 5000, 6000 e 2000 pessoas. O hotel quer pelo menos 4 anúncios na rádio, e as redes sociais não podem ter mais de 20 anúncios. Como distribuir os anúncios para chegar ao maior número de pessoas?'),
             P('Com $x_1,x_2,x_3$ os números de anúncios na rádio, no jornal e nas redes sociais (e $z$ em milhares de pessoas):'),
@@ -153,13 +164,16 @@ def cap3():
                 ['Como representar uma restrição e o conjunto das soluções admissíveis (CSA).', 'As retas de nível da função objetivo.', 'Porque é que o ótimo está num vértice.', 'O estado de cada restrição: saturada ou não saturada.', 'Os casos especiais: ótimos múltiplos, sem solução ótima e problema impossível.', 'O que acontece quando muda um coeficiente da função objetivo.']),
         Sec('Representar uma restrição'),
         P('Uma restrição $a_1x_1+a_2x_2\\leq b$ (ou $\\geq b$) representa-se em dois passos. Primeiro desenhamos a reta $a_1x_1+a_2x_2=b$, por exemplo pelos pontos em que corta os eixos. Depois escolhemos o semiplano certo: basta testar um ponto que não esteja sobre a reta, em geral a origem $(0,0)$. Se a origem satisfaz a restrição, o semiplano é o que a contém; se não, é o outro.'),
+        Margin('dica', 'Pontos de corte', 'Para desenhar $3x_1+x_2=150$, faça $x_1=0$ (dá $x_2=150$) e $x_2=0$ (dá $x_1=50$).'),
         P('As restrições de sinal $x_1,x_2\\geq0$ limitam o gráfico ao primeiro quadrante. Uma igualdade, como $x+y=1$, não dá um semiplano mas a própria reta.'),
         QR('pl-grafico', 'Resolução gráfica', 'Edite as restrições, arraste a reta da função objetivo e veja o ótimo.'),
         Box('def', 'Conjunto das soluções admissíveis', [P('O **conjunto das soluções admissíveis** (CSA) é a interseção dos semiplanos de todas as restrições, técnicas e de sinal. Num problema de PL é sempre um polígono **convexo** (o segmento entre dois pontos do CSA está todo no CSA), que pode ser limitado, ilimitado ou vazio. Os seus "cantos" chamam-se **vértices**.')]),
         Sec('Retas de nível da função objetivo'),
         P('Fixando um valor $k$ para a função objetivo, os pontos com $c_1x_1+c_2x_2=k$ formam uma reta. Para valores diferentes de $k$ obtêm-se **retas paralelas** (todas com declive $-c_1/c_2$), chamadas **retas de nível** (de isolucro, num lucro; de isocusto, num custo). Ao deslocar a reta no sentido do vetor $(c_1,c_2)$ o valor de $z$ aumenta; no sentido contrário, diminui.'),
+        Margin('notacao', 'Sentido de crescimento', 'O vetor $(c_1,c_2)$ indica o sentido em que $z$ cresce mais depressa. Desenhe-o a partir da origem para saber para onde deslocar a reta.'),
         Box('teo', 'Teorema fundamental da programação linear', [P('Se um problema de PL tem solução ótima, então há pelo menos um **vértice** do CSA que é solução ótima.')]),
         P('A razão vê-se no gráfico: deslocamos a reta de nível no sentido em que $z$ melhora até ao último ponto em que ainda toca o CSA. Esse último contacto é um vértice ou, se a reta for paralela a um lado, um lado inteiro (e então os dois vértices desse lado são ótimos). Por isso basta comparar os vértices.'),
+        Margin('atencao', 'Pontos interiores', 'Um ponto do interior do CSA nunca é o único ótimo: há sempre um ponto melhor ou igual na fronteira.'),
         Box('metodo', 'Resolução gráfica', [Ul([
             'Desenhar cada restrição técnica (reta e semiplano) no primeiro quadrante.',
             'Identificar o CSA e os seus vértices.',
@@ -177,6 +191,7 @@ def cap3():
         Margin('dica', 'Dica de exame', 'Quando o enunciado pede o "estado das restrições", diga se cada uma está saturada e indique o valor da folga ou do excesso, com unidades.'),
         Sec('Casos especiais'),
         P('Nem todos os problemas têm uma solução ótima única. Há quatro situações a reconhecer.'),
+        Margin('dica', 'Como reconhecer', 'Compare o declive $-c_1/c_2$ com os declives das restrições saturadas no ótimo. Se for igual a um deles, há ótimos múltiplos.'),
         Sub('Ótimos múltiplos'),
         P('Se a reta de nível for paralela a um lado do CSA que é o último a ser tocado, todos os pontos desse lado são ótimos. Com o lucro de A a passar para 10 € no exemplo dos produtos, temos $z=10x_1+20x_2$, cujas retas de nível são paralelas a $x_1+2x_2=100$:')] + b_mul + [
         Sub('Sem solução ótima (solução ilimitada)'),
@@ -185,6 +200,7 @@ def cap3():
         Margin('atencao', 'Atenção', 'Um CSA ilimitado não implica falta de solução ótima. Num problema de minimização com coeficientes positivos é comum o CSA ser ilimitado e o mínimo existir.'),
         Sub('Problema impossível'),
         P('Se as restrições forem incompatíveis, o CSA é vazio e o problema é **impossível**. Por exemplo, $x_1+x_2\\leq2$ e $x_1+2x_2\\geq6$ não têm pontos comuns no primeiro quadrante: o maior valor de $x_1+2x_2$ com $x_1+x_2\\leq2$ é 4.'),
+        QR('pl-grafico', 'Casos especiais', 'Experimente os exemplos "ótimos múltiplos", "sem ótimo" e "impossível".'),
         Fig('g_imp', 'As duas regiões não se intersetam no primeiro quadrante.', 0.5),
         Sub('Resumo dos casos'),
         Tab(['Caso', 'No gráfico', 'Conclusão'], [
@@ -217,6 +233,7 @@ def cap4():
                 ['Variáveis de folga e de excesso.', 'A forma standard de um problema de PL.', 'Soluções básicas, admissíveis e degeneradas.', 'O método algébrico e a sua ligação aos vértices.']),
         Sec('Folgas e excessos'),
         P('Uma desigualdade transforma-se numa igualdade acrescentando uma variável não negativa que mede "o que falta" ou "o que sobra".'),
+        Margin('nota', 'Unidades', 'Folgas e excessos têm as unidades da restrição: kg, horas, clientes.'),
         Box('def', 'Variáveis de folga e de excesso', [
             P('Numa restrição $\\leq$, a **variável de folga** $F_i\\geq0$ é a quantidade de recurso que fica por usar: $a_{i1}x_1+\\cdots+a_{in}x_n+F_i=b_i$.'),
             P('Numa restrição $\\geq$, a **variável de excesso** $E_i\\geq0$ é o quanto se ultrapassa a exigência mínima: $a_{i1}x_1+\\cdots+a_{in}x_n-E_i=b_i$.'),
@@ -228,6 +245,7 @@ def cap4():
         Box('atencao', 'Termo independente negativo', [P('Se uma restrição tiver $b_i<0$, multiplique-a primeiro por $-1$, trocando o sentido da desigualdade. Por exemplo, $x_1-2x_2\\geq-4$ passa a $-x_1+2x_2\\leq4$, que leva uma folga.')]),
         Sec('Soluções básicas'),
         P('Na forma standard temos $m$ equações e $n$ variáveis (de decisão, de folga e de excesso), com $n>m$. O sistema é possível e indeterminado. Dando o valor 0 a $n-m$ variáveis, ficam $m$ equações com $m$ incógnitas, que em geral têm uma só solução.'),
+        Margin('def', 'Base', 'O conjunto das variáveis básicas chama-se base. O Simplex troca uma variável da base de cada vez.'),
         Box('def', 'Solução básica', [
             P('Uma **solução básica** obtém-se anulando $n-m$ variáveis (as **variáveis não básicas**) e resolvendo o sistema nas $m$ restantes (as **variáveis básicas**). É uma **solução básica admissível** se todas as variáveis forem não negativas. É **degenerada** se alguma variável básica for nula.'),
             P('O número máximo de soluções básicas é o número de maneiras de escolher as $m$ variáveis básicas: $C^n_m=\\dfrac{n!}{m!\\,(n-m)!}$.')]),
@@ -262,8 +280,10 @@ def cap5():
                 ['A ideia do método.', 'O quadro do Simplex e a linha $c_j-z_j$.', 'Os critérios de entrada, de saída e de paragem.', 'Como ler o quadro ótimo.', 'Ótimos múltiplos, solução ilimitada e degenerescência no quadro.']),
         Sec('A ideia'),
         P('O Simplex começa numa solução básica admissível, em geral a origem (todas as variáveis de decisão nulas e as folgas iguais aos recursos). Em cada iteração escolhe uma variável não básica para **entrar** na base, a que melhora mais $z$ por unidade, e uma variável básica para **sair**, a que primeiro se anula quando a que entra aumenta. Isto corresponde a andar ao longo de uma aresta do CSA até ao vértice seguinte.'),
+        Margin('nota', 'Vértices vizinhos', 'Dois vértices são vizinhos quando estão ligados por um lado do CSA. As suas bases diferem numa só variável.'),
         Sec('O quadro do Simplex'),
         P('Cada solução básica representa-se num quadro com as colunas seguintes: $X_b$ (variáveis básicas), $c_j^b$ (os seus coeficientes na função objetivo), os coeficientes de todas as variáveis nas restrições, o termo independente (RHS) e a coluna dos rácios $r$. Por cima das colunas das variáveis escreve-se o seu coeficiente $c_j$ na função objetivo. A última linha tem os valores $c_j-z_j$, com'),
+        Margin('dica', 'Atalho', 'Na base inicial (só folgas, $c_j^b=0$), todos os $z_j$ são 0 e a linha $c_j-z_j$ repete a linha $c_j$.'),
         Eq(r'z_j=\sum_i c^b_i\,a_{ij}\qquad\text{e}\qquad z=\sum_i c^b_i\,\text{RHS}_i.'),
         P('O valor $c_j-z_j$ diz quanto varia $z$ por cada unidade de $x_j$ que entra na solução: é o **ganho marginal** da variável $j$. Para as variáveis básicas é sempre 0.'),
         Box('notacao', 'Como escrevemos as operações no quadro', [Ul([
@@ -283,6 +303,7 @@ def cap5():
             P('**Confirmação com o gráfico:** o quadro 1 é o vértice $O=(0,0)$, o quadro 2 é $A=(50,0)$ e o quadro 3 é $B=(40,30)$. O Simplex visitou 3 dos 4 vértices, sempre com $z$ a aumentar: $0$, $1500$, $1800$.')]),
         Sec('Ler o quadro ótimo'),
         P('No quadro ótimo, as variáveis básicas têm o valor da coluna RHS e as não básicas valem 0. O valor de $z$ está no canto inferior. Das folgas e excessos lê-se o estado das restrições: uma folga básica e positiva indica uma restrição não saturada; uma folga não básica (nula) indica uma restrição saturada. Os $c_j-z_j$ das folgas têm também uma leitura económica, que veremos no capítulo 7.'),
+        Margin('dica', 'Dica de exame', 'Escreva a solução completa: variáveis de decisão, folgas ou excessos e $z^*$, com unidades.'),
         Box('exemplo', 'Um problema com três variáveis', [Eq(model(CHV))] + b_chv + [
             P('**Leitura:** produz-se $x_1=2$ e $x_3=1$, não se produz $x_2$; a segunda restrição tem folga $F_2=1$ e as outras duas estão saturadas. **Confirmação:** $2\\cdot2+0+1=5$, $4\\cdot2+0+2\\cdot1=10\\leq11$, $3\\cdot2+0+2\\cdot1=8$, e $z=5\\cdot2+3\\cdot1=13$.')]),
         Sec('Casos especiais no quadro'),
@@ -291,9 +312,10 @@ def cap5():
         P('Fazendo entrar $x_1$ (rácios $\\frac{100}{\\frac52}=40$ e $\\frac{50}{\\frac12}=100$, sai $F_1$) obtém-se o vértice $(40,30)$, também com $z=1000$. Todos os pontos do segmento entre $(0,50)$ e $(40,30)$ são ótimos, como no gráfico do capítulo 3.'),
         Sub('Solução ilimitada'),
         P('Se a variável que deve entrar não tem nenhum elemento positivo na sua coluna, não há rácios: pode crescer sem limite e $z$ também. Por exemplo:'),
+        Margin('atencao', 'Sem positivos', 'Se a coluna que entra só tem zeros ou negativos, pare: a solução é ilimitada. Nunca calcule rácios com elementos negativos.'),
         Eq(model(ILIM))] + b_ili + [
         Sub('Degenerescência'),
-        P('Quando há empate no menor rácio, a variável que fica na base em vez da que sai passa a valer 0: a solução seguinte é **degenerada**. O Simplex continua normalmente (escolhe-se uma das linhas empatadas, por exemplo a de cima). Geometricamente, mais de duas retas passam pelo mesmo vértice. Pode acontecer uma iteração em que $z$ não aumenta, mas nos problemas destas aulas o método termina sempre.'),
+        P('Quando há empate no menor rácio, a variável que fica na base em vez da que sai passa a valer 0: a solução seguinte é **degenerada**. O Simplex continua normalmente (escolhe-se uma das linhas empatadas, por exemplo a de cima). Geometricamente, mais de duas retas passam pelo mesmo vértice. Pode acontecer uma iteração em que $z$ não aumenta, mas nos problemas destas aulas o método termina sempre^[Em problemas grandes pode haver ciclagem: o método repete bases sem sair do sítio. Há regras de desempate que o evitam, como a regra de Bland.].'),
         Sub('Empate na entrada'),
         P('Se duas variáveis têm o mesmo $c_j-z_j$ de entrada, pode escolher-se qualquer uma; por convenção escolhemos a mais à esquerda. O ótimo final é o mesmo, embora o caminho possa ter mais ou menos quadros.'),
         Box('resumo', 'Capítulo 5', [Ul([
@@ -316,9 +338,11 @@ def cap6():
                 ['Porque são precisas as variáveis artificiais.', 'A penalização $M$ e a comparação de valores com $M$.', 'O método do M grande em problemas de Min e de Max.', 'Como o Simplex deteta um problema impossível.']),
         Sec('O problema da base inicial'),
         P('Numa restrição $\\leq$, a folga $F_i$ entra na base inicial com valor $b_i$. Numa restrição $\\geq$, o excesso tem coeficiente $-1$: se fosse básico valeria $-b_i<0$, o que não é admissível. Numa igualdade não há folga nem excesso. Em ambos os casos falta uma variável para a base.'),
+        Margin('nota', 'Porque não basta $E_i$', 'O excesso tem coeficiente $-1$: se fosse básico valeria $-b_i<0$.'),
         Box('def', 'Variável artificial', [P('Uma **variável artificial** $A_i\\geq0$ é uma variável sem significado económico que se soma a uma restrição $\\geq$ ou $=$ só para obter uma base inicial: $a_{i1}x_1+\\cdots-E_i+A_i=b_i$ ou $a_{i1}x_1+\\cdots+A_i=b_i$. Uma solução só é admissível para o problema original se todas as artificiais valerem 0.')]),
         Sec('A penalização M'),
         P('Para que o Simplex "expulse" as variáveis artificiais, damos-lhes um coeficiente muito desfavorável na função objetivo: $-M$ num problema de maximização, $+M$ num problema de minimização, sendo $M$ um número positivo tão grande quanto se queira.'),
+        Margin('notacao', 'Max e Min', 'Max: $-MA_i$. Min: $+MA_i$. Nos dois casos a artificial torna a solução pior.'),
         Box('atencao', 'Comparar valores com M', [P('Os valores $c_j-z_j$ passam a ter a forma $aM+b$. Como $M$ é muito grande, compara-se primeiro o coeficiente de $M$ e só em caso de empate a parte constante. Por exemplo, $-3M+2<-2M+10<-2M+12<5$. Num problema de Min entra a variável com o $c_j-z_j$ mais negativo, logo aquela com o coeficiente de $M$ mais negativo.')]),
         Box('metodo', 'Método do M grande', [Ul([
             'Forma standard: folga $F_i$ nas $\\leq$; excesso $E_i$ e artificial $A_i$ nas $\\geq$; artificial $A_i$ nas $=$.',
@@ -332,8 +356,10 @@ def cap6():
             P('**Confirmação:** $3+1=4$, $3\\leq3$ e $1\\geq1$; $z=3\\cdot3+2\\cdot1=11$.')]),
         Sec('Problema impossível'),
         P('O método do M grande também mostra quando o CSA é vazio. Retomemos o problema impossível do capítulo 3:'),
+        QR('pl-simplex', 'M grande passo a passo', 'Escolha o exemplo da ficha prática e veja os valores com $M$ em cada quadro.'),
         Eq(model(IMP))] + b_imp + [
         P('O valor de $A_2$ na base é 2: não há maneira de cumprir $x_1+2x_2\\geq6$ com $x_1+x_2\\leq2$, como o gráfico já mostrava.'),
+        Margin('atencao', 'Falso ótimo', 'Um quadro que cumpre o critério de paragem com uma artificial positiva não dá solução: o problema é impossível.'),
         Box('resumo', 'Capítulo 6', [Ul([
             'Restrição $\\geq$: $-E_i+A_i$. Restrição $=$: $+A_i$.',
             'Custo da artificial: $-M$ em Max, $+M$ em Min.',
@@ -355,6 +381,7 @@ def cap7():
         P('Recordemos o quadro ótimo do exemplo dos produtos A e B:'),
         Quadro(last, {'sol': 1}, 'Quadro ótimo dos produtos A e B'),
         P('As folgas $F_1$ e $F_2$ são não básicas, com $c_j-z_j=-8$ e $-6$. Se obrigássemos a sobrar 1 kg de matéria-prima ($F_1=1$), o lucro diminuía 8 €. Lido ao contrário: **mais 1 kg de matéria-prima aumentava o lucro em 8 €**.'),
+        Margin('def', 'Também se diz', 'Valor marginal, valor dual ou custo de oportunidade do recurso.'),
         Box('def', 'Preço-sombra', [P('O **preço-sombra** (ou valor marginal) de um recurso $i$ é a variação do valor ótimo $z^*$ por cada unidade a mais de $b_i$. Num problema de Max com restrições $\\leq$, é o simétrico do $c_j-z_j$ da folga $F_i$ no quadro ótimo. Num problema de Min com restrições $\\geq$, é o $c_j-z_j$ do excesso $E_i$ (o aumento do custo mínimo por cada unidade a mais exigida).')]),
         Box('exemplo', 'Quanto vale um recurso', [
             P('No exemplo, o preço-sombra da matéria-prima é 8 € por kg e o das horas de trabalho é 6 € por hora. **Confirmação:** resolvendo o problema com 151 kg obtém-se $z^*=1808$, e com 101 horas $z^*=1806$.'),
@@ -362,11 +389,14 @@ def cap7():
         Margin('atencao', 'Validade', 'O preço-sombra só é válido numa certa gama de valores de $b_i$, enquanto a mesma base continuar ótima. O relatório de sensibilidade do Solver (capítulo 9) indica essa gama.'),
         Sec('Custo reduzido'),
         P('Para uma variável de decisão **não básica** no quadro ótimo, $|c_j-z_j|$ é o **custo reduzido**: quanto pioraria $z$ por cada unidade produzida dessa variável. É também quanto o seu coeficiente $c_j$ teria de melhorar para valer a pena produzi-la.'),
+        Margin('nota', 'No Solver', 'O relatório de sensibilidade do Excel chama-lhe "custo reduzido".'),
         Box('exemplo', 'Um produto que não se faz', [P('No problema com três variáveis do capítulo 5, $x_2$ é não básica no quadro ótimo com $c_j-z_j=-3$. Cada unidade de $x_2$ produzida baixaria $z$ em 3. Só valeria a pena produzi-la se o seu lucro unitário subisse de 4 para mais de $4+3=7$.')]),
         Sec('Alterar um recurso'),
         P('Se $b_i$ mudar $\\Delta$ unidades e a base ótima se mantiver, o novo valor ótimo é $z^*+\\text{(preço-sombra)}\\cdot\\Delta$. Por exemplo, com mais 10 horas de trabalho o lucro passaria a $1800+6\\cdot10=1860$ €, se a base continuar ótima (o que se confirma resolvendo de novo: $x_1=38$, $x_2=36$, $z^*=1860$).'),
+        Margin('atencao', 'Só dentro da gama', 'Neste exemplo o preço-sombra das horas vale enquanto $50\\leq b_2\\leq300$. Fora dessa gama a base ótima muda.'),
         Sec('Alterar um coeficiente da função objetivo'),
         P('Mudar o lucro unitário $c_j$ não altera o CSA, só a inclinação das retas de nível. A solução ótima mantém-se enquanto o vértice ótimo continuar a ser o último tocado, e só o valor de $z^*$ muda. Com duas variáveis, o intervalo calcula-se pelos declives, como no capítulo 3 ($10\\leq c_1\\leq60$ no exemplo). Com mais variáveis, o relatório de sensibilidade do Solver dá esse intervalo diretamente (aumento e diminuição permitidos).'),
+        QR('pl-sensibilidade', 'Coeficientes da função objetivo', 'Responda à pergunta típica de teste para qualquer novo lucro unitário.'),
         Box('dica', '', [P('Nos testes aparece muitas vezes: "Se o lucro unitário de A passar a 50 €, a solução ótima mantém-se?". Responda com o intervalo de otimalidade, diga se a solução muda e calcule o novo $z^*$.')]),
         Box('resumo', 'Capítulo 7', [Ul([
             'Preço-sombra de um recurso: simétrico do $c_j-z_j$ da folga (Max) ou $c_j-z_j$ do excesso (Min).',
@@ -388,10 +418,11 @@ def cap8():
     b_dex, r_dex = simplex_blocks(DEX, intro=False, verbose=False)
     return [
         Chapter('Dualidade',
-                'Cada problema de programação linear tem um problema "gémeo", o dual, que olha para os mesmos números do lado dos recursos. Resolver um é resolver o outro, e as variáveis do dual são exatamente os preços-sombra.',
+                'Cada problema de programação linear tem um problema "gémeo", o dual^[A ideia da dualidade surgiu em 1947, numa conversa de Dantzig com o matemático John von Neumann.], que olha para os mesmos números do lado dos recursos. Resolver um é resolver o outro, e as variáveis do dual são exatamente os preços-sombra.',
                 ['O dual do exemplo dos produtos A e B e a sua interpretação.', 'As regras de construção do dual.', 'Os teoremas da dualidade.', 'Como ler a solução do dual no quadro ótimo do primal.']),
         Sec('Um problema visto do outro lado'),
         P('Suponhamos que alguém quer comprar à empresa dos produtos A e B toda a matéria-prima e todas as horas de trabalho. Que preços $y_1$ (por kg) e $y_2$ (por hora) deve oferecer? A empresa só vende se ganhar pelo menos o mesmo que a produzir: os recursos de uma unidade de A ($3$ kg e $1$ h) têm de valer pelo menos 30 €, e os de uma unidade de B ($1$ kg e $2$ h) pelo menos 20 €. O comprador quer pagar o mínimo:'),
+        Margin('nota', 'Primal e dual', 'O problema original chama-se primal. O dual do dual é o primal.'),
         Eq(dtex),
         P('A solução deste problema é $y_1=8$, $y_2=6$, com $w^*=1800$: os preços-sombra do capítulo 7 e o mesmo valor do lucro máximo.'),
         Sec('Construir o dual'),
@@ -407,6 +438,7 @@ def cap8():
         Margin('dica', 'Dica', 'Escreva a matriz dos coeficientes do primal e leia-a por colunas: cada coluna dá uma restrição do dual.'),
         QR('pl-dual', 'Primal e dual', 'Veja as correspondências entre os dois problemas e os preços-sombra no quadro ótimo.'),
         Sec('Os teoremas da dualidade'),
+        Margin('def', 'Folga complementar', 'Em cada par (restrição do primal, variável dual), pelo menos um dos dois é nulo no ótimo.'),
         Box('teo', 'Teoremas da dualidade', [Ul([
             '**Dualidade fraca.** Para quaisquer soluções admissíveis do primal (Max) e do dual (Min), $z\\leq w$.',
             '**Dualidade forte.** Se um dos problemas tem solução ótima, o outro também tem, e $z^*=w^*$.',
@@ -414,6 +446,7 @@ def cap8():
             'Se o primal não tem solução ótima (ilimitado), o dual é impossível.'])]),
         Sec('A solução do dual no quadro do primal'),
         P('Não é preciso resolver o dual à parte. No quadro ótimo do primal (Max com $\\leq$), o valor ótimo de $y_i$ é o simétrico do $c_j-z_j$ da folga $F_i$. Num primal de Min com restrições $\\geq$, $y_i$ é o $c_j-z_j$ do excesso $E_i$.'),
+        Margin('dica', 'Verificação rápida', 'Com os $y_i$ lidos no quadro, confirme que $w^*=z^*$. Se não der, há um erro nas contas.'),
         Box('exemplo', 'Dual de uma minimização', [
             P('Consideremos'), Eq(model(DEX)), P('O seu dual é'), Eq(d2tex),
             P('Resolvendo o primal pelo método do M grande, o quadro ótimo é:'), b_dex[-2],
@@ -448,9 +481,11 @@ print(-res.ineqlin.marginals)     # preços-sombra: [8. 6.]'''
                 'Na prática, os problemas têm dezenas ou milhares de variáveis e resolvem-se no computador. Saber montar o modelo numa folha de cálculo ou num programa é tão importante como saber fazer um quadro à mão, e permite confirmar as resoluções.',
                 ['Montar e resolver um problema com o Solver do Excel.', 'Ler o relatório de sensibilidade.', 'Resolver o mesmo problema em Python com a biblioteca SciPy.']),
         Sec('O Solver do Excel'),
+        Margin('nota', 'Outras ferramentas', 'O LibreOffice Calc e o Google Sheets também têm solvers de programação linear, com nomes de menus diferentes.'),
         P('O Solver é um suplemento gratuito do Excel. Se não aparecer no separador **Dados**, grupo **Análise**, ative-o em Ficheiro, Opções, Suplementos (Suplementos do Excel, botão Ir, opção Suplemento Solver).'),
         Sub('Montar a folha'),
         P('A folha deve separar os dados das decisões. Para o exemplo dos produtos A e B:'),
+        Margin('dica', 'Folha arrumada', 'Use cores: células de variável a amarelo, dados a cinzento, objetivo a verde. Os erros encontram-se mais depressa.'),
         Tab(['', 'A', 'B', 'C', 'D', 'E'], [
             ['1', '', 'Produto A', 'Produto B', 'Usado', 'Disponível'],
             ['2', 'Quantidades', '0', '0', '', ''],
@@ -473,7 +508,8 @@ print(-res.ineqlin.marginals)     # preços-sombra: [8. 6.]'''
         P('O coeficiente de A pode ir de $30-20=10$ a $30+30=60$, e o de B de $20-10=10$ a $20+40=60$, tal como se obtém pelos declives. Os preços-sombra das restrições são 8 e 6.'),
         Margin('atencao', 'Atenção', 'Escolha sempre o método LP Simplex. Com o método não linear (GRG) o Solver não produz o relatório de sensibilidade com preços-sombra.'),
         Sec('Python com SciPy'),
-        P('Em Python, a função `linprog` da biblioteca SciPy resolve problemas de PL. Três cuidados: a função **minimiza** (para maximizar, troca-se o sinal dos $c_j$); as restrições escrevem-se na forma $\\leq$ (uma restrição $\\geq$ multiplica-se por $-1$) e as igualdades passam em `A_eq` e `b_eq`; os limites $x_j\\geq0$ indicam-se em `bounds`.'),
+        P('Em Python, a função `linprog` da biblioteca SciPy resolve problemas de PL^[Com o método "highs", a função usa o programa HiGHS, desenvolvido na Universidade de Edimburgo.]. Três cuidados: a função **minimiza** (para maximizar, troca-se o sinal dos $c_j$); as restrições escrevem-se na forma $\\leq$ (uma restrição $\\geq$ multiplica-se por $-1$) e as igualdades passam em `A_eq` e `b_eq`; os limites $x_j\\geq0$ indicam-se em `bounds`.'),
+        Margin('nota', 'Onde correr', 'No Google Colab, no navegador, sem instalar nada: a biblioteca SciPy já vem incluída.'),
         Raw(tex=tex_code, md=md_code),
         P('Os marginais devolvidos pelo SciPy referem-se ao problema minimizado, por isso trocamos o sinal para obter os preços-sombra do problema de Max. A vantagem do Python é poder integrar a resolução noutros programas, por exemplo ler dados de um ficheiro, resolver muitos cenários e desenhar gráficos com os resultados.'),
         Box('atencao', 'Decimais', [P('O computador trabalha com números decimais e pode mostrar valores como $39{,}999999$ ou $-0{,}0$. Arredonde com bom senso e confirme as restrições.')]),
@@ -505,18 +541,21 @@ def cap10():
                 'Este capítulo reúne modelos típicos de gestão. Em todos, o trabalho principal é a formulação; a resolução faz-se pelo Simplex ou no computador, e o mais importante no fim é interpretar a solução.',
                 ['Problemas de mistura.', 'Afetação de pessoal por turnos.', 'Problema de transportes.', 'Carteira de investimento.', 'Gestão de quartos de um hotel por canal de venda.']),
         Sec('Problemas de mistura'),
+        Margin('dica', 'Mistura', 'Trabalhe com a composição de 1 kg (ou 1 litro): as variáveis passam a ser proporções e somam 1.'),
         Box('exemplo', 'Lote de café', [
             P('Uma torrefação faz um lote com café arábica (12 €/kg, qualidade 90 pontos) e robusta (8 €/kg, 70 pontos). O lote deve ter pelo menos 78 pontos de qualidade média e pelo menos 30 % de arábica. Qual a composição mais barata de 1 kg de lote?'),
             P('Com $x_1$ e $x_2$ os kg de arábica e robusta em 1 kg de lote, a qualidade média é $90x_1+70x_2$:'),
             Eq(model(CAFE)),
             P('Solução: %s. O lote mais barato tem 40 %% de arábica e custa 9,60 € por kg. A exigência de qualidade está saturada; a de 30 %% de arábica fica com excesso de 0,1 kg.' % sol_line(CAFE, rc))]),
         Sec('Afetação de pessoal'),
+        Margin('atencao', 'Soluções inteiras', 'Aqui a solução saiu inteira. Se não saísse, arredondar para cima garante a cobertura, mas pode deixar de ser ótimo.'),
         Box('exemplo', 'Rececionistas por turnos', [
             P('A receção de um hotel funciona 24 horas em quatro períodos de 6 horas, com necessidades mínimas de 4, 7, 6 e 3 rececionistas. Cada rececionista faz 12 horas seguidas, começando no início de um período (o turno que começa no 4.º período continua no 1.º do dia seguinte). Quantos rececionistas devem começar em cada período, para o número total ser mínimo?'),
             P('Com $x_i$ o número de rececionistas que começam no período $i$, o período 1 é coberto por quem começa no 1 ou no 4, o período 2 por quem começa no 1 ou no 2, e assim por diante:'),
             Eq(model(TURNOS)),
             P('Solução: %s. Bastam %s rececionistas. Repare que a solução é inteira; nem sempre é assim, e quando não é o problema passa a ser de programação inteira.' % (sol_line(TURNOS, rt), dn(rt['z'])))]),
         Sec('Problema de transportes'),
+        Margin('nota', 'Estrutura', 'Com $m$ origens e $n$ destinos há $m\\cdot n$ variáveis e $m+n$ restrições.'),
         Box('exemplo', 'Abastecer três hotéis', [
             P('Uma lavandaria industrial tem duas unidades, com capacidade de 300 e 250 sacos de roupa por dia, e serve três hotéis que precisam de 150, 200 e 180 sacos. O custo de transporte por saco (€) é:'),
             Tab(['', 'Hotel 1', 'Hotel 2', 'Hotel 3', 'Capacidade'], [['Unidade 1', '4', '6', '9', '300'], ['Unidade 2', '5', '3', '7', '250'], ['Procura', '150', '200', '180', '']]),
@@ -524,11 +563,13 @@ def cap10():
             Eq(model(TRANSP)),
             P('Solução: %s. A unidade 1 abastece o hotel 1 e parte do 3; a unidade 2, que tem o transporte mais barato para o hotel 2, envia-lhe 200 sacos e os restantes 50 para o hotel 3. O custo mínimo é de %s € por dia.' % (sol_line(TRANSP, rtr), dn(rtr['z'])))]),
         Sec('Carteira de investimento'),
+        Margin('dica', 'Percentagens', 'A taxa de 3 % entra como $0{,}03$ na função objetivo.'),
         Box('exemplo', 'Aplicar 100 000 €', [
             P('Um investidor quer aplicar 100 000 € em depósitos (3 % ao ano), obrigações (5 %) e ações (8 %). Por prudência, não quer mais de 30 000 € em ações, quer pelo menos 20 000 € em depósitos e o montante em ações não pode ultrapassar o montante em depósitos e obrigações juntos.'),
             Eq(model(INV)),
             P('Solução: %s €. O rendimento máximo é de %s € por ano. O limite das ações e o mínimo dos depósitos estão saturados; tudo o resto vai para obrigações.' % (sol_line(INV, ri).replace('{,}', ','), dn(ri['z'])))]),
         Sec('Gestão de quartos por canal'),
+        Margin('nota', 'Revenue management', 'Os hotéis usam modelos deste tipo, muito maiores, para decidir quantos quartos guardar para cada tarifa e canal.'),
         Box('exemplo', 'Vender 120 quartos', [
             P('Um hotel tem 120 quartos e vende-os por três canais: operadores turísticos ($x_1$, margem 60 € por noite), venda direta ($x_2$, 90 €) e agências online ($x_3$, 75 €). A procura em venda direta não passa de 40 quartos e o contrato com os operadores obriga a reservar-lhes pelo menos 30 quartos.'),
             Eq(model(HOTEL)),
