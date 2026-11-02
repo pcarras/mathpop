@@ -161,5 +161,5 @@ function answer(apply){
 el('qb').onclick=()=>answer(false);el('qg').onclick=()=>answer(true);
 window.addEventListener('resize',()=>{if(!lp)return;plot.fit();update()});
 if(window.matchMedia)matchMedia('(prefers-color-scheme:dark)').addEventListener('change',update);
-el('pre').children[0].click();
+{const h=location.hash.length>1?PL.fromHash(location.hash):null;if(h&&h.n===2&&h.m>=1&&h.m<=5){try{ed.set(h)}catch(e){el('pre').children[0].click()}}else el('pre').children[0].click()}
 </script></body></html>

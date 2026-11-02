@@ -140,5 +140,5 @@ el('s1').onclick=()=>{step=1;el('s1').classList.add('on');el('s2').classList.rem
 el('s2').onclick=()=>{step=2;el('s2').classList.add('on');el('s1').classList.remove('on');render()};
 window.addEventListener('resize',()=>{if(lp&&lp.n===2){plot.fit();draw()}});
 if(window.matchMedia)matchMedia('(prefers-color-scheme:dark)').addEventListener('change',()=>{if(lp&&lp.n===2)draw()});
-el('pre').children[0].click();
+{const h=location.hash.length>1?PL.fromHash(location.hash):null;if(h&&h.n>=2&&h.n<=4&&h.m>=1&&h.m<=3){try{ed.set(h)}catch(e){el('pre').children[0].click()}}else el('pre').children[0].click()}
 </script></body></html>
