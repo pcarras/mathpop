@@ -1,0 +1,56 @@
+/* ===== Tema 2: quadros do Simplex, gráficos, código ===== */
+.qd{border-collapse:separate;border-spacing:0;font-size:30px;margin:0 auto}
+.qd td{padding:8px 16px;text-align:center;border-bottom:1px solid var(--line);white-space:nowrap;position:relative}
+.qd tr.h1 td{border-bottom:none;color:#14263A;font-weight:700;padding-bottom:0}
+.qd tr.h2 td{background:#EAF1F8;color:#1F3A5F;font:700 26px var(--sans);border-bottom:2px solid #1F3A5F}
+.qd tr.h2 td.an,.qd tr.h1 td.an,.qd td.an{background:transparent!important;border:none!important}
+.qd td.bv{font-weight:700;color:#1F3A5F;border-right:1px solid var(--line)}
+.qd td.rhs{border-left:2px solid #9FB3CF;font-weight:700}
+.qd tr.cz td{border-top:3px solid #1F3A5F;border-bottom:none;background:#F5F8FB;font-weight:700}
+.qd tr.cz td.an{background:transparent}
+.qd td.ec{background:rgba(14,135,151,.13)}
+.qd tr.h2 td.ec{background:rgba(14,135,151,.28)}
+.qd tr.cz td.best{background:rgba(14,135,151,.35);color:#0A4F59}
+.qd tr.sr td:not(.an){background:rgba(233,165,55,.16)}
+.qd tr.sr td.ec{background:rgba(233,165,55,.30)}
+.qd td.pv>span{display:inline-block;border:3.5px solid var(--red);border-radius:50%;min-width:1.7em;padding:2px 6px;line-height:1.25}
+.qd td.an{width:96px;font-weight:700;color:var(--teal);border:none}
+.qd td.an.l{text-align:right;padding-right:12px}
+.qd td.an.r{text-align:left;padding-left:12px;color:var(--teal)}
+.qd td.ra{color:#5F6B7A;min-width:110px}
+.qd .mn{font:700 18px var(--sans);color:var(--amberD);vertical-align:middle}
+.qd td.zv{color:var(--red)}
+.qd.sm{font-size:25px}.qd.sm td{padding:6px 11px}.qd.sm tr.h2 td{font-size:22px}
+.qwrap{display:flex;justify-content:center;transform-origin:top center}
+.code{background:#0F2741;color:#DCE7F3;border-radius:14px;padding:26px 30px;font:400 25px/1.5 "DejaVu Sans Mono",Consolas,monospace;white-space:pre;overflow:hidden}
+.code .k{color:#7FD6E0}.code .s{color:#F2C46D}.code .c{color:#7F93AA;font-style:italic}.code .n{color:#B6E3A8}
+.xl{border-collapse:collapse;font:400 25px var(--sans);background:#fff;box-shadow:0 8px 30px rgba(20,38,58,.12)}
+.xl td,.xl th{border:1px solid #C9D3DE;padding:7px 14px;min-width:70px;text-align:center}
+.xl th{background:#EEF2F6;color:#5F6B7A;font-weight:400;font-size:20px}
+.xl td.hd2{font-weight:700;text-align:left;background:#F7F9FB}
+.xl td.var{background:#FFF4E0;font-weight:700}.xl td.obj{background:#E6F4F1;font-weight:700}
+.xl td.f{white-space:nowrap;font:400 19px "DejaVu Sans Mono",monospace;color:#1F3A5F;text-align:left}
+.dlg{background:#fff;border:1px solid #C9D3DE;border-radius:10px;box-shadow:0 14px 40px rgba(20,38,58,.18);padding:20px 26px;font:400 24px var(--sans)}
+.dlg .tl{font-weight:700;color:#1F3A5F;margin-bottom:10px}
+.dlg .ln{display:flex;gap:14px;align-items:center;margin:8px 0}.dlg .bx{border:1px solid #9FB3CF;border-radius:5px;padding:3px 12px;background:#F7F9FB;font-family:"DejaVu Sans Mono",monospace;font-size:21px}
+.cyc{display:grid;grid-template-columns:repeat(4,1fr);gap:34px;margin-top:40px;position:relative}
+.cyc .card{text-align:center;padding:30px 22px;min-height:260px}
+.cyc .card .ic{font:700 64px var(--serif);color:var(--teal)}
+.cyc .card h4{font:700 32px var(--sans);margin:6px 0 10px;color:#1F3A5F}
+.cyc .card p{font-size:26px;line-height:1.4;color:#3A4B5E}
+.flow{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:26px}
+.flow .card{padding:22px 26px;font-size:27px;line-height:1.4}
+.flow .card b.k{display:inline-block;width:46px;height:46px;border-radius:50%;background:var(--teal);color:#fff;text-align:center;line-height:46px;font:700 26px/46px var(--sans);margin-right:12px}
+.st3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:26px}
+.st3 .card{padding:24px 28px;font-size:30px;line-height:1.4}
+.st3 .card h4{font:700 30px var(--sans);color:#1F3A5F;margin-bottom:10px}
+.lbl{font:700 22px var(--sans);color:var(--teal)}
+.mini td.ok{color:var(--green);font-weight:700}.mini td.no{color:var(--red);font-weight:700}
+.mini tr.best td{background:rgba(31,165,122,.14);font-weight:700}
+.sc4{display:grid;grid-template-columns:repeat(4,1fr);gap:22px;margin-top:12px}
+.sc4 .card{padding:16px 18px;text-align:center}.sc4 canvas{width:100%;height:330px;display:block}
+.sc4 h4{font:700 27px var(--sans);color:#1F3A5F;margin:8px 0 4px}.sc4 p{font-size:22px;line-height:1.35;color:#3A4B5E}
+.dualg{display:grid;grid-template-columns:1fr 120px 1fr;align-items:center;gap:10px}
+.dualg .card{font-size:34px;padding:28px 30px}
+.rl{display:grid;grid-template-columns:1fr 1fr;gap:4px 30px;font-size:28px;margin-top:22px}
+.rl div{padding:8px 0;border-bottom:1px solid var(--line)}
