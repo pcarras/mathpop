@@ -404,6 +404,36 @@ svg text{font-family:var(--sans)}
 .dualg .card{font-size:34px;padding:28px 30px}
 .rl{display:grid;grid-template-columns:1fr 1fr;gap:4px 30px;font-size:28px;margin-top:22px}
 .rl div{padding:8px 0;border-bottom:1px solid var(--line)}
+.rl .rg{color:var(--amberD);font:700 22px var(--sans);margin-left:10px;white-space:nowrap}
+/* regras de passagem ao dual */
+.rg6{display:grid;grid-template-columns:1fr 1fr;gap:22px 34px;margin-top:6px}
+.rg6 .card{display:grid;grid-template-columns:74px 1fr;align-items:start;gap:6px;padding:22px 28px;font-size:29px;line-height:1.42}
+.rg6 .card b.n{display:inline-block;width:58px;height:58px;border-radius:50%;background:var(--teal);color:#fff;text-align:center;font:italic 700 28px/58px var(--serif)}
+.rg6 .card.w{grid-column:1/3;border:3px solid var(--teal)}
+/* tabela de relações primal-dual */
+.pdt{display:grid;grid-template-columns:1fr 92px 1fr;font-size:27px;line-height:1.3}
+.pdt>div{padding:7px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:14px}
+.pdt .th{grid-column:1/4;background:#1F3A5F;color:#fff;font:700 26px var(--sans);border-bottom:none;justify-content:space-between;border-radius:14px 14px 0 0;padding:12px 26px}
+.pdt .th .pa{font:600 22px var(--sans);color:#9FE7E0}
+.pdt .ar{justify-content:center;color:var(--teal);font:700 34px var(--serif)}
+.pdt .gh{background:#E9EEF5;font:700 23px var(--sans);color:#1F3A5F;letter-spacing:.3px}
+.pdt .r{justify-content:space-between}
+.pdt .k{display:inline-block;min-width:118px;text-align:center;border-radius:9px;padding:2px 10px;font:900 19px var(--sans);letter-spacing:.3px}
+.pdt .k.t{background:rgba(31,165,122,.16);color:#13866A}.pdt .k.a{background:rgba(233,165,55,.22);color:#A86F12}.pdt .k.e{background:rgba(229,72,77,.14);color:#C23A3F}
+.pdw{display:grid;grid-template-columns:1.62fr 1fr;gap:36px;align-items:start}
+.pdw .note{font-size:26px;line-height:1.45}
+.pdw .note .card{padding:22px 26px;margin-bottom:16px}
+/* exemplo fora da forma típica */
+.dx{display:grid;grid-template-columns:1fr 96px 1fr;align-items:stretch;gap:8px}
+.dx .card{font-size:30px;padding:20px 30px}
+.dx .ln{min-height:52px;display:flex;align-items:center}
+.dx .ln .katex{font-size:1.18em}
+.dx .tg{font:700 21px var(--sans);color:var(--amberD);margin-left:auto;padding-left:14px;white-space:nowrap}
+.dxs{display:grid;grid-template-columns:1fr 1.15fr 1fr;gap:20px;margin-top:20px}
+.dxs .card{font-size:24px;line-height:1.42;padding:18px 22px}
+.dxs .katex-display{margin:.25em 0}
+.dxs .card h4{font:700 23px var(--sans);color:#1F3A5F;margin-bottom:6px}
+.dxv{margin-top:18px;font-size:25px;line-height:1.4;padding:14px 26px!important;border:3px solid var(--teal)}
 </style>
 </head>
 <body>
@@ -1232,14 +1262,71 @@ exSlide('Exercícios: Simplex','Exercícios recomendados: método do Simplex','D
 
 /* ===== Slides do Tema 2: bloco E (dualidade), bloco F (software), teste, plano, síntese e fecho ===== */
 /* ===================== BLOCO E ===================== */
-opener('E','Dualidade','Cada problema tem um gémeo: o dual dá o valor de cada recurso.',['Construir o problema dual','Os preços-sombra','Primal e dual têm o mesmo ótimo'],'Bloco E · capítulo 8');
-slide({tone:'light',bloco:'E',nav:'O problema dual',title:'O problema dual',steps:4,
- html:()=>hd('Do primal ao dual','E')+'<div class="bd tight"><div class="dualg">'+
- '<div class="card"><div class="lbl">PRIMAL</div>'+tex('\\begin{array}{l}\\text{Max } z=\\color{#0E8797}{30}x_1+\\color{#0E8797}{20}x_2\\\\ \\text{s.a. } 3x_1+x_2\\leq\\color{#C23A3F}{150}\\\\ \\phantom{\\text{s.a. }}x_1+2x_2\\leq\\color{#C23A3F}{100}\\\\ \\phantom{\\text{s.a. }}x_1,x_2\\geq0\\end{array}',true)+'</div>'+
+opener('E','Dualidade','Cada problema tem um gémeo: o dual dá o valor de cada recurso.',['Regras de passagem ao dual','Os preços-sombra','Primal e dual têm o mesmo ótimo'],'Bloco E · capítulo 8');
+slide({tone:'light',bloco:'E',nav:'Regras de passagem ao dual',title:'Regras do dual',steps:6,
+ html:()=>hd('Regras de transformação primal ⇄ dual','E')+'<div class="bd tight"><div class="rg6">'+[
+  ['i','A cada <b>variável</b> do primal corresponde uma <b>restrição</b> no dual.'],
+  ['ii','A cada <b>restrição</b> do primal corresponde uma <b>variável</b> do dual.'],
+  ['iii','Os <b>coeficientes da função objetivo</b> do primal são os <b>termos independentes</b> das restrições do dual.'],
+  ['iv','Os <b>termos independentes</b> das restrições do primal são os <b>coeficientes da função objetivo</b> do dual.'],
+  ['v','A <b>transposta</b> da matriz das restrições do primal é a matriz das restrições do dual: $A\\to A^{\\mathsf T}$.'],
+  ['vi','Se o primal for um problema de <b>maximização</b> (minimização) na forma típica, o dual é um problema de <b>minimização</b> (maximização) na forma típica.']]
+ .map((r,i)=>'<div class="card f" data-s="'+(i+1)+'"><b class="n">'+r[0]+')</b><div>'+r[1]+'</div></div>').join('')+'</div></div>'});
+slide({tone:'light',bloco:'E',nav:'Relações primal–dual',title:'Relações primal–dual',steps:4,
+ html:()=>{
+  const row=(a,b,c)=>'<div class="r f" data-s="'+c+'">'+a+'</div><div class="ar f" data-s="'+c+'">⇄</div><div class="r f" data-s="'+c+'">'+b+'</div>';
+  const K={t:'<span class="k t">típica</span>',a:'<span class="k a">atípica</span>',e:'<span class="k e">igualdade</span>',l:'<span class="k e">livre</span>'};
+  const gh=(a,b,c)=>'<div class="gh f" data-s="'+c+'"><span>'+a+'</span></div><div class="gh f" data-s="'+c+'"></div><div class="gh f" data-s="'+c+'"><span>'+b+'</span></div>';
+  return hd('Relações primal–dual','E')+'<div class="bd tight"><div class="pdw"><div class="pdt">'+
+  '<div class="th"><span>Maximização</span><span class="pa">⟵ Passagem ao dual ⟶</span><span>Minimização</span></div>'+
+  gh('$i$-ésima restrição','$i$-ésima variável',1)+
+  row('<span>restrição $\\leq$</span>'+K.t,'<span>$y_i\\geq0$</span>'+K.t,1)+
+  row('<span>restrição $\\geq$</span>'+K.a,'<span>$y_i\\leq0$</span>'+K.a,1)+
+  row('<span>restrição $=$</span>'+K.e,'<span>$y_i$ livre $(y_i\\in\\mathbb{R})$</span>'+K.l,1)+
+  gh('$j$-ésima variável','$j$-ésima restrição',2)+
+  row('<span>$x_j\\geq0$</span>'+K.t,'<span>restrição $\\geq$</span>'+K.t,2)+
+  row('<span>$x_j\\leq0$</span>'+K.a,'<span>restrição $\\leq$</span>'+K.a,2)+
+  row('<span>$x_j$ livre</span>'+K.l,'<span>restrição $=$</span>'+K.e,2)+
+  gh('Dados do problema','',3)+
+  row('<span>matriz das restrições $A$</span>','<span>matriz das restrições $A^{\\mathsf T}$</span>',3)+
+  row('<span>coeficientes da função objetivo</span>','<span>termos independentes</span>',3)+
+  row('<span>termos independentes</span>','<span>coeficientes da função objetivo</span>',3)+
+  '</div><div class="note">'+
+  '<div class="card f" data-s="1"><b>Forma típica.</b> Num problema de Max as restrições são $\\leq$; num problema de Min são $\\geq$. Em ambos, as variáveis são $\\geq0$.</div>'+
+  '<div class="card f" data-s="2"><b>Como ler a tabela.</b> O que é típico dá algo típico; o que é atípico dá o sinal trocado; uma igualdade dá uma variável livre, e vice-versa.</div>'+
+  '<div class="card f" data-s="4" style="border:3px solid var(--teal)">A tabela lê-se nos dois sentidos: de Max para Min e de Min para Max. O dual do dual é o primal.</div>'+
+  '</div></div></div>'}});
+slide({tone:'light',bloco:'E',nav:'Exemplo 1: forma típica',title:'O problema dual',steps:4,
+ html:()=>hd('Exemplo 1: um primal na forma típica','E')+'<div class="bd tight"><div class="dualg">'+
+ '<div class="card"><div class="lbl">PRIMAL</div>'+tex('\\begin{array}{ll}\\text{Max } z=\\color{#0E8797}{30}x_1+\\color{#0E8797}{20}x_2 & \\\\ \\text{s.a. } 3x_1+x_2\\leq\\color{#C23A3F}{150} & \\color{#A86F12}{\\scriptstyle(y_1)}\\\\ \\phantom{\\text{s.a. }}x_1+2x_2\\leq\\color{#C23A3F}{100} & \\color{#A86F12}{\\scriptstyle(y_2)}\\\\ \\phantom{\\text{s.a. }}x_1,x_2\\geq0 & \\end{array}',true)+'</div>'+
  '<div class="f" data-s="1" style="text-align:center;font:700 70px var(--serif);color:var(--teal)">⇄</div>'+
- '<div class="card f" data-s="1"><div class="lbl" style="color:var(--amberD)">DUAL</div>'+tex('\\begin{array}{l}\\text{Min } w=\\color{#C23A3F}{150}y_1+\\color{#C23A3F}{100}y_2\\\\ \\text{s.a. } 3y_1+y_2\\geq\\color{#0E8797}{30}\\\\ \\phantom{\\text{s.a. }}y_1+2y_2\\geq\\color{#0E8797}{20}\\\\ \\phantom{\\text{s.a. }}y_1,y_2\\geq0\\end{array}',true)+'</div></div>'+
- '<div class="rl">'+[['Maximizar','Minimizar'],['coeficientes da função objetivo','termos independentes'],['matriz dos coeficientes $A$','matriz transposta $A^{\\mathsf T}$'],['restrições $\\leq$','restrições $\\geq$'],['$m$ restrições, $n$ variáveis','$m$ variáveis, $n$ restrições']]
-  .map((r,i)=>'<div class="f" data-s="'+Math.min(i+2,4)+'">'+rich(r[0])+'</div><div class="f" data-s="'+Math.min(i+2,4)+'">→ '+rich(r[1])+'</div>').join('')+'</div></div>'});
+ '<div class="card f" data-s="1"><div class="lbl" style="color:var(--amberD)">DUAL</div>'+tex('\\begin{array}{ll}\\text{Min } w=\\color{#C23A3F}{150}y_1+\\color{#C23A3F}{100}y_2 & \\\\ \\text{s.a. } 3y_1+y_2\\geq\\color{#0E8797}{30} & \\color{#A86F12}{\\scriptstyle(x_1)}\\\\ \\phantom{\\text{s.a. }}y_1+2y_2\\geq\\color{#0E8797}{20} & \\color{#A86F12}{\\scriptstyle(x_2)}\\\\ \\phantom{\\text{s.a. }}y_1,y_2\\geq0 & \\end{array}',true)+'</div></div>'+
+ '<div class="rl">'+[['Maximizar','Minimizar','vi'],['coeficientes da função objetivo $30,\\,20$','termos independentes','iii'],['termos independentes $150,\\,100$','coeficientes da função objetivo','iv'],['matriz $A$','matriz transposta $A^{\\mathsf T}$','v'],['$2$ restrições $\\leq$ (típicas), $2$ variáveis $\\geq0$','$2$ variáveis $\\geq0$, $2$ restrições $\\geq$','i, ii']]
+  .map((r,i)=>'<div class="f" data-s="'+Math.min(i+2,4)+'">'+rich(r[0])+'</div><div class="f" data-s="'+Math.min(i+2,4)+'">→ '+rich(r[1])+'<span class="rg">regra '+r[2]+'</span></div>').join('')+'</div></div>'});
+slide({tone:'light',bloco:'E',nav:'Exemplo 2: fora da forma típica',title:'Dual fora da forma típica',steps:4,
+ html:()=>{
+  const L=(t,tg,s)=>'<div class="ln'+(s?' f" data-s="'+s:'')+'">'+tex('\\displaystyle '+t)+(tg?'<span class="tg">'+tg+'</span>':'')+'</div>';
+  const P='\\phantom{\\text{s.a. }}';
+  return hd('Exemplo 2: um primal fora da forma típica','E')+'<div class="bd tight"><div class="dx">'+
+  '<div class="card"><div class="lbl">PRIMAL</div>'+
+   L('\\text{Max } z=2x_1+x_2')+
+   L('\\text{s.a. } x_1+x_2=5','$(y_1)$ igualdade')+
+   L(P+'x_1\\leq3','$(y_2)$ típica')+
+   L(P+'x_2\\geq3','$(y_3)$ atípica')+
+   L(P+'x_1,\\,x_2\\geq0')+'</div>'+
+  '<div class="f" data-s="1" style="display:flex;align-items:center;justify-content:center;font:700 70px var(--serif);color:var(--teal)">⇄</div>'+
+  '<div class="card f" data-s="1"><div class="lbl" style="color:var(--amberD)">DUAL</div>'+
+   L('\\text{Min } w=5y_1+3y_2+3y_3','',1)+
+   L('\\text{s.a. } y_1+y_2\\geq2','$(x_1)$',2)+
+   L(P+'y_1+y_3\\geq1','$(x_2)$',2)+
+   L(P+'y_1\\in\\mathbb{R},\\ y_2\\geq0,\\ y_3\\leq0','',3)+'</div></div>'+
+  '<div class="dxs">'+
+  '<div class="card f" data-s="1"><h4>1. Função objetivo</h4>Max passa a Min (vi). Os termos independentes $5,\\,3,\\,3$ passam a coeficientes de $w$ (iv). Há $3$ restrições, logo $3$ variáveis duais $y_1,y_2,y_3$ (ii).</div>'+
+  '<div class="card f" data-s="2"><h4>2. Restrições</h4>Uma por variável do primal (i). As colunas de $A$ passam a linhas (v):'+tex('A=\\begin{bmatrix}1&1\\\\1&0\\\\0&1\\end{bmatrix}\\ \\to\\ A^{\\mathsf T}=\\begin{bmatrix}1&1&0\\\\1&0&1\\end{bmatrix}',true)+'Como $x_1,x_2\\geq0$, são $\\geq$, com segundos membros $2$ e $1$ (iii).</div>'+
+  '<div class="card f" data-s="3"><h4>3. Sinal das variáveis duais</h4>$x_1+x_2=5$ é igualdade: $y_1$ livre. $x_1\\leq3$ é típica num Max: $y_2\\geq0$. $x_2\\geq3$ é atípica num Max: $y_3\\leq0$.</div>'+
+  '</div>'+
+  '<div class="card f dxv" data-s="4"><b>Verificação.</b> Primal: $x^*=(2,\\,3)$, $z^*=7$. Dual: $y^*=(2,\\,0,\\,-1)$, $w^*=5\\cdot2+3\\cdot0+3\\cdot(-1)=7=z^*$. Passar de $x_2\\geq3$ para $x_2\\geq4$ faz baixar $z$ uma unidade: é esse o significado de $y_3=-1$.</div>'+
+  '</div>'}});
 slide({tone:'light',bloco:'E',nav:'Os preços-sombra',title:'Preços-sombra',steps:3,
  html:()=>hd('Os preços-sombra estão no quadro ótimo','E')+'<div class="bd tight"><div class="g2" style="gap:44px;grid-template-columns:1.2fr 1fr">'+
  '<div class="qwrap" id="qps"></div>'+
@@ -1248,8 +1335,8 @@ slide({tone:'light',bloco:'E',nav:'Os preços-sombra',title:'Preços-sombra',ste
  '<div class="card f" data-s="3" style="margin-top:16px;border:3px solid var(--teal)"><b>Interpretação económica.</b> Um kg extra de matéria-prima vale $8$ € e uma hora extra vale $6$ €: é o máximo que a empresa deveria pagar por eles. Um recurso com folga tem preço-sombra $0$.</div></div></div></div>',
  onStep(s){const e=$('#qps');if(!e)return;e.innerHTML=quadroHTML(DATA.QX1[2],{sol:true});texify(e);if(s>=1)$$('tr.cz td',e).forEach((td,j)=>{if(j===4||j===5){td.style.background='rgba(229,72,77,.18)';td.style.color='var(--redD)'}})},
  enter(){this.onStep(ST.step)},init(el,o){o.onStep(0)}});
-slide({tone:'light',bloco:'E',nav:'O dual de uma minimização',title:'Dual de min',steps:2,
- html:()=>hd('O dual de um problema de minimização','E')+'<div class="bd tight"><div class="dualg">'+
+slide({tone:'light',bloco:'E',nav:'Exemplo 3: dual de min',title:'Dual de min',steps:2,
+ html:()=>hd('Exemplo 3: o dual de um problema de minimização','E')+'<div class="bd tight"><div class="dualg">'+
  '<div class="card" style="font-size:31px"><div class="lbl">PRIMAL (dieta)</div>'+tex('\\begin{array}{l}\\text{Min } z=4x_1+6x_2\\\\ \\text{s.a. } 2x_1+x_2\\geq420\\\\ \\phantom{\\text{s.a. }}x_1+2x_2\\geq500\\\\ \\phantom{\\text{s.a. }}5x_1+6x_2\\geq2100\\end{array}',true)+'</div>'+
  '<div class="f" data-s="1" style="text-align:center;font:700 70px var(--serif);color:var(--teal)">⇄</div>'+
  '<div class="card f" data-s="1" style="font-size:31px"><div class="lbl" style="color:var(--amberD)">DUAL</div>'+tex('\\begin{array}{l}\\text{Max } w=420y_1+500y_2+2100y_3\\\\ \\text{s.a. } 2y_1+y_2+5y_3\\leq4\\\\ \\phantom{\\text{s.a. }}y_1+2y_2+6y_3\\leq6\\end{array}',true)+'</div></div>'+
@@ -1312,7 +1399,7 @@ slide({tone:'light',bloco:'F',nav:'Síntese',title:'Síntese',steps:6,
   ['B','Gráfico','O ótimo, se existir, está num vértice do CSA. Desloca-se a reta de isolucro.'],
   ['C','Forma standard','Folga $F_i$ em $\\leq$, excesso $E_i$ em $\\geq$. No máximo $C^n_m$ soluções básicas.'],
   ['D','Simplex','Entra o $c_j-z_j$ mais positivo (max) ou mais negativo (min); sai o menor rácio. M grande para as artificiais.'],
-  ['E','Dualidade','Max ↔ Min, $A\\to A^{\\mathsf T}$, $b\\leftrightarrow c$. $w^*=z^*$; preços-sombra no quadro ótimo.'],
+  ['E','Dualidade','Max ↔ Min, $A\\to A^{\\mathsf T}$, $b\\leftrightarrow c$; restrição $=$ dá variável livre, atípica dá sinal trocado. $w^*=z^*$.'],
   ['F','Software','Solver (LP Simplex) e linprog: confirmar e ler folgas e preços-sombra.']
  ].map((r,i)=>'<div class="f card" data-s="'+(i+1)+'" style="display:grid;grid-template-columns:70px 260px 1fr;align-items:center;padding:16px 30px"><b style="font:600 44px var(--serif);color:var(--acc)">'+r[0]+'</b><b style="font:700 29px var(--sans)">'+r[1]+'</b><span style="font-size:29px">'+rich(r[2])+'</span></div>').join('')+'</div></div>'});
 /* ---- fecho ---- */
